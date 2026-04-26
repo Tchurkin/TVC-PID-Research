@@ -1,0 +1,2 @@
+mismatch_threshold,cp_ahead_share_for_aero_model,recommendation,mean_cp_ahead_share,worst_cp_ahead_share,mean_static_margin_cal,pct_cases_cp_ahead_over_alert
+0.05,0.375,MODEL_CP_SHIFT_WHEN_CP_AHEAD_SHARE_EXCEEDS_THRESHOLD,0.744010534415332,0.993503248375812,-0.329269223007895,0.915873015873016

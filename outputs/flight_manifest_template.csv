@@ -1,0 +1,16 @@
+flight_id,regime,target_rate_min_deg_s,target_rate_max_deg_s,wind_est_m_s,mass_kg,cg_from_nose_m,notes
+1,LOW_RATE,0,80,NaN,NaN,NaN,assign on launch day
+2,LOW_RATE,0,80,NaN,NaN,NaN,assign on launch day
+3,LOW_RATE,0,80,NaN,NaN,NaN,assign on launch day
+4,LOW_RATE,0,80,NaN,NaN,NaN,assign on launch day
+5,LOW_RATE,0,80,NaN,NaN,NaN,assign on launch day
+6,MID_RATE,80,180,NaN,NaN,NaN,assign on launch day
+7,MID_RATE,80,180,NaN,NaN,NaN,assign on launch day
+8,MID_RATE,80,180,NaN,NaN,NaN,assign on launch day
+9,MID_RATE,80,180,NaN,NaN,NaN,assign on launch day
+10,MID_RATE,80,180,NaN,NaN,NaN,assign on launch day
+11,HIGH_RATE,180,320,NaN,NaN,NaN,assign on launch day
+12,HIGH_RATE,180,320,NaN,NaN,NaN,assign on launch day
+13,HIGH_RATE,180,320,NaN,NaN,NaN,assign on launch day
+14,HIGH_RATE,180,320,NaN,NaN,NaN,assign on launch day
+15,HIGH_RATE,180,320,NaN,NaN,NaN,assign on launch day
