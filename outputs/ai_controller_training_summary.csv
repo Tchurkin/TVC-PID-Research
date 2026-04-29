@@ -1,0 +1,2 @@
+train_rows,validation_rows,validation_rmse_angle_deg,training_method,rl_toolbox_available,ai_rl_alpha,ai_rl_gamma,ai_rl_episodes,ai_actions,ai_state_bins
+115,29,79.9671234533832,Q_LEARNING_CUSTOM_RL,0,0.2,0.7,120,11,144

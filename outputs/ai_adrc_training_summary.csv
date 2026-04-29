@@ -1,0 +1,2 @@
+train_rows,validation_rows,validation_rmse_rad_s,wo_min_rad_s,wo_max_rad_s,base_adrc_wo_rad_s
+115,29,0.549504893772031,8,18,12
