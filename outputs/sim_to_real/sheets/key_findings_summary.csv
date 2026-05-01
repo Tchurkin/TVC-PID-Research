@@ -1,0 +1,10 @@
+metric,value
+PID theta RMSE (perfect),2.319
+ADRC theta RMSE (perfect),52.484
+PID theta RMSE (realistic),65.880
+ADRC theta RMSE (realistic),62.075
+ADRC/PID RMSE ratio (realistic),0.94 x
+LESO settle time (s),0.576
+PID stable sweep points,12
+ADRC stable sweep points,13
+Top factor for ADRC (explicit sweep),aero_scale

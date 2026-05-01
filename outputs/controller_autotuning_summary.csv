@@ -1,2 +1,0 @@
-pid_kp,pid_ki,pid_kd,pid_objective,adrc_wc,adrc_wo,adrc_ki_scale,adrc_objective,tuning_cases_used,tuning_rate_bins_used
-5.5,0,0.9,214.011138496002,6,16,0.02,282.67159447005,12,3

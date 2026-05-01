@@ -1,4 +1,0 @@
-rate_center_deg_s,dominant_limitation_regime,cp_ahead_share_truth,stability_mismatch_share,required_aero_model,required_delay_model,actionable_recommendation
-40,DELAY_LIMITED,0,0,FIXED_CP_ACCEPTABLE,RATE_COUPLED_DELAY_MODEL_REQUIRED,Model actuator and processing delay first; include case-specific CP-CG geometry whenever CP-ahead exposure or stability mismatch exceeds threshold.
-130,DELAY_LIMITED,0,0,FIXED_CP_ACCEPTABLE,FIRST_ORDER_DELAY_MODEL_ACCEPTABLE,Model actuator and processing delay first; include case-specific CP-CG geometry whenever CP-ahead exposure or stability mismatch exceeds threshold.
-250,MIXED_INTERACTION_LIMITED,0,0,FIXED_CP_ACCEPTABLE,FIRST_ORDER_DELAY_MODEL_ACCEPTABLE,Model actuator and processing delay first; include case-specific CP-CG geometry whenever CP-ahead exposure or stability mismatch exceeds threshold.

@@ -1,0 +1,3 @@
+scenario,residual_rms,high_freq_energy_ratio,estimated_lag_ms,post_burnout_bias,post_burnout_bias_ratio,dominant_signature
+actuator_lag_dominant,5.42766771903054,0.00368012974466993,-114,-4.62446741174997,0.851852021478244,aero_shift_dominant
+aero_shift_dominant,8.19043277198859,0.00268822601808859,-96,-3.31520620859711,0.404687122029181,lag_dominant

@@ -1,0 +1,11 @@
+controller,ablation,stability_boundary_level
+PID,A_inertia_error,NaN
+PID,B_aero_error,1
+PID,C_latency_error,1
+PID,D_thrust_misalignment,NaN
+PID,E_observer_bandwidth,NaN
+ADRC,A_inertia_error,1
+ADRC,B_aero_error,1
+ADRC,C_latency_error,1
+ADRC,D_thrust_misalignment,1
+ADRC,E_observer_bandwidth,1
