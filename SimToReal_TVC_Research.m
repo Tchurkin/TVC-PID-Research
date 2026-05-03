@@ -239,6 +239,8 @@ writetable(rank_tbl, fullfile(out_dir_sheets, 'mismatch_factor_ranking.csv'));
 writetable(atlas.samples_tbl, fullfile(out_dir_sheets, 'disturbance_atlas_samples.csv'));
 writetable(atlas.global_tbl, fullfile(out_dir_sheets, 'disturbance_atlas_global_importance.csv'));
 writetable(atlas.local_tbl, fullfile(out_dir_sheets, 'disturbance_atlas_local_importance.csv'));
+writetable(atlas.pc1_loadings_tbl, fullfile(out_dir_sheets, 'pca_pc1_loadings.csv'));
+writetable(atlas.pc1_bins_tbl, fullfile(out_dir_sheets, 'pca_stability_bins.csv'));
 writetable(explicit.sweep_tbl, fullfile(out_dir_sheets, 'explicit_factor_sweeps.csv'));
 writetable(explicit.rank_tbl, fullfile(out_dir_sheets, 'explicit_factor_ranking.csv'));
 writetable(norm_imp_tbl, fullfile(out_dir_sheets, 'normalized_factor_importance.csv'));
@@ -269,6 +271,8 @@ fprintf('  - %s\n', fullfile(out_dir_sheets, 'mismatch_factor_ranking.csv'));
 fprintf('  - %s\n', fullfile(out_dir_sheets, 'disturbance_atlas_samples.csv'));
 fprintf('  - %s\n', fullfile(out_dir_sheets, 'disturbance_atlas_global_importance.csv'));
 fprintf('  - %s\n', fullfile(out_dir_sheets, 'disturbance_atlas_local_importance.csv'));
+fprintf('  - %s\n', fullfile(out_dir_sheets, 'pca_pc1_loadings.csv'));
+fprintf('  - %s\n', fullfile(out_dir_sheets, 'pca_stability_bins.csv'));
 fprintf('  - %s\n', fullfile(out_dir_sheets, 'explicit_factor_sweeps.csv'));
 fprintf('  - %s\n', fullfile(out_dir_sheets, 'explicit_factor_ranking.csv'));
 fprintf('  - %s\n', fullfile(out_dir_sheets, 'normalized_factor_importance.csv'));
@@ -278,6 +282,7 @@ fprintf('  - %s\n', fullfile(out_dir_graphs, 'spaghetti_pitch_theta.png'));
 fprintf('  - %s\n', fullfile(out_dir_graphs, 'side_by_side_conditions.png'));
 fprintf('  - %s\n', fullfile(out_dir_graphs, 'mismatch_ablation_heatmap.png'));
 fprintf('  - %s\n', fullfile(out_dir_graphs, 'disturbance_importance_atlas.png'));
+fprintf('  - %s\n', fullfile(out_dir_graphs, 'pca_stability_map.png'));
 fprintf('  - %s\n', fullfile(out_dir_graphs, 'explicit_factor_sweeps.png'));
 fprintf('  - %s\n', fullfile(out_dir_graphs, 'normalized_factor_importance.png'));
 fprintf('  - %s\n', fullfile(out_dir_graphs, 'gemini_gap_heatmap.png'));
@@ -1109,10 +1114,22 @@ function atlas = build_disturbance_importance_atlas(cfg_real, pid_kp, pid_kd, ou
         'VariableNames', {'factor', 'importance_pid', 'importance_adrc'});
 
     % 2D manifold via SVD-based PCA.
-    [U, S, ~] = svd(Xz, 'econ');
+    [U, S, V] = svd(Xz, 'econ');
     score = U * S;
     pc1 = score(:, 1);
     pc2 = score(:, 2);
+
+    % Make PC1 orientation consistent for interpretation (positive aero loading).
+    if V(1, 1) < 0
+        pc1 = -pc1;
+        V(:, 1) = -V(:, 1);
+    end
+
+    pc1_loadings_tbl = table(string(factor_names(:)), V(:, 1), abs(V(:, 1)), ...
+        'VariableNames', {'factor', 'pc1_loading', 'abs_pc1_loading'});
+    pc1_loadings_tbl = sortrows(pc1_loadings_tbl, 'abs_pc1_loading', 'descend');
+    pc1_loadings_tbl.rank = (1:height(pc1_loadings_tbl))';
+    pc1_loadings_tbl = movevars(pc1_loadings_tbl, 'rank', 'Before', 'factor');
 
     % Local importance per cell in manifold.
     nx = 7;
@@ -1174,11 +1191,14 @@ function atlas = build_disturbance_importance_atlas(cfg_real, pid_kp, pid_kd, ou
         'stable_pid', 'stable_adrc', 'dominant_factor_pid', 'dominant_factor_adrc'});
 
     make_disturbance_atlas_figure(samples_tbl, global_tbl, factor_names, out_dir);
+    pc1_bins_tbl = make_pca_stability_map_figure(samples_tbl, pc1_loadings_tbl, out_dir);
 
     atlas = struct();
     atlas.samples_tbl = samples_tbl;
     atlas.global_tbl = global_tbl;
     atlas.local_tbl = local_tbl;
+    atlas.pc1_loadings_tbl = pc1_loadings_tbl;
+    atlas.pc1_bins_tbl = pc1_bins_tbl;
 end
 
 function xz = zscore_cols(x)
@@ -1246,6 +1266,88 @@ function make_disturbance_atlas_figure(samples_tbl, global_tbl, factor_names, ou
     sgtitle('High-D Disturbance Importance Atlas');
     saveas(f, fullfile(out_dir, 'disturbance_importance_atlas.png'));
     close(f);
+end
+
+function pc1_bins_tbl = make_pca_stability_map_figure(samples_tbl, pc1_loadings_tbl, out_dir)
+    % Build a single visual "proof" figure: PC1 stress axis vs stability/RMSE.
+    pc1 = samples_tbl.pc1;
+    rmse = samples_tbl.delta_rmse_adrc;
+    stab = double(samples_tbl.stable_adrc);
+
+    nb = 12;
+    edges = linspace(min(pc1), max(pc1), nb + 1);
+    c = 0.5 * (edges(1:end-1) + edges(2:end));
+    sf = nan(nb, 1);
+    rmean = nan(nb, 1);
+    ncount = zeros(nb, 1);
+
+    for i = 1:nb
+        idx = pc1 >= edges(i) & pc1 < edges(i + 1);
+        if i == nb
+            idx = pc1 >= edges(i) & pc1 <= edges(i + 1);
+        end
+        ncount(i) = sum(idx);
+        if any(idx)
+            sf(i) = mean(stab(idx));
+            rmean(i) = mean(rmse(idx));
+        end
+    end
+
+    % Estimate a "cliff" as the first bin where stable fraction drops below 0.5.
+    cliff_idx = find(sf < 0.5, 1, 'first');
+    if isempty(cliff_idx)
+        cliff_x = NaN;
+    else
+        cliff_x = c(cliff_idx);
+    end
+
+    f = figure('Position', [90, 90, 1380, 560], 'ToolBar', 'none');
+    tiledlayout(1, 3, 'Padding', 'compact', 'TileSpacing', 'compact');
+
+    nexttile;
+    scatter(pc1, rmse, 30, stab, 'filled'); hold on;
+    colormap([0.85 0.2 0.2; 0.1 0.55 0.2]);
+    cb = colorbar;
+    cb.Ticks = [0, 1];
+    cb.TickLabels = {'unstable', 'stable'};
+    xlabel('PC1 (total system stress)');
+    ylabel('ADRC \DeltaRMSE vs ideal (deg)');
+    title('PCA Stability Map (samples)');
+    grid on;
+    if ~isnan(cliff_x)
+        xline(cliff_x, '--k', 'Predictiveness cliff');
+    end
+
+    nexttile;
+    yyaxis left;
+    plot(c, sf, '-o', 'LineWidth', 1.8, 'Color', [0.1 0.55 0.2]); hold on;
+    yline(0.5, ':k', '50% stable');
+    ylabel('Stable fraction (ADRC)');
+    yyaxis right;
+    plot(c, rmean, '-s', 'LineWidth', 1.6, 'Color', [0.85 0.33 0.10]);
+    ylabel('Mean \DeltaRMSE (deg)');
+    xlabel('PC1 (total system stress)');
+    title('Boundary Trend Along PC1');
+    grid on;
+    if ~isnan(cliff_x)
+        xline(cliff_x, '--k');
+    end
+
+    nexttile;
+    top = pc1_loadings_tbl(1:min(6, height(pc1_loadings_tbl)), :);
+    b = barh(categorical(top.factor), top.abs_pc1_loading);
+    b.FaceColor = [0.00 0.45 0.74];
+    xlabel('|PC1 loading|');
+    title('Dominant PC1 Contributors');
+    grid on;
+
+    sgtitle('Single-Figure Proof: Stress-Axis Stability Boundary');
+    saveas(f, fullfile(out_dir, 'pca_stability_map.png'));
+    close(f);
+
+    pc1_bins_tbl = table(c(:), sf(:), rmean(:), ncount(:), ...
+        'VariableNames', {'pc1_center', 'stable_fraction_adrc', 'mean_delta_rmse_adrc', 'sample_count'});
+    pc1_bins_tbl.predictiveness_cliff_pc1 = repmat(cliff_x, height(pc1_bins_tbl), 1);
 end
 
 function explicit = build_explicit_axis_sweeps(cfg_real, pid_kp, pid_kd, profile, out_dir)
