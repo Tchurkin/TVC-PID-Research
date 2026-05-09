@@ -1,44 +1,145 @@
-# Current Status Guideline
+# Experimental Design Procedure (Next 3-4 Months)
 
-## Where we are now
-- Sim framework is operational and reproducible via `matlab -batch "SimToReal_TVC_Research"`.
-- Outputs are organized into:
-  - `outputs/sim_to_real/graphs`
-  - `outputs/sim_to_real/sheets`
-- Placeholder flight-data folder is created and populated:
-  - `real_flight_data_hypothetical`
+## Objective
+Build a defensible, data-first S2R mismatch decomposition study that answers:
 
-## Current evidence snapshot
-- Simulation side-by-side (realistic condition):
-  - PID RMSE: 61.076 deg
-  - ADRC RMSE: 4.321 deg
-  - PID stable: false
-  - ADRC stable: true
-- LESO settle time after disturbance step: 0.670 s
-- Robustness sweep points stable:
-  - PID: 0 points
-  - ADRC: 13 points
-- Observer bandwidth tradeoff currently suggests a practical "golden" region near omega_o ~ 25 (based on RMSE + THD score).
+Which physical effects dominate sim-to-real breakdown in low-cost TVC rockets, and what minimum model fidelity is required before simulation remains decision-useful for controller design?
 
-## Hypothetical dataset snapshot (not real validation)
-- 15 synthetic launches total:
-  - PID flights: 8
-  - ADRC flights: 7
-- Synthetic manifest means:
-  - PID theta RMSE mean: 47.300 deg
-  - ADRC theta RMSE mean: 7.042 deg
-  - PID max abs theta mean: 62.223 deg
-  - ADRC max abs theta mean: 10.783 deg
-  - PID touchdown success: 37.5%
-  - ADRC touchdown success: 100%
+## Ground Rules
+- Use measured telemetry whenever available.
+- Do not change metrics mid-study.
+- Keep all claims traceable to generated CSV/PNG artifacts.
+- Treat controller comparison as secondary; decomposition is primary.
 
-## What this means
-- The simulation story is strong and internally consistent.
-- The paper can be drafted now as a provisional report.
-- Final sim-to-real validation remains blocked on replacing synthetic placeholder logs with measured launch data.
+## Phase 0: Freeze Analysis Definitions (Week 1)
+### Deliverables
+- Final metric definitions:
+  - residual RMSE,
+  - max residual,
+  - trend correlation,
+  - stability agreement flag.
+- Final mismatch source list:
+  - actuator delay,
+  - servo slew,
+  - deadband,
+  - sensor noise,
+  - inertia mismatch,
+  - aero coefficient mismatch,
+  - thrust misalignment,
+  - wind torque disturbance.
 
-## Immediate next steps
-1. Replace `real_flight_data_hypothetical/*.csv` with measured logs in same column format.
-2. Add calibration overlay figures (sim vs measured theta(t), q(t), delta(t)) for PID flights first.
-3. Recompute comparison tables and update draft paper sections marked "provisional".
-4. Freeze final paper figures and methods once real-data overlays are stable.
+### Procedure
+1. Run pipeline once on placeholder telemetry to confirm all outputs are generated.
+2. Lock output schema names (CSV columns and figure names).
+3. Do not rename artifacts after this phase.
+
+## Phase 1: Actuator + Motor System Identification (Weeks 2-4)
+### 1A. Gimbal bench test
+1. Collect commanded and measured gimbal angle data at multiple amplitudes and frequencies.
+2. Fit $\omega_n$, $\zeta$, and delay $\tau$ using `tools/process_gimbal_bench_test.m`.
+3. Save one CSV per bench session plus a pooled fit summary.
+
+### 1B. Motor characterization
+1. Import motor thrust curves (.ENG/.RSE) with `tools/import_motor_thrust_curve.m`.
+2. Generate Monte Carlo thrust variants ($\pm 5\%$ baseline).
+3. Update config thrust priors with measured lot data if available.
+
+### Exit criteria
+- Actuator fit RMSE stable across sessions.
+- Motor variability priors documented and versioned.
+
+## Phase 2: Telemetry Quality and Replay Readiness (Weeks 5-6)
+### Deliverables
+- Clean flight telemetry set with consistent schema.
+- Event markers per launch (burnout, disturbance, apogee).
+
+### Procedure
+1. Validate timebase monotonicity and unit consistency.
+2. Flag and document missing segments and clipping.
+3. Partition data into:
+   - calibration flights,
+   - validation flights.
+
+### Exit criteria
+- At least 10 usable flights with event markers.
+- Replay overlays produce physically plausible trends.
+
+## Phase 3: Decomposition Campaign (Weeks 7-10)
+### Core run plan
+1. For each launch, run baseline replay.
+2. Run one-factor-at-a-time Monte Carlo decomposition.
+3. Export:
+   - `decomposition_samples.csv`,
+   - `decomposition_summary.csv`,
+   - `sensitivity_ranking.csv`.
+
+### Statistical requirements
+- Use fixed RNG seed for reproducibility.
+- Minimum Monte Carlo count per source:
+  - development: 120,
+  - final study: 1000.
+
+### Exit criteria
+- Source ranking is stable across repeated seeds.
+- Top mismatch drivers consistent across calibration and validation sets.
+
+## Phase 4: Fidelity Threshold and Stress-Map Analysis (Weeks 11-12)
+### Deliverables
+- PCA stress map of mismatch space.
+- Per-source fidelity thresholds where agreement remains >=80%.
+
+### Procedure
+1. Compute agreement/divergence labels from locked criteria.
+2. Generate `stress_map_points.csv` and `fidelity_thresholds.csv`.
+3. Verify thresholds on holdout flights.
+
+### Exit criteria
+- Threshold trends are not dominated by one outlier launch.
+- Agreement regions are interpretable in physical terms.
+
+## Phase 5: Controller Sensitivity as Secondary Result (Weeks 13-14)
+### Procedure
+1. Repeat decomposition for PID and ADRC under matched conditions.
+2. Report which mismatch classes ADRC attenuates relative to PID.
+3. Avoid global superiority wording.
+
+### Acceptable claim style
+- "ADRC reduced sensitivity to [source] in this platform/data regime."
+- "No universal superiority claim beyond tested envelope."
+
+## Phase 6: Paper Assembly and Evidence Freeze (Weeks 15-16)
+### Required figures
+1. Replay overlays (real vs sim).
+2. Error decomposition by source.
+3. Sensitivity ranking.
+4. PCA stress map (agreement/divergence).
+5. Fidelity thresholds.
+
+### Required tables
+1. Replay metrics by launch.
+2. Source decomposition summary.
+3. Threshold summary.
+4. Actuator SysID results.
+
+### Final checks
+- Every claim cites a figure/table generated by the pipeline.
+- No claim uses placeholder telemetry as final evidence.
+- Methods section includes actuator transfer function and mismatch definitions.
+
+## Weekly Operating Checklist
+1. Run `matlab -batch "main_sim_to_real"`.
+2. Archive output folder with date stamp.
+3. Log any config changes (why, what changed, expected effect).
+4. Re-run one prior baseline seed to detect drift.
+5. Update a one-page lab note with findings and failed hypotheses.
+
+## Stop Conditions (Do Not Proceed to Writing Claims)
+- Telemetry quality checks not passed.
+- Metrics changed mid-campaign without backfilling old runs.
+- Thresholds not reproducible across seeds or holdout flights.
+
+## Success Criteria
+- Dominant mismatch sources are quantitatively identified.
+- A fidelity threshold is reported per key source.
+- Simulation decision-usefulness region is explicitly mapped.
+- Claims remain narrow, traceable, and experimentally supported.

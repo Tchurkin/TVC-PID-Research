@@ -1,10 +1,16 @@
 metric,value
 PID theta RMSE (perfect),2.319
 ADRC theta RMSE (perfect),52.484
-PID theta RMSE (realistic),65.880
-ADRC theta RMSE (realistic),62.075
+PID theta RMSE (realistic),65.975
+ADRC theta RMSE (realistic),62.072
 ADRC/PID RMSE ratio (realistic),0.94 x
-LESO settle time (s),0.576
+LESO settle time (s),0.588
 PID stable sweep points,12
 ADRC stable sweep points,13
-Top factor for ADRC (explicit sweep),aero_scale
+Switch map points: switch to ADRC,30
+Switch map points: keep PID,25
+Switch map points: hardware redesign first,0
+Switch rule: min stable gain,0.20
+Switch rule: min RMSE ratio,1.05
+Switch rule: max hardware stress,0.85
+Hardware omega ceiling alpha=4 (rad/s),8.66
