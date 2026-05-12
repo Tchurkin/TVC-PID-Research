@@ -1,0 +1,7 @@
+wind_case,controller,crosstrack_rms_m,peak_crosstrack_m,accel_var,pct_in_5m_band
+low,L1,7.2357,13.0040,1.917200,35.78
+low,ADRC,0.8672,2.9619,0.163944,100.00
+medium,L1,9.3601,17.5187,3.110538,31.79
+medium,ADRC,2.7445,6.2026,1.399771,90.75
+high,L1,21.3957,43.1243,10.090983,11.03
+high,ADRC,4.4725,16.1617,1.859513,76.46

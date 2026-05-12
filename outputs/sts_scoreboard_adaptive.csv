@@ -1,0 +1,2 @@
+overall_score,readiness,B_score,adaptive_score,B_peak_ratio_vs_pid_highwind,B_rms_ratio_vs_pid_highwind,B_fail_reduction_vs_pid_highwind,B_in5_gain_vs_pid_highwind,adaptive_recovery_ratio,adaptive_recovery_time_gain,adaptive_nominal_ratio,adaptive_sysid_quality
+76.7418,FINALIST_POSSIBLE,95.5675,48.5032,0.088700,0.029400,1.000000,87.729067,0.000000,0.486942,0.953167,0.979871

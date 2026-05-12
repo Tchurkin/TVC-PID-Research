@@ -1,0 +1,7 @@
+fault_time_s,fault_label,adaptation,max_pitch_dev_deg,detect_latency_s,settled_rms_deg
+1.0,T+1s,NO_ADAPT,80.8510,NaN,58.6105
+1.0,T+1s,ADAPT,4.5831,0.0000,3.6674
+3.0,T+3s,NO_ADAPT,65.9826,NaN,43.7556
+3.0,T+3s,ADAPT,4.4932,0.8300,3.7561
+5.0,T+5s,NO_ADAPT,59.8681,NaN,31.0556
+5.0,T+5s,ADAPT,3.9335,0.7120,1.4942

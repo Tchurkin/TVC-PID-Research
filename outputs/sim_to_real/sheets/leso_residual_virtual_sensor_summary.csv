@@ -1,3 +1,0 @@
-recommendation,n_cases,mean_burst_snr,median_residual_lead_ms,percent_cases_residual_leads,median_aero_transition_delay_ms
-SwitchToADRC,30,37.4284464014056,110,80,-26
-KeepPID,25,45.636319353969,142,60,-38

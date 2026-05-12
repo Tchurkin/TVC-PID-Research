@@ -1,0 +1,2 @@
+overall_score,readiness,B_score,C_score,B_peak_ratio_vs_pid_highwind,B_rms_ratio_vs_pid_highwind,B_fail_reduction_vs_pid_highwind,B_in5_gain_vs_pid_highwind,C_max_peak_adapt_deg,C_mean_latency_s,C_pass_fraction
+91.6354,FINALIST_STRONG,94.8385,85.6867,0.102633,0.036200,1.000000,81.749467,4.583100,0.514000,0.333333

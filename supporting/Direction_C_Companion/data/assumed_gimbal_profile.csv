@@ -1,0 +1,2 @@
+wn_rad_s,zeta,delay_s,fit_rmse_rad,dt_s,positive_slew_deg_s,negative_slew_deg_s,max_abs_slew_deg_s,onset_delay_s,rise_time_10_90_s,deadband_deg,hysteresis_deg
+36.0,0.82,0.032,0.0,0.01,92.0,88.0,92.0,0.018,0.085,0.10,0.18

@@ -1,0 +1,9 @@
+param,value
+score,0.643385
+omega_c,0.5000
+omega_o,2.3000
+k_blend,0.8000
+du_max,35.0000
+lambda_aw,12.0000
+k_aw,8.0000
+k_sat_obs,0.0000

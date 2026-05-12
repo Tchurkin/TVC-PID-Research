@@ -1,0 +1,11 @@
+Direction B STS-Gold Summary
+Council score: 89.59
+Verdict: B_IS_FINALIST_STRONG
+Main decision: MAKE_B_PRIMARY_DIRECTION
+Overall STS score: 91.64 (FINALIST_STRONG)
+B score: 94.84 | C score: 85.69
+High-wind peak ratio ACA/PID: 0.103
+High-wind fail reduction ACA vs PID: 1.000
+High-wind peak ratio ACA/ADRC: 1.001
+High-wind fail reduction ACA vs ADRC: 0.000
+Extreme (20 m/s): ACA peak=60.2 m  PID peak=769.9 m  (ACA still 12.8x better; both fail guardrail)

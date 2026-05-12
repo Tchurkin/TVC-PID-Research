@@ -1,6 +1,0 @@
-ablation,top1_agreement_rate,mean_rank_spearman_rho,real_best_fraction_pid,real_best_fraction_adrc,real_best_fraction_mpc
-A_inertia_error,1,1,0,1,0
-B_aero_error,0.909090909090909,0.636363636363636,0.0909090909090909,0.909090909090909,0
-C_latency_error,1,0.772727272727273,0,1,0
-D_thrust_misalignment,1,0.727272727272727,0,1,0
-E_observer_bandwidth,1,1,0,1,0
