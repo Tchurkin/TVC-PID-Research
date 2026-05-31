@@ -1,0 +1,20 @@
+# Python virtual env
+.venv/
+__pycache__/
+*.pyc
+
+# MATLAB autosave / backup
+*.asv
+*.m~
+slprj/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Editor
+.vscode/
+*.swp
+
+# MATLAB Drive sync markers (keep tracked-existing ones, ignore new ones outside synced trees)
+# (leave .MATLABDriveTag tracked where already present)

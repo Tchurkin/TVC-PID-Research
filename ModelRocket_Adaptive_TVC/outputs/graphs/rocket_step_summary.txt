@@ -1,0 +1,6 @@
+metric,fixed_lqr,gain_sched_lqr,adaptive_keff_lqr
+pre_fault_rms,0.000808,0.000771,0.001287
+post_fault_rms,0.003453,0.002957,0.002433
+recovery_time_s,0.000000,0.000000,0.034750
+adaptive_improvement_vs_fixed_pct,29.560757,,
+adaptive_improvement_vs_sched_pct,17.731229,,

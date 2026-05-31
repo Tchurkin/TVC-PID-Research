@@ -1,0 +1,2 @@
+overall_score,readiness,nominal_score,resilience_score
+11.1836,NEEDS_MORE_REFINEMENT,12.4815,10.1217

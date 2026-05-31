@@ -1,0 +1,2 @@
+tag,gate_disturb_gain,conf_min,conf_resid_gain,conf_floor_blend,safety_cmd_slew_frac,theta_guard_rad_deg,pass_frac,rms_post_deg,peak_post_deg,false_sat_frac,late_det_frac,conf_mean_post,shield_frac_post,score,viable
+best,0,0.7,1,0.8,8,80,1,4.42610083055006,10.8177767523966,0.15,0,0.715196612344944,0.00686927560366361,201.67520348221,1

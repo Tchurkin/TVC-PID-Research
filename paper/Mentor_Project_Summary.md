@@ -1,117 +1,59 @@
-Project Summary: Failure-Aware TVC Control for Small-Scale Rockets
+Project Summary: A Bench-Calibrated Preflight Tool for Amateur TVC Rockets
 
-Student Project Overview
-This project investigates how to make small thrust-vector-controlled (TVC) rockets safer and more robust by translating modern fail-aware control methods from large aerospace systems to low-cost model-rocket hardware.
+What this project is
+This project builds and validates a free, open-source preflight workflow for amateur thrust-vector-control rockets. The workflow replaces the current hobbyist practice of "copy a published PID, fly, crash, retune, repeat" with a quantitative pipeline: bench-measure the real actuator, propagate that measurement through a realistic flight model, classify the rocket as GO / MARGINAL / NOGO, and recommend starting PD gains.
 
-The central idea is to adapt to common degradation modes in real time, such as:
-Loss of effective control authority.
-Actuator rate/position limitations under load, voltage sag, heating, or wear.
-Measurement artifacts from vibration, flex, backlash, or sensor noise that the controller’s safety and adaptation logic must tolerate.
+Why it matters
+The amateur TVC community is growing fast, driven by propulsive-landing demonstrations (BPS.space and similar) and educational kits. These rockets are intentionally statically unstable and live close to actuator limits, which is exactly where the gap between the assumed servo and the real one decides whether the rocket stabilizes or falls over. A low-cost preflight method for measuring that gap and using it before flight is directly useful, safety-relevant, and currently missing from the community's open-source toolchain.
 
-Instead of treating a small TVC rocket as a simple PID-tuning problem, the project aims to build a reproducible control framework that can recognize degraded behavior and adapt safely within measured operating limits.
+Core contribution
+The contribution is not a new control law. It is a measurement-to-decision pipeline that does not currently exist in the amateur TVC space:
+1. Bench-measures the actuator and linkage using analog-feedback servo data.
+2. Carries the measurements into a realistic flight model with documented sensor and actuator nonidealities.
+3. Classifies the rocket as GO, MARGINAL, or NOGO using an empirically calibrated phase diagram.
+4. Recommends starting PD gains tuned on the realistic plant rather than on an over-clean basic sim.
+5. Reports which parts of the sim-to-real reality gap actually matter in each operating regime, so the model does not have to be everything-to-everyone.
 
-The current research direction is to measure real actuator-slew degradation and control-effectiveness variation, determine whether those uncertainties materially shrink the stable or acceptable operating region of fixed controllers, and compare those results against a safety-bounded adaptive controller.
+What is already built (simulation side)
+1. Realistic MATLAB TVC simulator with sensor noise/bias/latency, servo deadband/backlash, gusts, and effectiveness drift.
+2. Calibrated regime classifier (GO precision 91%, NOGO precision 100% on held-out random configs).
+3. Empirical scaling law: required loaded slew rate grows approximately as the square of the airframe instability, matching first-principles inverted-pendulum theory in this regime.
+4. `tools/bench_to_autotune.m` bridge that turns a bench CSV into a GO/MARGINAL/NOGO verdict plus tuned PD gains.
+5. Leave-one-out sim-to-real ablation showing which factor dominates in which regime (sensor noise and effectiveness drift at the boundary; actuator nonlinearity in the actuator-limited regime).
+6. "Basic sim vs better sim" comparison showing that tuning a controller on a clean sim and deploying it on the realistic plant loses meaningful success rate (LOW_DEMAND 0.75 vs 1.00; BOUNDARY 0.58 vs 0.83).
+7. Audit of three publicly deployed open-source TVC firmwares showing their shipped PID gains fail on statically unstable plants.
 
-Core Research Question
-Can a small-rocket TVC controller detect degradation mode online and adapt safely before instability occurs, while remaining practical enough for real amateur and educational use?
+Framing
+This is best understood as an engineering tool for an underserved community, not as a discovery paper. The novelty is the pipeline and the empirical calibration, not new control theory.
 
-Why This Project Matters
-Large launch vehicles already use sophisticated robustness, saturation handling, and safety logic, but publicly documented operational systems appear to rely much more on conservative, certifiable control architectures than on openly described online adaptive primary flight control. At the same time, those ideas are rarely translated into small-scale rocketry in a way that is:
-1. Hardware-validated.
-2. Reproducible.
-3. Accessible to non-experts.
+Current simulation takeaways
+1. The regime classifier itself is strong; the original LQR gain recipe needed to be replaced by measured-plant PD tuning, and that replacement is in the workflow.
+2. The required actuator slew rises roughly quadratically with airframe instability, which is the headline structural finding.
+3. Actuator nonlinearity is the main isolated realism factor that hurts performance in actuator-limited regimes; sensor noise and effectiveness drift dominate at the boundary.
+4. Open-source hobby firmware gains fail predictably on statically unstable airframes; the validator's value in those cases is gain replacement, not GO/NOGO triage.
+5. Additional MATLAB-only novelty hunting is unlikely to be the strongest remaining contribution. Real hardware measurements and a held-out launch comparison are the important next evidence sources.
 
-Most small-scale TVC projects still rely on lightly tested fixed-gain PID-style control with limited simulation, limited fault analysis, and little understanding of safe operating envelopes.
+Who this helps
+1. Amateur and educational TVC builders.
+2. University rocketry and controls teams that fly small TVC vehicles.
+3. Open-source flight-control communities that currently lack a reproducible preflight workflow.
 
-This project aims to bridge that gap.
+Mentorship requested
+Most useful mentor backgrounds:
+1. Guidance, navigation, and control.
+2. Sim-to-real validation and experimental design.
+3. Embedded aerospace systems or actuator characterization.
 
-Why small rockets are the right niche for this work:
-1. They have larger relative uncertainty and weaker actuator margins than large launch systems.
-2. They are practical to instrument and test repeatedly.
-3. They allow rigorous study of uncertainty-aware control without claiming to replace certified large-launch vehicle flight software.
-4. Improvements here could materially improve safety and mission success for amateur and educational TVC systems.
+Most useful mentor help:
+1. Pressure-testing whether the evidence really supports the proposed workflow.
+2. Reviewing fairness of the gain-recommendation comparisons.
+3. Advising on how to present the work as a narrow, honest, builder-facing engineering tool rather than as a discovery claim.
 
-Main Contribution
-The project does not claim to invent adaptive control theory from scratch.
-Its contribution is a small-scale, hardware-grounded translation of modern fail-aware control ideas, with emphasis on:
-1. Online identification of degradation modes.
-2. Safety-bounded adaptation rather than unconstrained adaptation.
-3. Boundary-level validation showing where the method works and where it fails.
-4. Documentation and tooling that could allow others to implement the framework more safely.
-5. Measured uncertainty propagation from hardware tests into controller comparison and flight evidence.
+Summer plan
+1. June: lock the bench protocol; collect repeatable actuator datasets across realistic loaded and thermal conditions.
+2. July: use the bench-to-autotune path on measured data; build held-out comparison cases against copied firmware gains and against the basic-sim baseline.
+3. August: run repeated ground and flight tests with the measured-data recommendations; check verdict accuracy and gain quality on the real rocket.
+4. September: freeze the main claim and convert the strongest results into final figures and tables.
 
-Current Technical Direction
-The current controller architecture includes:
-1. A nominal state-feedback controller for rocket attitude stabilization.
-2. Online estimation of effective control authority.
-3. Online monitoring of actuator envelope degradation.
-4. Arbitration logic when one degradation type can contaminate estimation of another.
-5. Safety guardrails such as command limiting, confidence gating, and abort logic.
-
-The hardware path currently uses a model rocket TVC platform with Teensy-based avionics and analog-feedback servos for direct actuator-state measurement.
-
-The experimental path is:
-1. Measure actuator slew degradation under unloaded, installed, static-fire, and reduced-voltage conditions.
-2. Bound plausible control-effectiveness variation from motor and vehicle uncertainty.
-3. Inject those measured uncertainties into simulation.
-4. Compare fixed baselines against uncertainty-aware controllers.
-5. Validate conclusions on real rocket hardware and flight tests within safe envelopes.
-
-Current Status
-Completed
-1. Simulation framework with baseline controllers and disturbance/fault sweeps.
-2. Initial firmware implementation of the adaptive and safety logic.
-3. Early evidence that degradation-aware adaptation can substantially reduce post-fault error in relevant regimes.
-4. Bench diagnostics for direct actuator feedback, slew characterization, and endpoint-utilization measurement.
-
-In Progress
-1. Calibration and integration of feedback servos.
-2. Hardware validation of the estimator and safety logic.
-3. Failure-boundary mapping and repeatability analysis.
-
-Potential Real-World Impact
-If successful, the project could enable:
-1. Safer educational and amateur TVC rocketry.
-2. Better preflight controller validation through measured operating-boundary maps.
-3. A reusable testbed for evaluating advanced control methods on constrained hardware.
-4. Open-source tools and documentation that make modern control methods more accessible.
-
-Who Could Use This Research
-1. Amateur and educational TVC builders who currently rely on fixed-gain tuning.
-2. University rocket teams and controls labs.
-3. Open-source flight-control communities.
-4. Other constrained embedded-actuation systems with similar uncertainty patterns.
-
-The deliverable is both a controller approach and a practical methodology for uncertainty-aware validation.
-
-Why Joint-Aware (Slew + keff) Instead of One-Sided Adaptation
-1. keff-only adaptation can misread rate-limited actuator behavior as authority loss and adapt in the wrong direction.
-2. Slew-only adaptation can miss genuine control-effectiveness drift from thrust or geometry variation.
-3. The strongest hypothesis is that joint-aware arbitration is only justified if it measurably outperforms single-channel methods in combined uncertainty conditions.
-4. This prevents adding complexity without evidence.
-
-What Kind of Mentorship Would Be Most Helpful
-This project would benefit most from mentorship in one or more of the following:
-1. Guidance, navigation, and control (GNC).
-2. Adaptive or robust control theory.
-3. Embedded systems / avionics validation.
-4. Experimental design for hardware validation.
-5. Aerospace systems engineering or launch-vehicle controls.
-
-Ideal mentor support would include:
-1. Reviewing research framing and helping sharpen the central claim.
-2. Stress-testing the methodology and validation plan.
-3. Advising on how to present the work at a level competitive for Regeneron STS.
-4. Helping distinguish what is genuinely novel from what is primarily translation and implementation.
-
-Timeline
-The current plan is to:
-1. Complete hardware calibration and integration in June.
-2. Run controlled baseline and ablation campaigns in July.
-3. Build uncertainty and failure-boundary maps in August.
-4. Lock hardware-backed claims in September.
-5. Finalize the paper and application materials in October for STS submission in early November.
-
-One-Sentence Summary
-This project seeks to translate fail-aware control ideas from high-end launch systems and adaptive-control research into small TVC rockets by measuring real uncertainty, testing how much it harms fixed controllers, and proving with hardware where safety-bounded adaptation helps and where it does not.
-
+One-line thesis
+This project builds and validates a free, open-source preflight workflow for amateur TVC rockets that replaces "tune until it flies" with bench-measured stabilizability prediction and starting-gain recommendation.

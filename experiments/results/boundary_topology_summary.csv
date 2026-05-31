@@ -1,0 +1,12 @@
+metric,value
+slew_pairs,320
+slew_violation_rate,0
+p_pairs,288
+p_violation_rate,0
+latency_pairs,288
+latency_violation_rate,0
+noise_pairs,288
+noise_violation_rate,0
+multi_transition_slices,0
+hole_count,0
+total_cells,384

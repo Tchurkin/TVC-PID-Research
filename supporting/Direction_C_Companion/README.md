@@ -1,13 +1,16 @@
-# Direction C Companion (Support Only)
+# Direction C Companion (Support Layer)
 
-This folder is intentionally compact.
+This folder remains a compact companion to the primary fail-aware TVC direction.
 
 Purpose:
-- Provide a supporting resilience story (fault detection + adaptive retuning).
-- Strengthen the B-main thesis by showing graceful degradation handling.
-
-Not the main thesis direction.
+1. Provide additional fault-detection and retuning evidence.
+2. Support boundary-level claims about graceful degradation handling.
+3. Serve as a comparator/supporting branch, not the primary thesis.
 
 ## Minimal usage
-- Run main_run_C or src/fault_sweep to refresh companion metrics.
-- Output of record: outputs/sweep_results_C.csv
+1. Run `main_run_C` or `src/fault_sweep` to refresh companion metrics.
+2. Output of record: `outputs/sweep_results_C.csv`.
+
+## Role in the final narrative
+This branch is used to strengthen evidence quality (comparison and sensitivity),
+not to split the central mission statement or primary contribution claims.
