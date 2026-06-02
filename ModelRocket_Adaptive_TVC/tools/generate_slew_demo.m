@@ -20,6 +20,12 @@ if ~exist(graph_dir, 'dir'), mkdir(graph_dir); end
 
 % ---- Scenario -------------------------------------------------------
 cfg = rocket_defaults();
+% Keep the old severe-collapse actuator stack for this controller failure-mode
+% demo. Current nominal sim assumptions are faster and belong in the regime map.
+cfg.plant.slew_max = 12.0;
+cfg.controllers.JOINT_ADAPTIVE.slew_nominal = cfg.plant.slew_max;
+cfg.controllers.JOINT_ADAPTIVE.slew_min = 0.10 * cfg.plant.slew_max;
+cfg.controllers.PCH_LQR.slew_max_assumed = cfg.plant.slew_max;
 cfg.plant.theta0 = deg2rad(5);
 
 sc  = rocket_scenario("SLEW_DEGRADATION", cfg);

@@ -24,10 +24,15 @@ cfg.plant.p_unstable  = 0.0;     % static-instability natural frequency (rad/s);
 cfg.plant.control_eff = 8.0;
 cfg.plant.tau_act     = 0.05;    % 50 ms first-order actuator lag
 % slew_max in code units. u_max=12 corresponds to max physical gimbal deflection.
-% Servo nominal ~1 rad/s; TVC linkage 4:1 mechanical reduction -> gimbal ~0.25 rad/s.
-% In code units: 0.25 rad/s * (12 / phys_max_rad). With phys_max ~ pi/12 rad (15 deg),
-% scaling is 12/(pi/12) ~ 46 units/rad, so 0.25 rad/s ~ 11.5 units/s. Round to 12.
-cfg.plant.slew_max    = 12.0;    % nominal: 0.25 rad/s gimbal rate
+% Current nominal stack targets hobby-relevant loaded gimbal slew, not the
+% old severe-collapse placeholder. A typical 9 g-class micro servo is about
+% 350-600 deg/s bare; with 4:1 linkage and 50-70% load derate this implies
+% roughly 45-105 deg/s at the gimbal. We use 75 deg/s as the current nominal.
+% In code units with +/-15 deg physical gimbal range and +/-12 command units,
+% 75 deg/s maps to 75 * (12/15) = 60 units/s.
+% Legacy severe-collapse/controller probe scripts explicitly override this to
+% slower values when they want the old stress case.
+cfg.plant.slew_max    = 60.0;    % nominal current target: 75 deg/s loaded gimbal rate
 cfg.plant.u_max       = 12.0;
 cfg.plant.keff_nom    = cfg.plant.control_eff;
 
@@ -132,4 +137,53 @@ pch.slew_max_assumed = cfg.plant.slew_max;   % nominal value; PCH does NOT updat
 pch.gamma_grad      = 1.5;
 pch.sigma_mod       = 0.5;
 cfg.controllers.PCH_LQR = pch;
+
+% PID_RG: PID inner loop + Scalar Reference Governor on the actuator command.
+% The RG predicts the next H steps of the augmented plant state under the
+% assumption that the governed command is held constant, and gates the PID
+% output so |theta| and |q| stay within safety bounds. Plant model used by
+% the predictor is parameterized from bench measurements (slew, tau_act)
+% plus a preflight estimate of the unstable pole p. See pid_rg_layer.m.
+prg = struct();
+prg.Kp    = 1.0;                       % defaults; firmware audit overrides
+prg.Ki    = 0.0;
+prg.Kd    = 2.0;
+prg.u_max = cfg.plant.u_max;
+prg.i_lim = cfg.plant.u_max;
+prg.rg.H                  = 10;        % horizon (steps)
+prg.rg.theta_safety       = deg2rad(15);
+prg.rg.q_safety           = 5.0;       % rad/s
+prg.rg.keff_assumed       = cfg.plant.keff_nom;
+prg.rg.aero_damp_assumed  = cfg.plant.aero_damp;
+prg.rg.p_assumed          = cfg.plant.p_unstable;
+prg.rg.tau_act_assumed    = cfg.plant.tau_act;
+prg.rg.bisect_iters       = 8;
+cfg.controllers.PID_RG = prg;
+
+% PID_SLEW_AWARE: PID backbone with online slew-envelope estimation.
+% Key idea: when actuator bandwidth collapses, reduce proportional
+% aggressiveness harder than derivative damping. This keeps damping alive
+% while avoiding the command pile-up that drives rate-limited divergence.
+psa = struct();
+psa.Kp    = 20.0;
+psa.Ki    = 0.0;
+psa.Kd    = 8.0;
+psa.u_max = cfg.plant.u_max;
+psa.i_lim = cfg.plant.u_max;
+psa.tau_act_assumed = cfg.plant.tau_act;
+psa.slew_nominal    = cfg.plant.slew_max;
+psa.slew_min        = 0.10 * cfg.plant.slew_max;
+psa.slew_alpha_sat  = 0.05;
+psa.slew_alpha_relax= 0.01;
+psa.sat_streak_min  = 10;
+psa.sat_noise_floor = 0.5;
+psa.sat_decay       = 0.10;
+psa.kp_scale_min    = 0.50;
+psa.kp_scale_power  = 1.0;
+psa.kd_scale_min    = 0.70;
+psa.kd_scale_power  = 0.50;
+psa.integrator_bleed = 0.95;
+psa.safety_cmd_slew_frac = inf;    % disable extra shield; slew estimator + gain schedule already shape demand
+psa.theta_guard_rad      = deg2rad(70);
+cfg.controllers.PID_SLEW_AWARE = psa;
 end

@@ -1,0 +1,2 @@
+rows,rocket_ids_unique,parameter_columns_used,unique_parameter_vectors,duplicate_parameter_vectors,duplicate_parameter_vector_ratio,rows_missing_any_parameter,rows_missing_all_parameters
+168,168,"mass,Iyy,static_margin,Cm_alpha,control_effectiveness,thrust,deadband,backlash,latency,wind_strength,servo_slew,max_gimbal",1,167,0.9940476190476191,0,0

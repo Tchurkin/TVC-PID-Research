@@ -1,0 +1,15 @@
+parameter,sampled_in_exp1,wired_in_cfg_builder,enters_runtime_dynamics_directly,enters_sensor_or_actuator_model,directly_used_in_classifier,audit_flag,evidence
+mass,True,False,False,False,False,UNWIRED_OR_PROXY,sampled/recorded but not directly consumed in simulate_case_realistic dynamics
+Iyy,True,False,False,False,False,UNWIRED_OR_PROXY,sampled/recorded but not directly consumed in simulate_case_realistic dynamics
+static_margin,True,True,False,False,False,UNWIRED_OR_PROXY,sampled; used only to derive p_unstable if override absent
+Cm_alpha,True,True,False,False,False,UNWIRED_OR_PROXY,sampled; used only to derive p_unstable if override absent
+control_effectiveness,True,True,True,False,False,WIRED,wired to cfg.plant.control_eff and enters qdot
+thrust,True,False,False,False,False,UNWIRED_OR_PROXY,sampled; used in derived p_unstable calculation in Exp1 sampler
+servo_slew_deg_s,True,True,False,True,False,WIRED,wired to actuator slew_max
+max_gimbal_deg,True,True,False,True,False,WIRED,used in unit/code scaling path
+best_u_max_frac,True,False,False,True,False,WIRED,wired to cfg.plant.u_max
+deadband,True,True,False,True,False,WIRED,wired to realism.servo_deadband
+backlash,True,True,False,True,False,WIRED,wired to realism.servo_backlash
+latency_steps,True,True,False,True,False,WIRED,wired to realism.sensor_latency_steps
+wind_strength,True,True,False,True,False,WIRED,wired to realism.gust_std
+p_unstable,True,True,True,False,False,WIRED,wired to destabilizing p^2*theta term

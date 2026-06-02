@@ -1,0 +1,15 @@
+parameter,sampled?,runtime-wired?,affects equations?,affects outputs?,dead metadata?
+mass,True,True,True,True,False
+Iyy,True,True,True,True,False
+static_margin,True,True,True,True,False
+Cm_alpha,True,True,True,True,False
+control_effectiveness,True,True,True,True,False
+thrust,True,True,True,True,False
+servo_slew_deg_s,True,True,True,True,False
+max_gimbal_deg,True,True,True,True,False
+best_u_max_frac,True,True,True,True,False
+deadband,True,True,True,True,False
+backlash,True,True,True,True,False
+latency_steps,True,True,True,True,False
+wind_strength,True,True,True,True,False
+p_unstable,True,True,True,True,False

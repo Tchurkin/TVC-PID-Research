@@ -1,0 +1,4 @@
+range_name,range_deg_min,range_deg_max,source,n_rows,backlash_rank,backlash_score,score_percent_change_vs_current,rank_shift_vs_current
+current_sweep,-inf,inf,n/a,1000,1,0.2656695156695157,0.0,0.0
+realistic_hobby_tv_range,0.05,0.3,n/a,778,1,0.1530144398381654,-42.404216211049814,0.0
+measured_value_range,0.162,0.198,data/bench/assumed_gimbal_profile.csv,130,12,0.0,-100.0,11.0

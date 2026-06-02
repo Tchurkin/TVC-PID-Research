@@ -1,24 +1,26 @@
-# A Bench-Calibrated Preflight Tool for Amateur TVC Rockets
+# Quantifying Stability Boundaries for Amateur TVC Rockets
 
 ## Working Title
-Replacing "tune until it flies" with measure, verify, tune: a free, open-source preflight workflow that tells small-rocket TVC builders whether their rocket is likely to stabilize before they launch it, and what gains to start with.
+From guess-and-check PID tuning to quantified stability: mapping easy, fragile, and infeasible regimes in amateur thrust-vector-control rockets.
 
 ## Mission Statement
-Give amateur and student TVC builders a quantitative preflight check and bench-calibrated starting gains, so deciding whether to fly stops being a guess.
+Give amateur and student TVC builders a quantitative answer before they fly: is this rocket easy, fragile, or fundamentally infeasible, and which hardware parameters actually matter most for moving it into the workable region?
 
 ## Abstract
-The hobbyist thrust-vector-control rocket community is growing quickly, driven by propulsive-landing demonstrations and educational kits. The dominant tuning practice in that community is still essentially "copy a published PID, fly, crash, retune, repeat." This is unsafe and unscientific. The actuator that flies is almost always slower, softer, and more nonlinear than the actuator the designer assumed, and the consequences of that gap are largest in exactly the configurations builders most want to fly: statically unstable airframes with limited servo authority. This project builds and validates a preflight workflow that bench-measures the real actuator, propagates that measurement into a realistic flight model, classifies the rocket as GO / MARGINAL / NOGO, and recommends starting PD gains. The contribution is not a new control law; it is a measurement-to-decision pipeline that does not currently exist in the amateur TVC space, plus an empirical scaling law and a regime-specific sim-to-real ablation that tell builders which parts of the reality gap actually matter where.
+The hobbyist thrust-vector-control rocket community is growing quickly, but the dominant design workflow is still qualitative: copy someone else's PID gains, fly, crash, retune, repeat. That workflow hides two different failure modes. Some rockets are fundamentally under-actuated for their instability and no PID tuning will save them; others are stabilizable in principle but fragile because actuator-envelope degradation, slew loss, deadband, and nonlinearity are ignored. This project asks three linked questions: where is the boundary between easy, fragile, and infeasible amateur TVC configurations, which hardware and modelling factors most strongly shift that boundary, and can a bench-calibrated workflow recover challenging maneuver cells that amateur practice misses? The contribution is not new control theory. The contribution is a quantitative stability map for amateur TVC rockets, an evidence-based ranking of which builder choices matter most for stability, and a bench-calibrated workflow that translates those findings into preflight verdicts and starting gains. New maneuver evidence uses a commanded pitch program (0 to 20-25 deg and back) across instability and wind sweeps: in hobby-nominal conditions, ordinary best-tuned PID is often sufficient except at the edge; in sloppy-hardware middle-regime cells, measured-plant tuning (PID or PCH depending on regime) materially outperforms naive and clean-sim tuning; and in hard-limit cells, most configurations remain infeasible. Bench and launch validation remain the decisive test of whether these simulation-side claims transfer to real hardware.
 
 ---
 
 ## 1. Problem and Motivation
-A small TVC rocket fails for boring reasons before it fails for interesting reasons. The textbook failure is "my controller was not robust enough." The real failure is "the servo I bolted in could not move fast enough under load, my airframe was more unstable than I guessed, and the gains I copied off GitHub were tuned for a different rocket." That cluster of small mistakes is invisible until ignition.
+A small TVC rocket usually fails for boring reasons before it fails for interesting ones. The textbook failure story is "my controller was not robust enough." The more common real story is "my servo could not move fast enough under load, my airframe was more unstable than I thought, and the gains I copied from another project were tuned for a different envelope." That cluster of mistakes is invisible until ignition, and the hobby community often collapses all of them into the single label of "bad PID tuning."
 
-The central question of this project is therefore practical, not theoretical:
+That is the exigence for this project. Amateur TVC rocketry is growing quickly, but it is still unusually hand-wavy for such a safety-sensitive control problem. Builders need to know what actually determines stability so they can spend money and engineering effort on the things that matter: mechanical advantage, loaded slew rate, travel, linkage stiffness, and only then fine controller tuning.
 
-*Can a hobbyist measure a few bench-accessible quantities before flight, use them to decide whether to fly and how to tune, and demonstrably reduce the gap between "works in simulation" and "works on the launch pad"?*
+The central question of this project is practical, but it is no longer merely a tool question:
 
-This reframes the project away from a generic adaptive-control study and into a tool-building question with a clear pass/fail criterion: does the proposed preflight workflow make better decisions than current hobbyist practice on the same hardware?
+*Where is the boundary between impossible, fragile, and recoverable amateur TVC rockets, can that boundary be measured well enough to guide hardware design choices, and can a measured-workflow controller selection recover maneuvering cells that amateur tuning misses without over-claiming impossible cells?*
+
+This reframes the project away from a generic adaptive-control study and away from a pure tool paper. The stronger scientific question is whether the community is using the wrong mental model of failure, and whether that mistaken model can be replaced with a quantitative regime map plus a deployable low-compute mitigation where mitigation is actually possible.
 
 ---
 
@@ -29,34 +31,45 @@ This reframes the project away from a generic adaptive-control study and into a 
 3. Sim-to-real mismatch is a standard problem in controls and robotics.
 
 ### 2.2 What is missing in this niche
-1. Amateur TVC rockets rarely have a reproducible preflight validator tied to measured actuator behavior.
+1. Amateur TVC rockets do not have a quantitative map separating hardware-impossible configurations from hardware-feasible-but-fragile ones.
 2. Public hobby projects usually publish controller gains, not measurement-grounded reasons those gains should transfer to another rocket.
-3. Bench-measured slew loss, endpoint compression, deadband, and backlash are rarely carried all the way into a flight-readiness decision.
-4. Small-rocket sim-to-real work often treats "realism" as a vague collection of noise terms instead of asking which factors actually matter in which regime.
+3. Bench-measured slew loss, endpoint compression, deadband, and backlash are rarely carried all the way into either a flight-readiness decision or a controller-design decision.
+4. Small-rocket sim-to-real work often treats "realism" as a vague collection of noise terms instead of asking which factors actually dominate the stability boundary.
+5. The niche lacks a lightweight, hobby-deployable bridge between ordinary PID practice and more constraint-aware control ideas.
 
 ### 2.3 Positioning of this project
-This project is not primarily a new-controller paper. It is a practical sim-to-real paper with a controls core:
-1. Measure the real actuator under rocket-relevant conditions.
-2. Determine which nonidealities materially shift the boundary.
-3. Use that information to issue a preflight stabilizability verdict and recommended starting gains.
-4. Validate the tool on held-out hardware configurations.
+This project is best positioned as an empirical cartography paper with a lightweight implementation branch:
+1. Quantify the stability boundary in the hobby-relevant space spanned by instability demand, actuator slew, and available travel.
+2. Identify which aspects of the real actuator and linkage dominate that boundary.
+3. Use those findings to tell builders what to prioritize in hardware design and what can be left secondary.
+4. Test whether a very lightweight actuator-aware PID hardening layer can recover part of the fragile middle regime below the hard hardware wall.
+5. Validate the map and the controller recommendation against held-out bench and launch evidence.
 
-Adaptive or fault-recovery controllers remain in scope only as secondary demonstrations if real hardware later shows a clear need.
+The preflight validator remains important, but it is now the translation mechanism from the research findings to builder practice, not the main intellectual claim by itself.
 
 ---
 
 ## 3. Core Claims
-### Claim A: The actuator reality gap changes decisions
-The difference between assumed and measured actuator behavior is large enough to change whether a given rocket should be considered flyable and how it should be tuned.
+### Claim A: Amateur TVC stability has three practically distinct regimes
+The amateur TVC design space is not well described by a single "stable/unstable" label. It is better described by at least three regimes:
+1. Easy: ordinary fixed-gain control works.
+2. Fragile but recoverable: naive PID often fails, but the hardware is not fundamentally impossible.
+3. Fundamentally infeasible: no realistic fixed-gain tuning rescues the configuration.
 
-### Claim B: A bench-calibrated preflight tool can beat nominal-assumption tuning
-A workflow that uses measured actuator behavior should produce better GO/MARGINAL/NOGO decisions and better starting gains than nominal tuning or copied open-source gains.
+### Claim B: Actuator-envelope reality dominates the boundary more than hobby practice assumes
+Loaded slew rate, available travel, mechanical advantage, and actuator nonlinearity shift the boundary far more than the community's usual tuning-centric narrative suggests. This is why builders should often prioritize slew and geometry over small improvements in sensor quality or minute controller tweaks.
 
 ### Claim C: Sim-to-real mismatch is regime-dependent, not uniformly distributed
-Different operating regimes care about different realism blocks. In particular, boundary and actuator-limited regimes are dominated much more by actuator nonlinearity than by small sensor noise terms.
+Different operating regimes care about different realism blocks. Near the boundary and in actuator-limited cases, actuator nonlinearity and envelope loss dominate. In easier regimes, those same effects matter much less.
 
-### Claim D: Adaptive recovery is secondary, not primary
-If adaptive or fail-aware control is retained, it should be framed as an extension for induced-fault or severe-stress cases after the preflight validator/autotuner is established.
+### Claim D: The main recoverable-region story is hardware-aware tuning and classification, not a new controller
+In the tested hobby-relevant nominal slew regime, best-tuned ordinary PID already covers the workable cells. Any lightweight actuator-aware PID hardening claim must therefore be explicitly secondary and bounded to severe-collapse appendix cases rather than treated as the central research contribution.
+
+### Claim D2: The workflow advantage is regime selection, not universal controller superiority
+The strongest claim is not "PCH beats PID" or "PID beats PCH" globally. The strongest claim is that measured-workflow selection of architecture and gains (PID where sufficient, PCH where constraints dominate, NOGO where infeasible) expands the successful maneuver envelope versus naive nominal-gain and clean-sim tuning baselines.
+
+### Claim E: Bench-calibrated preflight is the translation path, not the whole thesis
+Once the boundary and middle regime are quantified, a bench-calibrated preflight workflow becomes the natural way to apply those findings to real builders: issue a regime verdict, recommend priorities, and suggest starting gains or the lightweight hardening option where appropriate.
 
 ---
 
@@ -74,6 +87,7 @@ The measured quantities of interest are:
 2. Effective travel or endpoint utilization.
 3. Deadband and backlash proxies where available.
 4. Repeatability across voltage, temperature, mounting condition, and commanded span.
+5. Effective linkage geometry or mechanical-advantage consequences where measurable.
 
 ### 4.2 Flight-model layer
 The realistic simulator already includes the main uncertainty channels needed for this project:
@@ -85,15 +99,33 @@ The realistic simulator already includes the main uncertainty channels needed fo
 
 Bench measurements are converted into this model instead of leaving the actuator as a nominal placeholder.
 
-### 4.3 Decision layer
+### 4.3 Regime-mapping layer
+The main analysis path is now a regime map, not just an autotune pipeline:
+1. Sweep instability demand, loaded slew, and travel.
+2. Identify success and failure boundaries.
+3. Separate impossible cells from fragile cells where retuning or controller hardening still helps.
+4. Extract builder-facing tradeoffs such as whether additional slew matters more than higher positional accuracy.
+5. Add maneuver-tracking sweeps (commanded pitch programs) so "works" means more than hovering near vertical.
+
+### 4.4 Optional controller-hardening appendix
+The controller-hardening branch is now an appendix path rather than the main story:
+1. Estimate delivered actuator slew online.
+2. Detect sustained rate-limited operation.
+3. Preserve derivative damping while avoiding the worst command pile-up behavior of naive PID.
+4. Keep the compute and firmware footprint close to ordinary hobby PID.
+
+This branch is only retained where it survives explicit severe-collapse stress tests. It is not claimed to be necessary in the current hobby-nominal regime.
+
+### 4.5 Decision layer
 The preflight decision path is now:
 1. Measure the actuator.
 2. Estimate rocket instability demand and control effectiveness.
-3. Run the validator to classify the regime.
-4. Run measured-plant PD autotuning.
-5. Report GO/MARGINAL/NOGO plus starting gains and diagnostic margins.
+3. Run the validator to classify the rocket as easy, fragile, or infeasible.
+4. Run measured-plant PD autotuning where the hardware is workable.
+5. In fragile cells, compare at least one constraint-aware option (e.g., PCH) against measured-plant PID and pick by empirical success, not theory preference.
+6. Report GO/MARGINAL/NOGO plus starting gains, regime label, and diagnostic margins.
 
-### 4.4 Sim-to-real interpretation layer
+### 4.6 Sim-to-real interpretation layer
 The new regime-aware experiment path identifies which realism blocks actually matter:
 1. Ideal tuning on a simplified plant.
 2. One-factor-at-a-time perturbation.
@@ -111,22 +143,28 @@ This prevents the paper from claiming that every realism term matters equally.
 3. Open-source firmware audit showing copied hobby gains do not survive the statically unstable regime.
 4. Steel-man PD retuning showing that the current validator classification is stronger than its original LQR gain recommendation.
 5. A new bench-to-autotune bridge in tools/bench_to_autotune.m.
-6. A new regime-aware factor screen in experiments/run_s2r_factor_screen.m.
+6. A regime-aware factor screen showing actuator nonlinearity dominates near the stability boundary.
+7. A hobby-range controller sweep showing that best-tuned ordinary PID already stabilizes all tested nominal 45-90 deg/s loaded-slew cells, so controller novelty is not the main claim.
+8. A legacy severe-collapse stress probe where a slew-aware PID branch can still be studied as a bounded appendix result.
+9. A new pitch-program head-to-head sweep (`run_pitch_program_head_to_head.m`) showing that hobby-nominal maneuver cells are mostly easy except at high-instability edge cases.
+10. A new pitch-program stress sweep (`run_pitch_program_stress_sweep.m`) showing workflow-level rescue in sloppy middle-regime cells and persistent infeasibility in hard-limit cells.
 
 ### 5.2 What the workspace now centers on
 The primary workspace path is no longer "find the fanciest controller."
 It is now:
 1. Measure actuator reality.
 2. Propagate that reality through the simulator.
-3. Predict whether the rocket is stabilizable.
-4. Recommend starting gains.
-5. Validate against held-out hardware cases.
+3. Identify whether the rocket is easy, fragile, or fundamentally infeasible.
+4. Recommend hardware priorities and starting gains.
+5. Optionally test a lightweight actuator-aware controller patch only in explicit severe-collapse appendix cells.
+6. Validate the map and the controller recommendation against held-out hardware cases.
 
 ### 5.3 What is still missing
 1. Real summer bench datasets across multiple actuator conditions.
-2. Held-out hardware validation of the new autotune recommendations.
-3. A minimal-factor sim-to-real correction model backed by real data.
-4. Optional secondary adaptive-fault demo, if time and hardware capacity remain.
+2. Held-out hardware and launch validation of the regime map.
+3. If the controller appendix is retained, a severe-collapse validation set showing exactly where it helps and where it does not.
+4. A minimal-factor sim-to-real correction model backed by real data.
+5. Optional secondary adaptive-fault demo only if it adds clear evidence beyond the lighter PID path.
 
 ---
 
@@ -138,16 +176,22 @@ slew_min(p) = 0.316 * p^1.99
 
 with fitted exponent near 2. This is useful, but it should be framed as an empirical small-rocket boundary law, not new physics.
 
-### 6.2 Validator quality
+### 6.2 Regime split
+The strongest simulation-side story is not simply that some rockets are impossible. It is that the design space splits into:
+1. Cells where ordinary PID is fine.
+2. Cells where naive PID fails but the hardware is still recoverable.
+3. Cells where no realistic fixed-gain path works and redesign is required.
+
+### 6.3 Validator quality
 On held-out simulated calibration cases, the current regime classifier is already strong:
 1. GO precision: 91%.
 2. NOGO precision: 100%.
 3. MARGINAL behaves as an intermediate zone rather than random noise.
 
-### 6.3 Gain recommendation correction
+### 6.4 Gain recommendation correction
 The old conclusion that the validator's built-in LQR recommendation was enough does not survive steel-man comparison. Well-tuned PD beats the current LQR recommendation on the realistic plant in the working cells. That is why the workspace needed a measured-data-to-PD autotune bridge.
 
-### 6.4 Regime-aware realism screen
+### 6.5 Regime-aware realism screen
 The new factor screen already supports a cleaner sim-to-real story:
 1. In a low-demand regime, single realism blocks cause almost no success loss, while the full realistic stack reduces success from 1.00 to 0.83.
 2. In a boundary regime, actuator nonlinearity alone causes the largest drop, reducing success from 1.00 to 0.50, while latency, sensor noise, gust, and modest effectiveness drift each cause little or no isolated drop.
@@ -155,8 +199,19 @@ The new factor screen already supports a cleaner sim-to-real story:
 
 This is the right kind of claim: not "everything matters," but "which factors matter depends strongly on the regime, and actuator nonlinearity dominates where the project actually becomes safety-critical."
 
-### 6.5 Discovery-fishing conclusion
-Additional MATLAB-only novelty hunting is now a weak use of time. The simulator appears to have already yielded its main structural findings. The strongest remaining novelty comes from real measured hardware data and from proving a bench-calibrated preflight method works.
+### 6.6 Lightweight controller hardening result
+The new PID_SLEW_AWARE branch is promising but bounded. In the current realistic slew-degradation probe, it strongly outperforms naive PID across the easy and moderate-instability cells and remains competitive where ordinary PID collapses. However, it is not a universal controller and should not be framed that way. Its honest contribution is a lightweight hardening path for part of the fragile middle regime, not a replacement for the stability map.
+
+### 6.7 Maneuver-envelope result (new)
+The new commanded pitch-program campaigns sharpen the central claim:
+1. In hobby-nominal actuator conditions (slew=60 code units/s, u_max=12), most cells are easy; however, at p=12 and gust=0.9, nominal amateur PID gives 0% success while bench-tuned PCH gives 100%, demonstrating a real edge-of-envelope rescue cell.
+2. In a sloppy-TVC profile (slew=30, u_max=10, deadband=0.15, backlash=0.30), middle-regime recovery appears clearly: for p=6 and gust=0.9, amateur nominal PID and clean-retuned PID both fail (0%), while bench-tuned PID and bench-tuned PCH both reach 100%; for p=8 and gust=0.9, bench-tuned PID reaches 75% while both amateur baselines remain at 0%.
+3. In a hard-limit profile (slew=20, u_max=8, deadband=0.20, backlash=0.40), most cells remain infeasible regardless of controller choice, which supports the GO/MARGINAL/NOGO boundary framing and prevents over-claiming.
+
+This is the key correction to keep: the maneuver result supports a workflow that selects architecture by regime, not a single globally best controller.
+
+### 6.8 Discovery-fishing conclusion
+Additional MATLAB-only novelty hunting is now a weak use of time. The strongest remaining novelty comes from real measured hardware data, launch validation of the regime split, and an honest demonstration that the lightweight controller path helps where claimed and fails where redesign is required.
 
 ---
 
@@ -165,20 +220,24 @@ Additional MATLAB-only novelty hunting is now a weak use of time. The simulator 
 1. Bench-characterize the servo and linkage under rocket-relevant conditions.
 2. Build a measured library of slew, travel, deadband, and repeatability.
 3. Estimate or bound airframe instability demand for candidate rockets.
-4. Run the validator/autotuner before each major hardware test.
-5. Compare predicted verdict and recommended gains against actual test outcomes.
+4. Use those measurements to place each hardware configuration in the easy / fragile / infeasible map.
+5. Run the validator/autotuner before each major hardware test.
+6. Compare predicted verdict and recommended gains against actual test outcomes.
+7. In fragile cells, compare naive and clean-sim baselines against measured-workflow-selected control (PID and/or PCH).
 
 ### 7.2 Minimum dataset needed for the main claim
 1. At least two actuators or actuator states with meaningfully different measured behavior.
-2. At least one rocket configuration near the boundary, not just trivially easy flights.
-3. Repeated tests under matched conditions so the paper can discuss variability.
-4. Held-out cases not used to build the gain lookup.
+2. At least one hardware configuration in each of the three claimed regions: easy, fragile, and infeasible.
+3. At least one fragile configuration where measured-workflow selection materially outperforms naive and clean-sim tuning.
+4. Repeated tests under matched conditions so the paper can discuss variability.
+5. Held-out cases not used to build the gain lookup.
 
 ### 7.3 Secondary branch
-If summer hardware testing goes well, add one secondary branch:
+If summer hardware testing goes well, the secondary branch should stay narrow:
 1. Induced actuator degradation or constrained-travel fault.
-2. Compare fixed preflight-tuned PD against an adaptive or fail-aware recovery path.
-3. Keep this as an extension, not the main thesis.
+2. Compare fixed preflight-tuned PD against the lightweight hardening layer.
+3. Only compare heavier adaptive methods if they add a clearly different conclusion.
+4. Keep this as an extension, not the main thesis.
 
 ---
 
@@ -186,20 +245,23 @@ If summer hardware testing goes well, add one secondary branch:
 ### June
 1. Finalize the bench procedure and make it repeatable enough that the same servo tested twice gives nearly the same extracted metrics.
 2. Collect actuator datasets for unloaded, installed, low-voltage, and warm or repeated-run conditions.
-3. Build a small actuator reality-gap table: datasheet slew versus measured loaded slew, plus endpoint utilization.
+3. Build a small actuator reality-gap table: datasheet slew versus measured loaded slew, plus endpoint utilization and effective linkage geometry.
 4. Start estimating rocket-side instability demand for the real hardware configurations you plan to fly.
+5. Choose at least one candidate configuration intentionally near the fragile middle regime.
 
 ### July
 1. Use the measured bench data to populate the new bench_to_autotune workflow.
 2. Build the first held-out comparison set: nominal tuning versus measured-data autotuning.
 3. Run the regime-aware factor screen against the measured cases to decide which realism blocks must stay in the reduced model.
-4. Freeze the minimal preflight input set you will actually ask a builder to supply.
+4. Run the lightweight controller against the fragile cases to determine whether the middle regime is real on hardware.
+5. Freeze the minimal preflight input set you will actually ask a builder to supply.
 
 ### August
 1. Run repeated ground and flight-adjacent tests with the measured-data recommendations.
-2. Check whether the predicted GO/MARGINAL/NOGO verdict matches observed behavior.
+2. Check whether the predicted regime label and GO/MARGINAL/NOGO verdict match observed behavior.
 3. Quantify whether the recommended gains beat copied hobby gains or nominal-assumption gains.
-4. Decide whether there is enough evidence to support a secondary adaptive-fault demonstration.
+4. In fragile cells, quantify whether the lightweight controller materially improves robustness.
+5. Decide whether there is enough evidence to support a secondary adaptive-fault demonstration.
 
 ### September
 1. Lock the main claim.
@@ -215,17 +277,22 @@ If summer hardware testing goes well, add one secondary branch:
 
 ## 9. Evaluation Plan and Success Criteria
 ### 9.1 Primary metrics
-1. Preflight verdict accuracy on held-out test conditions.
-2. Improvement in starting-gain quality relative to copied firmware gains and nominal-assumption tuning.
-3. Reduction in unstable or clearly poor launches during the hardware campaign.
-4. Generalization across multiple actuator conditions and at least one nontrivial rocket regime.
+1. Regime-classification accuracy on held-out test conditions.
+2. Preflight verdict accuracy on held-out test conditions.
+3. Improvement in starting-gain quality relative to copied firmware gains and nominal-assumption tuning.
+4. Improvement of measured-workflow selected control (PID and/or PCH) over naive and clean-sim baselines in fragile hardware-feasible maneuver cells.
+5. Reduction in unstable or clearly poor launches during the hardware campaign.
+6. Generalization across multiple actuator conditions and at least one nontrivial rocket regime.
+7. Pitch-program tracking metrics (RMS error, peak error, end-point error) in addition to binary stability.
 
 ### 9.2 Strong evidence threshold
 The project becomes strong if it can show all of the following:
 1. The measured actuator differs materially from the assumed actuator.
 2. That difference changes the predicted regime or gain recommendation.
-3. The bench-calibrated recommendation matches reality better than the naive one.
-4. The regime-aware reduced realism model explains most of the sim-to-real shift without requiring an unwieldy full-physics model.
+3. At least one real hardware configuration falls in a fragile middle regime where naive and clean-sim tuning fail or are marginal but measured-workflow tuning materially improves behavior.
+4. At least one real hardware configuration is shown to be fundamentally infeasible despite retuning, supporting the hard boundary claim.
+5. The bench-calibrated recommendation matches reality better than the naive one.
+6. The regime-aware reduced realism model explains most of the sim-to-real shift without requiring an unwieldy full-physics model.
 
 ---
 
@@ -234,26 +301,28 @@ The strongest STS version of this project is not:
 1. "I made another rocket controller."
 2. "I compared a few servos."
 3. "I found a cool MATLAB curve."
+4. "I built a tool for hobbyists."
 
 The strongest STS version is:
 
-I built and validated a preflight method for small TVC rockets that uses measured actuator behavior to decide whether the rocket is likely to stabilize and how it should be tuned, and I showed which parts of the sim-to-real gap actually matter near the stability boundary.
+I quantitatively mapped when amateur TVC rockets are impossible, fragile, or recoverable; showed that hobby practice often confuses those regimes; identified which builder-facing hardware parameters most strongly control stability; and demonstrated on challenging pitch-program maneuvers that a bench-calibrated workflow can recover middle-regime cells that amateur and clean-sim tuning miss, without pretending to beat the hard physics wall.
 
-That is practical, safety-relevant, technically deep, and broad enough to interest mentors outside the exact hobby niche.
+That is safety-relevant, technically deep, empirically grounded, and broad enough to interest judges outside the exact hobby niche because it changes how builders should reason about design, tuning, and hardware tradeoffs.
 
 ---
 
 ## 11. Claim Boundaries and Risk Controls
 1. Do not claim new control theory.
-2. Do not claim universal flight safety.
-3. Keep adaptive recovery secondary unless hardware data clearly justifies promoting it.
-4. Treat synthetic data as placeholder evidence only until the summer hardware campaign is complete.
-5. Publish failure cases, false positives, and false negatives alongside successes.
+2. Do not claim that the boundary itself is philosophically surprising; claim that its location, shape, and practical implications for amateur TVC are newly quantified.
+3. Do not claim the lightweight controller is universal.
+4. Keep adaptive recovery secondary unless hardware data clearly justifies promoting it.
+5. Treat synthetic data as placeholder evidence only until the summer hardware campaign is complete.
+6. Publish failure cases, false positives, false negatives, and no-help controller cases alongside successes.
 
 ---
 
 ## One-Sentence Thesis
-This project builds and validates a free, open-source preflight workflow for amateur thrust-vector-control rockets that replaces "tune until it flies" with bench-measured stabilizability prediction and starting-gain recommendation, giving hobbyist builders a quantitative way to decide whether their rocket can safely fly before they light the motor.
+This project turns amateur TVC rocketry from guess-and-check tuning into a quantified stability problem by mapping which rockets are impossible, fragile, or recoverable, identifying the hardware parameters that actually control that boundary, and using a bench-calibrated workflow to select viable gains and controller architecture for recoverable maneuvering regimes.
 
 ---
 
@@ -266,3 +335,6 @@ The following artifacts support the claims in Section 3 and are available under 
 4. **`current_vs_proposed_practice.csv` + `graphs/current_vs_proposed_practice.png`** — audited open-source firmware shipped gains vs validator-recommended gains on the same plant cells. The validator's value in this comparison is gain replacement, not GO/NOGO triage at the firmware's assumed actuator envelope.
 5. **`graphs/phase_diagram_reference_vehicles.png`** — the validator phase diagram in physical units (deg/s vs rad/s) with hobbyist-class reference vehicles overlaid so a builder familiar with the propulsive-landing community can locate themselves on the diagram. Reference positions are public-video estimates, not measurements from those projects.
 6. **`graphs/preflight_workflow.png`** — one-page workflow diagram suitable for the front page of the paper and the dashboard.
+7. **`pid_slew_probe.csv`** — realistic slew-degradation probe sweeping `p ∈ {0,4,6,8}` and four PD gain pairs. Supports the bounded controller claim: the lightweight slew-aware PID strongly improves the moderate-instability regime and remains a clearly bounded, non-universal method rather than a new general controller.
+8. **`pitch_program_summary.csv` + `pitch_program_head_to_head.csv` + `graphs/pitch_program_success_heatmap.png`** — first commanded-maneuver campaign (0 to 20 deg to 0) showing hobby-nominal maneuver cells are mostly easy, which constrains over-claims.
+9. **`pitch_program_stress_summary.csv` + `pitch_program_stress_trials.csv` + `graphs/pitch_program_stress_bars.png` + `graphs/pitch_program_workflow_delta.png`** — stress campaign across hobby-nominal, sloppy-TVC, and hard-limit profiles. Shows workflow-level rescue in fragile middle cells and persistent infeasibility in hard-limit cells.

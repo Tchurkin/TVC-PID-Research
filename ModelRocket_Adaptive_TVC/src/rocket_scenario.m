@@ -36,8 +36,11 @@ switch sc.kind
 
     case "SLEW_DEGRADATION"
         % Servo slew rate degrades mid-flight (battery sag, hot servo, mechanical wear).
-        % Pre-fault: nominal gimbal rate 0.25 rad/s (slew_max=12 code units).
-        % Post-fault: gimbal rate drops to ~0.06 rad/s (slew_max=3 code units, 25%).
+        % Pre-fault: nominal gimbal rate comes from cfg.plant.slew_max.
+        % Current sim default is a hobby-relevant 75 deg/s loaded gimbal rate
+        % (slew_max=60 code units). At 25% degradation this becomes 18.75 deg/s.
+        % Legacy controller-stress probes may explicitly override slew_max to a
+        % much slower severe-collapse stack before calling this scenario.
         % Sustained light wind throughout; small ICs so nominal is stable.
         % Expected behavior:
         %   FIXED_LQR          -> demands more slew than servo can deliver, limit-cycles

@@ -1,0 +1,2 @@
+verdict,reason,parameters_with_gt1_unique,total_parameters_checked,unique_parameter_vectors,rows
+FAIL,Insufficient multi-parameter variation and/or weak parameter-vector diversity,0,12,1,168

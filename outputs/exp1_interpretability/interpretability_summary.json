@@ -1,0 +1,231 @@
+{
+  "rows_used": 1000,
+  "feature_count": 14,
+  "classes": [
+    "EASY",
+    "FRAGILE",
+    "INFEASIBLE"
+  ],
+  "balanced_accuracy": 0.6686521224420767,
+  "backlash_ranks": {
+    "shap_rank": 1,
+    "perm_rank": 1,
+    "pdp_rank": 1,
+    "composite_rank": 1
+  },
+  "top_composite_features": [
+    "backlash",
+    "mass",
+    "thrust",
+    "control_effectiveness",
+    "best_u_max_frac",
+    "wind_strength",
+    "Cm_alpha",
+    "deadband",
+    "max_gimbal_deg",
+    "servo_slew_deg_s"
+  ],
+  "top_interaction_pairs": [
+    {
+      "feature_a": "mass",
+      "feature_b": "thrust",
+      "interaction_strength_h2": 0.08048209065146444
+    },
+    {
+      "feature_a": "mass",
+      "feature_b": "deadband",
+      "interaction_strength_h2": 0.0705910017832813
+    },
+    {
+      "feature_a": "max_gimbal_deg",
+      "feature_b": "best_u_max_frac",
+      "interaction_strength_h2": 0.056593464849664876
+    },
+    {
+      "feature_a": "max_gimbal_deg",
+      "feature_b": "thrust",
+      "interaction_strength_h2": 0.048797551989177256
+    },
+    {
+      "feature_a": "mass",
+      "feature_b": "wind_strength",
+      "interaction_strength_h2": 0.0482584550195714
+    },
+    {
+      "feature_a": "Cm_alpha",
+      "feature_b": "wind_strength",
+      "interaction_strength_h2": 0.04667096466750237
+    },
+    {
+      "feature_a": "latency_steps",
+      "feature_b": "wind_strength",
+      "interaction_strength_h2": 0.03941630203625763
+    },
+    {
+      "feature_a": "Cm_alpha",
+      "feature_b": "thrust",
+      "interaction_strength_h2": 0.03930868591543655
+    },
+    {
+      "feature_a": "p_unstable",
+      "feature_b": "best_u_max_frac",
+      "interaction_strength_h2": 0.037922408571029825
+    },
+    {
+      "feature_a": "best_u_max_frac",
+      "feature_b": "wind_strength",
+      "interaction_strength_h2": 0.037550763607300454
+    },
+    {
+      "feature_a": "thrust",
+      "feature_b": "wind_strength",
+      "interaction_strength_h2": 0.036640662782356705
+    },
+    {
+      "feature_a": "control_effectiveness",
+      "feature_b": "backlash",
+      "interaction_strength_h2": 0.03602328334060479
+    },
+    {
+      "feature_a": "thrust",
+      "feature_b": "deadband",
+      "interaction_strength_h2": 0.035250794698896165
+    },
+    {
+      "feature_a": "best_u_max_frac",
+      "feature_b": "thrust",
+      "interaction_strength_h2": 0.03517513905172422
+    },
+    {
+      "feature_a": "mass",
+      "feature_b": "latency_steps",
+      "interaction_strength_h2": 0.03509977996715134
+    },
+    {
+      "feature_a": "Cm_alpha",
+      "feature_b": "deadband",
+      "interaction_strength_h2": 0.03499200084439604
+    },
+    {
+      "feature_a": "max_gimbal_deg",
+      "feature_b": "mass",
+      "interaction_strength_h2": 0.03405005942818867
+    },
+    {
+      "feature_a": "Iyy",
+      "feature_b": "thrust",
+      "interaction_strength_h2": 0.033593351004230616
+    },
+    {
+      "feature_a": "servo_slew_deg_s",
+      "feature_b": "wind_strength",
+      "interaction_strength_h2": 0.032447070123667286
+    },
+    {
+      "feature_a": "max_gimbal_deg",
+      "feature_b": "deadband",
+      "interaction_strength_h2": 0.031707395359195034
+    }
+  ],
+  "top_backlash_pairs": [
+    {
+      "feature_a": "control_effectiveness",
+      "feature_b": "backlash",
+      "interaction_strength_h2": 0.03602328334060479
+    },
+    {
+      "feature_a": "p_unstable",
+      "feature_b": "backlash",
+      "interaction_strength_h2": 0.020470927024608194
+    },
+    {
+      "feature_a": "static_margin",
+      "feature_b": "backlash",
+      "interaction_strength_h2": 0.006216550324100147
+    },
+    {
+      "feature_a": "servo_slew_deg_s",
+      "feature_b": "backlash",
+      "interaction_strength_h2": 0.0052786470005942035
+    },
+    {
+      "feature_a": "Iyy",
+      "feature_b": "backlash",
+      "interaction_strength_h2": 0.005133527979970223
+    },
+    {
+      "feature_a": "thrust",
+      "feature_b": "backlash",
+      "interaction_strength_h2": 0.004120736017132762
+    },
+    {
+      "feature_a": "best_u_max_frac",
+      "feature_b": "backlash",
+      "interaction_strength_h2": 0.0037336781318667994
+    },
+    {
+      "feature_a": "max_gimbal_deg",
+      "feature_b": "backlash",
+      "interaction_strength_h2": 0.002808802959269828
+    },
+    {
+      "feature_a": "Cm_alpha",
+      "feature_b": "backlash",
+      "interaction_strength_h2": 0.002466869468134053
+    },
+    {
+      "feature_a": "mass",
+      "feature_b": "backlash",
+      "interaction_strength_h2": 0.0018574892827853391
+    },
+    {
+      "feature_a": "backlash",
+      "feature_b": "wind_strength",
+      "interaction_strength_h2": 0.0015345697276300987
+    },
+    {
+      "feature_a": "deadband",
+      "feature_b": "backlash",
+      "interaction_strength_h2": 0.0013476830724695474
+    },
+    {
+      "feature_a": "backlash",
+      "feature_b": "latency_steps",
+      "interaction_strength_h2": 0.0006696727711480896
+    }
+  ],
+  "dominance_interpretation": "Backlash remains dominant after accounting for interactions",
+  "classification_report": {
+    "EASY": {
+      "precision": 0.8072289156626506,
+      "recall": 0.9178082191780822,
+      "f1-score": 0.8589743589743589,
+      "support": 73.0
+    },
+    "FRAGILE": {
+      "precision": 0.4,
+      "recall": 0.14814814814814814,
+      "f1-score": 0.21621621621621623,
+      "support": 27.0
+    },
+    "INFEASIBLE": {
+      "precision": 0.8980891719745223,
+      "recall": 0.94,
+      "f1-score": 0.9185667752442996,
+      "support": 150.0
+    },
+    "accuracy": 0.848,
+    "macro avg": {
+      "precision": 0.7017726958790577,
+      "recall": 0.6686521224420767,
+      "f1-score": 0.6645857834782917,
+      "support": 250.0
+    },
+    "weighted avg": {
+      "precision": 0.8177643465582074,
+      "recall": 0.848,
+      "f1-score": 0.825311929318444,
+      "support": 250.0
+    }
+  }
+}

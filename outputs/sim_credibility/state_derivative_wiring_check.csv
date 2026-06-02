@@ -1,0 +1,7 @@
+parameter,affects_state_derivative,derivative_path
+mass,True,disturb_eff and damp_eff scaling in simulate_case_realistic qdot
+Iyy,True,inertia_scale in simulate_case_realistic qdot
+thrust,True,thrust_scale in simulate_case_realistic qdot
+static_margin,True,p_geom -> p_geom_delta -> p_eff in qdot
+Cm_alpha,True,p_geom -> p_geom_delta -> p_eff in qdot
+control_effectiveness,True,keff_eff*u_act term in qdot

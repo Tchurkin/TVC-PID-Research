@@ -1,18 +1,19 @@
-Project Summary: A Bench-Calibrated Preflight Tool for Amateur TVC Rockets
+Project Summary: Quantifying Stability Boundaries for Amateur TVC Rockets
 
 What this project is
-This project builds and validates a free, open-source preflight workflow for amateur thrust-vector-control rockets. The workflow replaces the current hobbyist practice of "copy a published PID, fly, crash, retune, repeat" with a quantitative pipeline: bench-measure the real actuator, propagate that measurement through a realistic flight model, classify the rocket as GO / MARGINAL / NOGO, and recommend starting PD gains.
+This project builds and validates a free, open-source stability-mapping and preflight workflow for amateur thrust-vector-control rockets. The workflow replaces the current hobbyist practice of "copy a published PID, fly, crash, retune, repeat" with a quantitative pipeline: bench-measure the real actuator, propagate that measurement through a realistic flight model, classify the rocket as easy, fragile, or fundamentally infeasible, and recommend starting PD gains only where the hardware is actually workable.
 
 Why it matters
 The amateur TVC community is growing fast, driven by propulsive-landing demonstrations (BPS.space and similar) and educational kits. These rockets are intentionally statically unstable and live close to actuator limits, which is exactly where the gap between the assumed servo and the real one decides whether the rocket stabilizes or falls over. A low-cost preflight method for measuring that gap and using it before flight is directly useful, safety-relevant, and currently missing from the community's open-source toolchain.
 
 Core contribution
-The contribution is not a new control law. It is a measurement-to-decision pipeline that does not currently exist in the amateur TVC space:
+The contribution is not a new control law. It is a measurement-to-decision pipeline plus a quantitative stability map that do not currently exist in the amateur TVC space:
 1. Bench-measures the actuator and linkage using analog-feedback servo data.
 2. Carries the measurements into a realistic flight model with documented sensor and actuator nonidealities.
-3. Classifies the rocket as GO, MARGINAL, or NOGO using an empirically calibrated phase diagram.
+3. Classifies the rocket as easy, fragile, or infeasible using an empirically calibrated phase diagram and GO / MARGINAL / NOGO verdicts.
 4. Recommends starting PD gains tuned on the realistic plant rather than on an over-clean basic sim.
 5. Reports which parts of the sim-to-real reality gap actually matter in each operating regime, so the model does not have to be everything-to-everyone.
+6. Keeps any lightweight controller-hardening result explicitly secondary and bounded.
 
 What is already built (simulation side)
 1. Realistic MATLAB TVC simulator with sensor noise/bias/latency, servo deadband/backlash, gusts, and effectiveness drift.
@@ -22,16 +23,18 @@ What is already built (simulation side)
 5. Leave-one-out sim-to-real ablation showing which factor dominates in which regime (sensor noise and effectiveness drift at the boundary; actuator nonlinearity in the actuator-limited regime).
 6. "Basic sim vs better sim" comparison showing that tuning a controller on a clean sim and deploying it on the realistic plant loses meaningful success rate (LOW_DEMAND 0.75 vs 1.00; BOUNDARY 0.58 vs 0.83).
 7. Audit of three publicly deployed open-source TVC firmwares showing their shipped PID gains fail on statically unstable plants.
+8. Hobby-range controller sweep (`experiments/results/pid_slew_regime_summary.csv`) showing that, once nominal loaded slew is moved into a realistic 45-90 deg/s band, best-tuned ordinary PID already covers all tested cells. This demotes the lightweight controller branch from a main claim to a severe-collapse appendix.
 
 Framing
-This is best understood as an engineering tool for an underserved community, not as a discovery paper. The novelty is the pipeline and the empirical calibration, not new control theory.
+This is best understood as a quantitative stability-boundary and preflight workflow paper for an underserved community, not as a discovery paper and not as a new-controller paper. The novelty is the empirical map, the builder-facing workflow, and the honesty of the regime boundaries.
 
 Current simulation takeaways
 1. The regime classifier itself is strong; the original LQR gain recipe needed to be replaced by measured-plant PD tuning, and that replacement is in the workflow.
 2. The required actuator slew rises roughly quadratically with airframe instability, which is the headline structural finding.
 3. Actuator nonlinearity is the main isolated realism factor that hurts performance in actuator-limited regimes; sensor noise and effectiveness drift dominate at the boundary.
 4. Open-source hobby firmware gains fail predictably on statically unstable airframes; the validator's value in those cases is gain replacement, not GO/NOGO triage.
-5. Additional MATLAB-only novelty hunting is unlikely to be the strongest remaining contribution. Real hardware measurements and a held-out launch comparison are the important next evidence sources.
+5. The lightweight controller branch is not the main story anymore. In the current hobby-range nominal slew sweep, best-tuned ordinary PID already stabilizes all tested cells. Additional MATLAB-only controller novelty hunting is therefore unlikely to be the strongest remaining contribution.
+6. Real hardware measurements and a held-out launch comparison are the important next evidence sources.
 
 Who this helps
 1. Amateur and educational TVC builders.
@@ -56,4 +59,4 @@ Summer plan
 4. September: freeze the main claim and convert the strongest results into final figures and tables.
 
 One-line thesis
-This project builds and validates a free, open-source preflight workflow for amateur TVC rockets that replaces "tune until it flies" with bench-measured stabilizability prediction and starting-gain recommendation.
+This project builds and validates a free, open-source workflow for amateur TVC rockets that replaces "tune until it flies" with bench-measured stability-boundary prediction, hardware-aware preflight classification, and justified starting-gain recommendation.

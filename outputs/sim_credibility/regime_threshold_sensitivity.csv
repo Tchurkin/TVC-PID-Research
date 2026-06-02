@@ -1,0 +1,7 @@
+perturbation,flip_rate,easy_to_other,fragile_to_other,infeasible_to_other,easy_count,fragile_count,infeasible_count
+-5pct,0.018,0,18,0,309,90,601
+5pct,0.018,0,18,0,309,90,601
+-10pct,0.018,0,18,0,309,90,601
+10pct,0.018,0,18,0,309,90,601
+-20pct,0.018,0,18,0,309,90,601
+20pct,0.018,0,18,0,309,90,601

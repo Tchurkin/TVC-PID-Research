@@ -1,0 +1,14 @@
+feature_a,feature_b,interaction_strength_h2,interaction_rank
+control_effectiveness,backlash,0.03602328334060479,12
+p_unstable,backlash,0.020470927024608194,44
+static_margin,backlash,0.006216550324100147,77
+servo_slew_deg_s,backlash,0.0052786470005942035,79
+Iyy,backlash,0.005133527979970223,81
+thrust,backlash,0.004120736017132762,82
+best_u_max_frac,backlash,0.0037336781318667994,83
+max_gimbal_deg,backlash,0.002808802959269828,84
+Cm_alpha,backlash,0.002466869468134053,86
+mass,backlash,0.0018574892827853391,88
+backlash,wind_strength,0.0015345697276300987,89
+deadband,backlash,0.0013476830724695474,90
+backlash,latency_steps,0.0006696727711480896,91

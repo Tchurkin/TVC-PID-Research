@@ -1,0 +1,11 @@
+{
+  "outputs": [
+    "parameter_audit.csv",
+    "backlash_artifact_audit.csv",
+    "regime_threshold_sensitivity.csv",
+    "repeatability_summary.csv",
+    "exp4_decision_validity.csv",
+    "lever_stability_audit.csv",
+    "SIMULATION_CREDIBILITY_REPORT.md"
+  ]
+}

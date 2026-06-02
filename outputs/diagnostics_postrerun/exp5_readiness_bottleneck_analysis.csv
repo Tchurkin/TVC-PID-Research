@@ -1,0 +1,6 @@
+worst_bottleneck,count,mean_expected_improvement,mean_worst_tradeoff_score
+increase_control_effectiveness_10pct,68,0.4607843137254902,-0.19298259125301787
+increase_servo_slew_20pct,64,0.12499999999999993,-0.052361665196878085
+reduce_deadband_50pct,20,0.5666666666666667,-0.09601580998786403
+increase_aero_damping_10pct,8,0.3333333333333335,-0.0814121100444032
+increase_gimbal_15pct,8,0.4166666666666665,0.0

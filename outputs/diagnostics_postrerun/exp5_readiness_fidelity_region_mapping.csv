@@ -1,0 +1,4 @@
+regime_label,increase_servo_slew_20pct,reduce_backlash_50pct
+EASY,0,14
+FRAGILE,0,34
+INFEASIBLE,12,108

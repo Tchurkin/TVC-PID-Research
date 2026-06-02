@@ -1,6 +1,8 @@
 # Firmware-to-MATLAB Motor Parameter Alignment
 
-This document ensures that the Teensy firmware (`SisyphusCode.cpp`) accurately implements the JOINT_ADAPTIVE controller from MATLAB (`rocket_defaults.m` and related simulation code).
+This document originally ensured that the Teensy firmware (`SisyphusCode.cpp`) accurately implemented the JOINT_ADAPTIVE controller from MATLAB (`rocket_defaults.m` and related simulation code).
+
+Important May 2026 note: the repo now deliberately separates the **current simulation nominal target** from the **legacy conservative firmware placeholder**. MATLAB default now uses a hobby-relevant nominal loaded gimbal slew of about **75 deg/s** (`slew_max = 60` code units/s) for regime mapping. The current firmware constants still carry the old conservative `slew_max = 12` stack (about **15 deg/s** gimbal) until bench-locked flight hardware exists. This file therefore records the split explicitly rather than claiming exact alignment.
 
 ## Motor Physical Specifications
 
@@ -11,10 +13,9 @@ This document ensures that the Teensy firmware (`SisyphusCode.cpp`) accurately i
 - **Peak Thrust**: ~65 N
 
 ### TVC Actuator
-- **Type**: Generic servo (e.g., HS-5086WP) with linear mechanical reduction
-- **Servo Rate (bare)**: ~1 rad/s
-- **Gimbal Mechanical Reduction**: 4:1 (servo linkage lever arm)
-- **Resultant Gimbal Slew Rate**: 0.25 rad/s ≈ 14.3 deg/s
+- **Current MATLAB nominal target**: hobby 9 g-class micro-servo regime, modeled as about **75 deg/s loaded gimbal slew**
+- **Legacy firmware placeholder**: generic servo at ~1 rad/s bare with 4:1 mechanical reduction
+- **Legacy resultant gimbal slew rate**: 0.25 rad/s ≈ 14.3 deg/s
 
 ### Gimbal Geometry
 - **Command Range**: ±15° deflection
@@ -31,7 +32,7 @@ This document ensures that the Teensy firmware (`SisyphusCode.cpp`) accurately i
 | `aero_damp` | 1.20 | 1.20 | unitless | Pitch damping constant |
 | `control_eff` (keff_nom) | 8.0 | 8.0 | rad/s² per unit | Control effectiveness at nominal conditions |
 | `tau_act` | 0.05 | 0.05 | seconds | Actuator first-order lag (50 ms) |
-| `slew_max` | 12.0 | 12.0 | code units/s | Gimbal slew envelope (~0.25 rad/s) |
+| `slew_max` | 60.0 default / 12.0 in legacy stress scripts | 12.0 | code units/s | MATLAB default now represents ~75 deg/s loaded gimbal slew; firmware is still on the old conservative placeholder |
 | `u_max` | 12.0 | 12.0 | code units | Saturation limit (full gimbal range) |
 | `dt` (control) | 0.005 | 0.010 | seconds | **Firmware runs at 100 Hz (10 ms)** |
 | `dt` (sensor) | 0.005 | 0.005 | seconds | Sensor sampling at 200 Hz (5 ms) |

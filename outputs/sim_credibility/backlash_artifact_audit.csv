@@ -1,0 +1,6 @@
+test,balanced_accuracy,backlash_permutation_rank,top_feature_1,top_feature_2,top_feature_3,delta_bacc_vs_baseline
+baseline,0.6222889992160962,1.0,backlash,control_effectiveness,servo_slew_deg_s,0.0
+remove_backlash,0.3639055831373574,,control_effectiveness,servo_slew_deg_s,best_u_max_frac,-0.25838341607873877
+randomize_backlash,0.3696542113056354,12.0,control_effectiveness,servo_slew_deg_s,best_u_max_frac,-0.25263478791046073
+hold_backlash_constant,0.36377493249716925,9.0,control_effectiveness,servo_slew_deg_s,mass,-0.2585140667189269
+shuffle_backlash,0.3695235606654472,10.0,control_effectiveness,best_u_max_frac,p_unstable,-0.2527654385506489

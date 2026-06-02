@@ -1,0 +1,13 @@
+parameter,performance_gain,rank
+mass,0.0,1
+Iyy,0.0,2
+static_margin,0.0,3
+Cm_alpha,0.0,4
+control_effectiveness,0.0,5
+thrust,0.0,6
+deadband,0.0,7
+backlash,0.0,8
+latency,0.0,9
+wind_strength,0.0,10
+servo_slew,0.0,11
+max_gimbal,0.0,12

@@ -19,6 +19,12 @@ if ~exist(graph_dir, 'dir'), mkdir(graph_dir); end
 if ~exist(data_dir,  'dir'), mkdir(data_dir);  end
 
 cfg = rocket_defaults();
+% Keep the old severe-collapse actuator stack for this controller-oriented
+% realism demo. The current hobby-nominal regime is handled separately.
+cfg.plant.slew_max = 12.0;
+cfg.controllers.JOINT_ADAPTIVE.slew_nominal = cfg.plant.slew_max;
+cfg.controllers.JOINT_ADAPTIVE.slew_min = 0.10 * cfg.plant.slew_max;
+cfg.controllers.PCH_LQR.slew_max_assumed = cfg.plant.slew_max;
 
 ctrl_names = ["FIXED_LQR", "ADAPTIVE_KEFF_LQR", "SIGMA_MRAC", "PCH_LQR", "JOINT_ADAPTIVE"];
 pretty     = ["Fixed LQR", "keff-RLS", "\sigma-mod MRAC", "PCH", "Joint Adaptive"];

@@ -7,15 +7,25 @@
 
 ## Headline (one sentence, hostile-reviewer–proof)
 
-> **For statically-unstable amateur TVC airframes, the minimum gimbal slew
-> rate required for stabilization scales as `slew_min ∝ p²` (R² = 0.75,
-> matching inverted-pendulum bandwidth theory to <1% in exponent), and
-> three publicly-deployed amateur TVC firmwares ship with PD gains that
-> fail at p ≥ 4 despite their hardware architectures being capable of
-> stabilization up to p ≈ 8 with proper retuning. A calibrated pre-flight
-> validator (GO/NOGO precision 91%/100% on held-out random configs)
-> identifies which (servo, airframe) pairs are workable and which require
-> redesign.**
+> **In realistic simulation, amateur TVC rocket stability is best described
+> as three regimes — easy, fragile-but-recoverable, and fundamentally
+> infeasible — set primarily by actuator envelope and airframe instability.
+> The boundary follows `slew_min ∝ p²` (R² = 0.75), three publicly-deployed
+> amateur TVC firmwares fail far below the feasible envelope, and a new
+> hobby-range regime sweep shows that best-tuned ordinary PID already covers
+> the tested nominal 45-90 deg/s TVC band, making the regime map and
+> bench-calibrated workflow the core claim.**
+
+### Important update after the hobby-range controller sweep
+
+The previous hope that `PID_SLEW_AWARE` might be a main-claim bridge from
+ordinary hobby PID to a stronger controller story does **not** survive the
+new hobby-range sweep. `run_pid_slew_regime_map` shows `48/48 BOTH_FINE`
+across `p = 4, 6, 8`, nominal loaded slew `45-90 deg/s`, and retained slew
+scales `1.00-0.25` when PID and `PID_SLEW_AWARE` are each given their best
+gain pair from the tested grid. That means the lightweight controller branch
+is now a **secondary severe-collapse appendix**, not the central finalist-level
+claim.
 
 ### Important honest correction (added after head-to-head)
 
@@ -43,6 +53,25 @@ workable region. See `results/head_to_head_unstable.csv`.
 | H3: identifiability budget bounds wiggle-then-control accuracy | INDEPENDENT, holds | `run_h3` |
 | **NEW — Scaling law `slew_min(p) ~ p^α`** | **DISCOVERED, α = 1.99 vs theory α = 2** | `run_scaling_law` on 60-config calibration grid |
 | **NEW — Community-baseline firmware fails at p ≥ 4** | **EMPIRICALLY DEMONSTRATED** | `run_firmware_audit`: three real GitHub repos |
+| **PID_SLEW_AWARE as a main hobby-range claim** | **DIED** | `run_pid_slew_regime_map`: best-tuned PID and PID_SLEW_AWARE are both fine in all 48 tested hobby-nominal cells |
+
+## Current best story (May 31)
+
+The strongest version of the project is now a main claim plus one explicitly
+secondary appendix:
+
+1. **Empirical map:** the amateur TVC design space splits into easy,
+   fragile-but-recoverable, and infeasible regions. Builders currently treat too
+   many failures as "bad tuning" when some are hard hardware limits.
+2. **Builder workflow:** bench measurement plus realistic simulation can tell
+   the builder which region they occupy and which hardware changes matter most
+   before flight.
+3. **Appendix only:** a lightweight controller patch can still be studied in an
+   explicit severe-collapse stress regime, but it is no longer needed to carry
+   the main story.
+
+This is more defensible than a controller-novelty story and cleaner than a pure
+tool paper with no hard scientific boundary claim.
 
 ## The (slew, u_max, R*) phase diagram
 
@@ -130,9 +159,13 @@ values {10°, 27°, 30°} and swept p ∈ {4, 6, 8, 10}, 4 seeds × realistic pl
 **Revised contribution after this finding:**
 - The R*(u_max) lookup is *one* reasonable starting point, not the optimum.
 - For amateur deployment, a *retuned PD with per-p Kp/Kd lookup* derived from
-  the same calibration grid is probably the strongest single recommendation.
-- The validator's GO/MARGINAL/NOGO classification remains calibrated and is
-  the primary contribution.
+  the same calibration grid is probably the strongest fixed-gain baseline.
+- A lightweight slew-aware PID hardening layer is a plausible controller-side
+  improvement for the fragile middle regime, but it must be framed honestly as
+  bounded and non-universal.
+- The validator's GO/MARGINAL/NOGO classification remains calibrated, but the
+  broader contribution is now the regime map plus the bounded lightweight
+  recovery path.
 
 ### On SisyphusCode (user's own firmware)
 

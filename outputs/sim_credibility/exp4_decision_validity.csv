@@ -1,0 +1,12 @@
+test,value,n,group
+overall_disagreement_rate,0.56,100,
+disagreement_rate_by_regime,0.037037037037037035,27,EASY
+disagreement_rate_by_regime,0.13333333333333333,15,FRAGILE
+disagreement_rate_by_regime,0.9137931034482759,58,INFEASIBLE
+boundary_abs_distance_shift,0.7893912936789824,100,disagree_minus_agree
+mismatch_rate_by_fidelity_level,0.56,100,L0_BASELINE
+mismatch_rate_by_fidelity_level,0.56,100,L1_SATURATION
+mismatch_rate_by_fidelity_level,0.56,100,L2_SLEW_LIMIT
+mismatch_rate_by_fidelity_level,0.19,100,L3_ACTUATOR_NONLINEAR
+mismatch_rate_by_fidelity_level,0.09,100,L4_SENSOR_EFFECTS
+mismatch_rate_by_fidelity_level,0.0,100,L5_FULL

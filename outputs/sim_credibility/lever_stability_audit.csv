@@ -1,0 +1,13 @@
+audit,regime_label,design_lever,score
+base_mean_top_lever,EASY,reduce_backlash_50pct,0.11306634187325872
+base_mean_top_lever,FRAGILE,reduce_backlash_50pct,0.2050315641427689
+base_mean_top_lever,INFEASIBLE,reduce_backlash_50pct,0.8081505094370397
+bootstrap_win_rate,INFEASIBLE,reduce_backlash_50pct,1.0
+bootstrap_win_rate,FRAGILE,reduce_backlash_50pct,1.0
+bootstrap_win_rate,EASY,reduce_backlash_50pct,1.0
+trimmed_top_lever,EASY,reduce_backlash_50pct,0.11306634187325872
+trimmed_top_lever,FRAGILE,reduce_backlash_50pct,0.14907766874906364
+trimmed_top_lever,INFEASIBLE,reduce_backlash_50pct,0.16966045860473425
+perturbation_winner_retention,INFEASIBLE,reduce_backlash_50pct,1.0
+perturbation_winner_retention,FRAGILE,reduce_backlash_50pct,1.0
+perturbation_winner_retention,EASY,reduce_backlash_50pct,1.0
