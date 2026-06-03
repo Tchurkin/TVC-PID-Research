@@ -1,0 +1,67 @@
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 20 concurrent workers.
+[Parallel(n_jobs=-1)]: Done  32 tasks      | elapsed:    9.6s
+[Parallel(n_jobs=-1)]: Done 122 tasks      | elapsed:   16.9s
+[Parallel(n_jobs=-1)]: Done 248 tasks      | elapsed:   27.1s
+[Parallel(n_jobs=-1)]: Done 410 tasks      | elapsed:   44.6s
+[Parallel(n_jobs=-1)]: Done 608 tasks      | elapsed:  1.5min
+[Parallel(n_jobs=-1)]: Done 842 tasks      | elapsed:  2.1min
+[Parallel(n_jobs=-1)]: Done 1112 tasks      | elapsed:  2.7min
+[Parallel(n_jobs=-1)]: Done 1200 out of 1200 | elapsed:  3.0min finished
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 20 concurrent workers.
+[Parallel(n_jobs=-1)]: Done  32 tasks      | elapsed:   12.1s
+[Parallel(n_jobs=-1)]: Done 122 tasks      | elapsed:   42.7s
+[Parallel(n_jobs=-1)]: Done 248 tasks      | elapsed:  1.5min
+[Parallel(n_jobs=-1)]: Done 410 tasks      | elapsed:  2.2min
+[Parallel(n_jobs=-1)]: Done 608 tasks      | elapsed:  2.9min
+[Parallel(n_jobs=-1)]: Done 842 tasks      | elapsed:  3.8min
+[Parallel(n_jobs=-1)]: Done 1112 tasks      | elapsed:  4.7min
+[Parallel(n_jobs=-1)]: Done 1200 out of 1200 | elapsed:  5.0min finished
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 20 concurrent workers.
+[Parallel(n_jobs=-1)]: Done  32 tasks      | elapsed:   24.6s
+[Parallel(n_jobs=-1)]: Done 122 tasks      | elapsed:  1.2min
+[Parallel(n_jobs=-1)]: Done 248 tasks      | elapsed:  2.5min
+[Parallel(n_jobs=-1)]: Done 410 tasks      | elapsed:  4.1min
+[Parallel(n_jobs=-1)]: Done 608 tasks      | elapsed:  6.0min
+[Parallel(n_jobs=-1)]: Done 842 tasks      | elapsed:  8.2min
+[Parallel(n_jobs=-1)]: Done 1112 tasks      | elapsed: 10.8min
+[Parallel(n_jobs=-1)]: Done 1200 out of 1200 | elapsed: 12.0min finished
+Running Exp4 ablation on N=1200 designs...
+=== EXP4 ABLATION (Python) n=1200 designs ===
+    Modules: ['wind', 'backlash', 'slew', 'latency', 'sensor_noise', 'thrust_var', 'deadband']
+    Seeds per condition: 3
+
+  Dominant fidelity by design:
+    sensor_noise          726  (60.5%)
+    wind                  296  (24.7%)
+    slew                  158  (13.2%)
+    backlash               20  (1.7%)
+
+  Designs with >=1 decision flip: 866 / 1200
+Saved: C:\Users\braxt\MATLAB Drive\TVC PID Research\experiments\results\exp4_ablation_study_py.csv
+Exp4 ablation done.
+Running Exp5 landscape on N=1200 designs...
+=== EXP5 LANDSCAPE (Python) n=1200 designs ===
+  Computing gradient field (central differences, full fidelity)...
+
+  Topology distribution:
+    bowl         1018  (84.8%)
+    cliff         180  (15.0%)
+    ridge           2  (0.2%)
+
+  Most common improvement direction:
+    servo_slew_deg_s              505  (42.1%)
+    Cm_alpha                      124  (10.3%)
+    mass                          102  (8.5%)
+    thrust                         85  (7.1%)
+    control_effectiveness          80  (6.7%)
+Saved: C:\Users\braxt\MATLAB Drive\TVC PID Research\experiments\results\exp5_gradient_field_py.csv
+
+  Population plateau threshold (10th pct): 33.1544
+
+  Computing evolution paths (5 steps per design)...
+Saved: C:\Users\braxt\MATLAB Drive\TVC PID Research\experiments\results\exp5_evolution_paths_py.csv  (7200 rows)
+
+  Computing diminishing returns (1D sweeps, top 5 parameters)...
+    Top 5 by mean |grad|: ['Iyy', 'static_margin', 'backlash', 'wind_strength', 'mass']
+Saved: C:\Users\braxt\MATLAB Drive\TVC PID Research\experiments\results\exp5_diminishing_returns_py.csv  (200 rows)
+Exp5 landscape done.

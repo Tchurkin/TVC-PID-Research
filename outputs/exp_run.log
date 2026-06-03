@@ -1,0 +1,15 @@
+=== EXP1 (Python) n=1200 seed=42 ===
+Regime counts:  EASY=488  FRAGILE=477  INFEASIBLE=235
+Saved: C:\Users\braxt\MATLAB Drive\TVC PID Research\experiments\results\exp1_regime_index_py.csv
+=== EXP4 (Python) n=1200 designs, tune-once-at-L5 ===
+  [EASY] L0_BASELINE disagrees with L5: 0.018
+  [EASY] L2_SLEW_LIMIT disagrees with L5: 0.012
+  [EASY] L4_SENSOR_EFFECTS disagrees with L5: 0.064
+  [FRAGILE] L0_BASELINE disagrees with L5: 0.128
+  [FRAGILE] L2_SLEW_LIMIT disagrees with L5: 0.103
+  [FRAGILE] L4_SENSOR_EFFECTS disagrees with L5: 0.170
+  [INFEASIBLE] L0_BASELINE disagrees with L5: 0.889
+  [INFEASIBLE] L2_SLEW_LIMIT disagrees with L5: 0.881
+  [INFEASIBLE] L4_SENSOR_EFFECTS disagrees with L5: 0.591
+Saved: C:\Users\braxt\MATLAB Drive\TVC PID Research\experiments\results\exp4_fidelity_decision_trajectories_py.csv
+Saved: C:\Users\braxt\MATLAB Drive\TVC PID Research\experiments\results\exp4_first_correct_fidelity_py.csv

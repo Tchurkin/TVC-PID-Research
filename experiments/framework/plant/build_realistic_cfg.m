@@ -27,9 +27,13 @@ cfg.plant.Cm_alpha = pick_value(override, 'Cm_alpha', P.rocket.Cm_alpha);
 cfg.plant.mass_scale = max(0.30, min(3.00, cfg.plant.mass / max(1e-6, P_ref.rocket.mass)));
 cfg.plant.inertia_scale = max(0.20, min(5.00, P_ref.rocket.Iyy / max(1e-6, cfg.plant.Iyy)));
 cfg.plant.thrust_scale = max(0.20, min(5.00, cfg.plant.thrust / max(1e-6, P_ref.rocket.thrust)));
-cfg.plant.p_geom = estimate_p_unstable(P);
-cfg.plant.p_geom_ref = estimate_p_unstable(P_ref);
-cfg.plant.geom_delta_gain = pick_value(override, 'geom_delta_gain', 0.35);
+
+% Geometry (static_margin, Cm_alpha, thrust) influences the dynamics SOLELY
+% through the unstable pole p_unstable = estimate_p_unstable(...). The former
+% p_geom / p_geom_delta channel was computed by the identical formula as
+% p_unstable, so it double-counted geometry (p_eff = p_unst + 0.35*max(0,
+% p_unst - p_ref)) with a derivative kink at the reference. It is removed so
+% geometry enters exactly once, through a single documented mapping.
 
 max_gimbal_deg = max(1e-3, P.rocket.max_gimbal);
 code_scale = 12.0 / max_gimbal_deg;

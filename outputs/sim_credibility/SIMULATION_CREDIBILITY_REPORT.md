@@ -9,7 +9,7 @@
 - Backlash baseline balanced accuracy: 0.6223; worst perturbation: hold_backlash_constant (-0.2585).
 - Max regime flip rate under threshold perturbation: 0.018 at -5pct.
 - Repeatability mean pairwise JSD: 0.0010; mean feature-rank Spearman: 0.6630.
-- Exp4 disagreement rate vs highest-fidelity reference: 0.560.
+- Exp4 disagreement rate vs highest-fidelity reference: 0.500.
 - Exp5 winner retention under perturbation: 1.000.
 
 ## Claim Tightening

@@ -1,0 +1,178 @@
+{
+  "divergence_risk": {
+    "p_unstable": {
+      "mean": 0.24296296296296305,
+      "std": 0.014588549919430474,
+      "rank": 1
+    },
+    "servo_slew_deg_s": {
+      "mean": 0.21240740740740746,
+      "std": 0.016693394207017702,
+      "rank": 2
+    },
+    "backlash": {
+      "mean": 0.19740740740740742,
+      "std": 0.019745465350820144,
+      "rank": 3
+    },
+    "wind_strength": {
+      "mean": 0.1426851851851852,
+      "std": 0.013560626960672931,
+      "rank": 4
+    },
+    "Iyy": {
+      "mean": 0.11250000000000003,
+      "std": 0.013413148453675205,
+      "rank": 5
+    },
+    "mass": {
+      "mean": 0.0678703703703704,
+      "std": 0.008072566118102645,
+      "rank": 6
+    },
+    "control_effectiveness": {
+      "mean": 0.04703703703703708,
+      "std": 0.008175459279497825,
+      "rank": 7
+    },
+    "thrust": {
+      "mean": 0.03666666666666669,
+      "std": 0.00601780622565628,
+      "rank": 8
+    },
+    "max_gimbal_deg": {
+      "mean": 0.03527777777777778,
+      "std": 0.006922186552431734,
+      "rank": 9
+    },
+    "deadband": {
+      "mean": 0.023518518518518546,
+      "std": 0.0044636928863681135,
+      "rank": 10
+    },
+    "latency_steps": {
+      "mean": 0.013148148148148209,
+      "std": 0.004358741591088815,
+      "rank": 11
+    }
+  },
+  "rms_error_deg": {
+    "p_unstable": {
+      "mean": 0.3794071277235448,
+      "std": 0.03650062049987102,
+      "rank": 1
+    },
+    "servo_slew_deg_s": {
+      "mean": 0.10637258552205665,
+      "std": 0.042509937552232986,
+      "rank": 2
+    },
+    "wind_strength": {
+      "mean": 0.03952818129286336,
+      "std": 0.018869691568991473,
+      "rank": 3
+    },
+    "thrust": {
+      "mean": 0.037052703389370285,
+      "std": 0.013530813732034856,
+      "rank": 4
+    },
+    "mass": {
+      "mean": 0.017600241859972467,
+      "std": 0.006916058049516991,
+      "rank": 5
+    },
+    "backlash": {
+      "mean": 0.012565368552365275,
+      "std": 0.003929122285793335,
+      "rank": 6
+    },
+    "control_effectiveness": {
+      "mean": 0.00601538305596061,
+      "std": 0.007148879837987055,
+      "rank": 7
+    },
+    "Iyy": {
+      "mean": 0.004907380541081489,
+      "std": 0.0024492675968609597,
+      "rank": 8
+    },
+    "latency_steps": {
+      "mean": 0.0017030142796356507,
+      "std": 0.0015380647585356933,
+      "rank": 9
+    },
+    "deadband": {
+      "mean": 0.0012197305881217295,
+      "std": 0.002116307383636166,
+      "rank": 10
+    },
+    "max_gimbal_deg": {
+      "mean": -0.00020073373571754353,
+      "std": 0.0016414568343553722,
+      "rank": 11
+    }
+  },
+  "end_error_deg": {
+    "p_unstable": {
+      "mean": 0.3841294391064976,
+      "std": 0.03719305914450744,
+      "rank": 1
+    },
+    "servo_slew_deg_s": {
+      "mean": 0.08042786400876833,
+      "std": 0.03566340334014416,
+      "rank": 2
+    },
+    "thrust": {
+      "mean": 0.04274489714824708,
+      "std": 0.0154227993945908,
+      "rank": 3
+    },
+    "wind_strength": {
+      "mean": 0.023645790365207395,
+      "std": 0.01370632908345284,
+      "rank": 4
+    },
+    "control_effectiveness": {
+      "mean": 0.010244490458110319,
+      "std": 0.008167459298010778,
+      "rank": 5
+    },
+    "mass": {
+      "mean": 0.0098776838076061,
+      "std": 0.004356114147538107,
+      "rank": 6
+    },
+    "deadband": {
+      "mean": 0.008448322276264535,
+      "std": 0.005207904597980033,
+      "rank": 7
+    },
+    "backlash": {
+      "mean": 0.007196304129372237,
+      "std": 0.002339510924978395,
+      "rank": 8
+    },
+    "max_gimbal_deg": {
+      "mean": 0.0010551127619847075,
+      "std": 0.0019658469033000123,
+      "rank": 9
+    },
+    "latency_steps": {
+      "mean": 0.0006677552975018745,
+      "std": 0.002127149929123122,
+      "rank": 10
+    },
+    "Iyy": {
+      "mean": -0.0004988372290363641,
+      "std": 0.0015304171260012232,
+      "rank": 11
+    }
+  },
+  "method": "permutation_importance",
+  "n_permutations": 30,
+  "n_designs": 1200,
+  "test_fraction": 0.3,
+  "note": "Importance scores are drops in model score (accuracy for divergence_risk, R2 for rms/end_error) when a feature is randomly shuffled.  Negative values occur when shuffling accidentally improves OOB score on the specific test set; treat near-zero values as noise."
+}

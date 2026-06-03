@@ -1,10 +1,14 @@
-function [rawT, thresholdT, transitionT, designRuleT] = run_exp5_threshold_discovery()
+function [rawT, thresholdT, transitionT, designRuleT] = run_exp5_threshold_discovery_legacy(maxCells)
 %RUN_EXP5_THRESHOLD_DISCOVERY Legacy wrapper retained for compatibility.
 %
 % Exp5 is now a local design-sensitivity module. This wrapper forwards to
 % the new isolated Exp5 runner so older entry points still execute safely.
 
-[cellT, sensT, regimeT] = run_exp5_design_sensitivity();
+if nargin < 1
+    maxCells = inf;
+end
+
+[cellT, sensT, regimeT] = run_exp5_design_sensitivity(maxCells);
 rawT = cellT;
 thresholdT = sensT;
 transitionT = regimeT;

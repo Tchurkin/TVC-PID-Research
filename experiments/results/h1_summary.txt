@@ -1,5 +1,0 @@
-H1 coupling experiment, p=6.00 1/s
-grid: slew 14x u_max 14
-composed stable iff slew>=20.54 AND u_max>=2.00
-coupling loss fraction: 0.000
-overpredict cell rate: 0.000

@@ -141,12 +141,12 @@ def generate_parameter_audit() -> pd.DataFrame:
     ]
 
     evidence = {
-        "mass": "sampled/recorded but not directly consumed in simulate_case_realistic dynamics",
-        "Iyy": "sampled/recorded but not directly consumed in simulate_case_realistic dynamics",
-        "static_margin": "sampled; used only to derive p_unstable if override absent",
-        "Cm_alpha": "sampled; used only to derive p_unstable if override absent",
+        "mass": "wired via cfg.plant.mass_scale = mass/mass_ref; enters damp_eff and disturb_eff in qdot",
+        "Iyy": "wired via cfg.plant.inertia_scale = Iyy_ref/Iyy; enters keff_eff and damp_eff in qdot",
+        "static_margin": "enters dynamics via p_unstable = estimate_p_unstable(static_margin, Cm_alpha, thrust); single documented channel since p_geom double-count was removed 2026-06-02",
+        "Cm_alpha": "enters dynamics via p_unstable = estimate_p_unstable(static_margin, Cm_alpha, thrust); single documented channel since p_geom double-count was removed 2026-06-02",
         "control_effectiveness": "wired to cfg.plant.control_eff and enters qdot",
-        "thrust": "sampled; used in derived p_unstable calculation in Exp1 sampler",
+        "thrust": "wired via cfg.plant.thrust_scale = thrust/thrust_ref; enters keff_eff in qdot; also enters p_unstable derivation",
         "servo_slew_deg_s": "wired to actuator slew_max",
         "max_gimbal_deg": "used in unit/code scaling path",
         "best_u_max_frac": "wired to cfg.plant.u_max",
@@ -161,7 +161,13 @@ def generate_parameter_audit() -> pd.DataFrame:
     for p in params:
         sampled = p in exp1_src or p == "best_u_max_frac"
         cfg_wired = p in cfg_src or p.replace("_steps", "") in cfg_src or p.replace("_deg_s", "") in cfg_src
-        enters_dyn = p in {"control_effectiveness", "p_unstable"}
+        enters_dyn = p in {
+            "control_effectiveness", "p_unstable",
+            # Scale terms wired into qdot in simulate_case_realistic.m
+            "mass", "Iyy", "thrust",
+            # Proxied through p_unstable (single, documented channel)
+            "static_margin", "Cm_alpha",
+        }
         enters_sensor_or_actuator = p in {
             "servo_slew_deg_s",
             "max_gimbal_deg",
@@ -454,7 +460,7 @@ def write_report(parameter_df: pd.DataFrame, backlash_df: pd.DataFrame, threshol
         f"- Exp5 winner retention under perturbation: {lever_ret:.3f}.",
         "",
         "## Claim Tightening",
-        "- Treat unwired sampled parameters as metadata unless connected into runtime state update.",
+        "- If unwired parameters remain: treat as metadata unless connected into runtime state update.",
         "- Always publish threshold-sensitivity and seed-repeatability with regime claims.",
         "- Present Exp4/Exp5 decisions as confidence-banded, not deterministic.",
     ]
