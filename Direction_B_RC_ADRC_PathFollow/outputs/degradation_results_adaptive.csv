@@ -1,5 +1,0 @@
-controller,recovery_time_s,post_fault_rms,post_fault_peak,sysid_gain_err,sysid_tau_err
-L1,NaN,35.1367,51.8541,0.141932,0.000000
-PID_CASCADE,NaN,46.7409,53.1938,0.141932,0.000000
-ADRC_FIXED,7.3520,4.2462,7.0567,0.141932,0.000000
-ADRC_ADAPTIVE,3.7720,4.8429,7.8740,0.000010,0.005034
