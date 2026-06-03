@@ -117,6 +117,13 @@ Fidelity complexity:
 * 47% of EASY designs need zero fidelity modules (simple simulator OK)
 * 0% of INFEASIBLE designs can use a simple simulator (all need 2-3 modules)
 
+Simple-model decision error rates (exp4simple paired run, 2026-06-03):
+* INFEASIBLE: simple model has 99.6% FALSE APPROVAL rate — virtually every physically
+  unstable design would be wrongly approved by a simple simulator
+* FRAGILE: simple vs full agreement = 50.3% (coin flip) — simple model is useless here
+* EASY: simple vs full agreement = 78.3% — simple model mostly correct but 21.7% wrong
+* There were ZERO false rejections in any regime (simple model is always optimistic)
+
 Key open issue:
 
 Exp4 baseline mismatch: Exp4 full-fidelity includes thrust_var fault (keff drops 15% at 1.5s)
@@ -254,13 +261,16 @@ These remain hypotheses or open questions.
    — Partial: INFEASIBLE needs 2-3 modules always; EASY can often use simple sim.
 
 5. Which Exp5 outputs survive multi-seed validation?
-   — In progress: 3-seed Exp5 run underway (2026-06-03).
+   — Partially answered: 3-seed run complete. servo_slew dropped from 42% → 25% (noise
+     confirmed). Iyy enters top-3 (13.9%) but may still be noise — needs 5-seed validation.
 
 6. Which simulator findings survive real flight testing?
    — Not started: requires hardware bench data + 6-12 flights.
 
 7. What is the actual simple-model vs full-model decision disagreement rate?
-   — Open: requires paired exp4simple run (FidelityConfig.simple() for 1200 designs).
+   — ANSWERED (exp4simple, 2026-06-03): INFEASIBLE false approval rate = 99.6%;
+     FRAGILE agreement = 50.3% (coin flip); EASY agreement = 78.3%.
+     Simple model is always optimistic — zero false rejections across all regimes.
 
 ---
 

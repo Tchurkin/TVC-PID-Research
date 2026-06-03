@@ -1,0 +1,19 @@
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 20 concurrent workers.
+[Parallel(n_jobs=-1)]: Done  32 tasks      | elapsed:    8.3s
+[Parallel(n_jobs=-1)]: Done 122 tasks      | elapsed:   12.2s
+[Parallel(n_jobs=-1)]: Done 248 tasks      | elapsed:   16.6s
+[Parallel(n_jobs=-1)]: Done 410 tasks      | elapsed:   21.5s
+[Parallel(n_jobs=-1)]: Done 608 tasks      | elapsed:   26.6s
+[Parallel(n_jobs=-1)]: Done 842 tasks      | elapsed:   31.5s
+[Parallel(n_jobs=-1)]: Done 1112 tasks      | elapsed:   37.1s
+[Parallel(n_jobs=-1)]: Done 1200 out of 1200 | elapsed:   39.1s finished
+=== EXP4-SIMPLE (Python) n=1200 designs ===
+    Seeds per condition: 3
+    Simple: FidelityConfig.simple() — no fault
+    Full:   FidelityConfig.full()   — with thrust_var fault at t=1.5s
+
+  Decision agreement by regime:
+  [EASY      ] simple==full: 0.783  simple==exp1: 1.000  full==exp1: 0.783
+  [FRAGILE   ] simple==full: 0.503  simple==exp1: 1.000  full==exp1: 0.503
+  [INFEASIBLE] simple==full: 0.004  simple==exp1: 0.000  full==exp1: 0.996
+Saved: C:\Users\braxt\MATLAB Drive\TVC PID Research\experiments\results\exp4_simple_vs_full_py.csv

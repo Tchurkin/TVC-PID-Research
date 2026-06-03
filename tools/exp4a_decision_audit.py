@@ -17,15 +17,20 @@ Key concept — the baseline mismatch:
   This audit quantifies that mismatch first, then measures disagreement
   relative to the Exp1 labels as ground truth.
 
+Two data sources:
+  exp4_ablation_study_py.csv    — per-module ablation; used for proxy analysis
+  exp4_simple_vs_full_py.csv    — direct paired simple vs full; produced by
+                                   python sim/experiment_runner.py exp4simple
+
 Run:
   cd project_root
   python tools/exp4a_decision_audit.py
 
 Outputs to paper/figures/:
   exp4a_baseline_mismatch.png   — Exp4-full vs Exp1 agreement map
-  exp4a_confusion_by_regime.png — confusion matrix for simple vs full model
-  exp4a_module_contribution.png — which module, if added back, most often
-                                   corrects a wrong simple-model decision
+  exp4a_decision_flips.png      — per-module decision-flip rates by regime
+  exp4a_fidelity_complexity.png — simulator complexity needed per regime
+  exp4a_simple_confusion.png    — simple vs full confusion matrix (actual paired data)
 
 Outputs to experiments/results/:
   exp4a_decision_audit.csv      — per-design decision comparison table
@@ -73,7 +78,7 @@ REGIME_ORDER  = ["EASY", "FRAGILE", "INFEASIBLE"]
 REGIME_COLORS = {"EASY": "#2ecc71", "FRAGILE": "#f39c12", "INFEASIBLE": "#e74c3c"}
 
 # GO/NOGO threshold: same as used in Exp4 ablation (FRAGILE_SUCCESS_RATE)
-GO_THRESHOLD = 0.50
+GO_THRESHOLD = 0.35
 
 
 # ── Data loading ──────────────────────────────────────────────────────────────
@@ -105,49 +110,29 @@ def load_data() -> pd.DataFrame:
     # Baseline mismatch: does Exp4 full agree with Exp1?
     df["baseline_agrees"] = df["exp4_full_go"] == df["exp1_go"]
 
-    # Simple model estimate: if we remove ALL modules simultaneously.
-    # We don't have a direct single-run for the all-modules-off case, but we
-    # can estimate it: if every module individually flips GO to NO-GO, then
-    # the simple model (no modules) likely GO when the full model is GO, and
-    # vice versa when all modules together hurt performance.
-    #
-    # Best available proxy: success rate without the DOMINANT module.
-    # A design that fails only because of wind: simple model would see GO.
-    # A design that needs ALL modules to fail: simple would see GO.
-    #
-    # Conservative estimate: simple_go = True if n_decision_flips == 0
-    # (no single module changes the answer, so the simple model agrees).
-    # This is an underestimate of simple-model errors.
     df["n_decision_flips"] = df[[f"decision_flip_{m}" for m in MODULES]].sum(axis=1)
     df["simple_agrees_full"] = df["n_decision_flips"] == 0
-
-    # For the counterfactual "simple model" GO/NOGO:
-    # If the full model says GO and removing any module keeps it GO (0 flips),
-    # then the simple model also says GO → same answer.
-    # If the full model says GO but removing modules produces NO-GO flips,
-    # we don't know the combined effect (non-additive), but as an approximation:
-    # simple model is likely GO (it misses the degradation).
-    #
-    # Practical: we treat "simple model says GO for any design where exp4_full is GO
-    # OR where removing all modules improves success" — this requires a direct run.
-    # Mark which designs are candidates for paired disagreement analysis.
     df["needs_paired_run"] = ~df["simple_agrees_full"]
 
-    # False optimism: simple model would say GO when it shouldn't (dangerous)
-    # Approximation: designs where exp1_go=False but all individual modules improve
-    # performance (removing any single module makes it closer to GO)
-    # This means the accumulated effects of all modules together cause failure.
     df["candidate_false_optimism"] = (
         (~df["exp1_go"]) & (df["n_decision_flips"] > 0)
     )
-
-    # False pessimism: simple model would say NO-GO when it should say GO
-    # Designs where exp1_go=True but exp4_full_go=False (baseline mismatch)
     df["candidate_false_pessimism"] = (
         df["exp1_go"] & (~df["exp4_full_go"])
     )
 
     return df
+
+
+def load_paired_data() -> pd.DataFrame | None:
+    """
+    Load actual paired simple-vs-full data from exp4simple run.
+    Returns None if the file doesn't exist yet.
+    """
+    path = EXP_DIR / "exp4_simple_vs_full_py.csv"
+    if not path.exists():
+        return None
+    return pd.read_csv(path)
 
 
 def wilson_ci(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
@@ -196,6 +181,50 @@ def table_fidelity_complexity_by_regime(df: pd.DataFrame) -> pd.DataFrame:
             rows.append(dict(regime=regime, n_modules=k, n_designs=int(cnt),
                               pct=round(100*cnt/n, 1),
                               ci_lo=round(100*lo,1), ci_hi=round(100*hi,1)))
+    return pd.DataFrame(rows)
+
+
+def table_simple_vs_full(paired: pd.DataFrame) -> pd.DataFrame:
+    """
+    Agreement rates from direct paired simple-vs-full run.
+    This is the primary table for paper claims about simple-model error rates.
+    """
+    rows = []
+    for regime in REGIME_ORDER:
+        sub = paired[paired["regime_label"] == regime]
+        n   = len(sub)
+        if n == 0:
+            continue
+
+        # simple GO count, full GO count
+        n_simple_go = sub["simple_go"].sum()
+        n_full_go   = sub["full_go"].sum()
+        n_exp1_go   = sub["exp1_go"].sum()
+
+        # agreement counts
+        s_vs_f = sub["simple_vs_full_agrees"].sum()
+        s_vs_e = sub["simple_vs_exp1_agrees"].sum()
+        f_vs_e = sub["full_vs_exp1_agrees"].sum()
+
+        # false approvals: simple says GO but full says NO-GO (dangerous case)
+        false_approvals = ((sub["simple_go"] == 1) & (sub["full_go"] == 0)).sum()
+        # false rejections: simple says NO-GO but full says GO
+        false_rejections = ((sub["simple_go"] == 0) & (sub["full_go"] == 1)).sum()
+
+        lo_sf, hi_sf = wilson_ci(s_vs_f, n)
+        rows.append(dict(
+            regime=regime, n=n,
+            n_simple_go=int(n_simple_go), n_full_go=int(n_full_go),
+            n_exp1_go=int(n_exp1_go),
+            simple_vs_full_pct=round(100 * s_vs_f / n, 1),
+            simple_vs_full_ci_lo=round(100 * lo_sf, 1),
+            simple_vs_full_ci_hi=round(100 * hi_sf, 1),
+            simple_vs_exp1_pct=round(100 * s_vs_e / n, 1),
+            full_vs_exp1_pct=round(100 * f_vs_e / n, 1),
+            false_approvals=int(false_approvals),
+            false_rejections=int(false_rejections),
+            false_approval_pct=round(100 * false_approvals / n, 1),
+        ))
     return pd.DataFrame(rows)
 
 
@@ -396,9 +425,91 @@ def fig_fidelity_complexity(df: pd.DataFrame, tbl_complexity: pd.DataFrame):
     print(f"  Saved: {out}")
 
 
+# ── Figure 4: Simple vs Full confusion matrix (paired data) ──────────────────
+
+def fig_simple_confusion(paired: pd.DataFrame, tbl: pd.DataFrame):
+    """
+    Confusion matrix showing where simple and full simulators agree/disagree.
+
+    Key question: how often does a simple simulator make the WRONG call?
+    - False Approval (dangerous): simple=GO but full=NO-GO
+    - False Rejection (expensive): simple=NO-GO but full=GO
+
+    Uses actual paired simple-vs-full data from exp4simple run.
+    """
+    fig, axes = plt.subplots(1, 3, figsize=(14, 5), constrained_layout=True)
+
+    for ax, regime in zip(axes, REGIME_ORDER):
+        sub = paired[paired["regime_label"] == regime]
+        n   = len(sub)
+        if n == 0:
+            ax.text(0.5, 0.5, "No data", ha="center", va="center",
+                    transform=ax.transAxes)
+            continue
+
+        # Build 2×2 confusion: rows=full (truth), cols=simple (prediction)
+        # [0,0]=both NO-GO, [0,1]=false approval, [1,0]=false rejection, [1,1]=both GO
+        cm = np.zeros((2, 2), dtype=int)
+        for _, row in sub.iterrows():
+            full_v   = int(row["full_go"])
+            simple_v = int(row["simple_go"])
+            cm[full_v, simple_v] += 1
+
+        # Normalise by row (= conditional on full fidelity verdict)
+        cm_norm = cm.astype(float)
+        for i in range(2):
+            row_sum = cm[i].sum()
+            if row_sum > 0:
+                cm_norm[i] /= row_sum
+
+        im = ax.imshow(cm_norm, cmap="RdYlGn", vmin=0, vmax=1, aspect="auto")
+
+        for i in range(2):
+            for j in range(2):
+                count  = cm[i, j]
+                pct    = 100 * cm_norm[i, j]
+                color  = "white" if cm_norm[i, j] < 0.3 or cm_norm[i, j] > 0.7 else "black"
+                ax.text(j, i, f"{count}\n({pct:.0f}%)", ha="center", va="center",
+                        fontsize=9, color=color, fontweight="bold")
+
+        ax.set_xticks([0, 1])
+        ax.set_yticks([0, 1])
+        ax.set_xticklabels(["Simple: NO-GO", "Simple: GO"], fontsize=8)
+        ax.set_yticklabels(["Full: NO-GO\n(true negative)", "Full: GO\n(true positive)"],
+                           fontsize=8)
+        ax.set_xlabel("Simple simulator verdict", fontsize=9)
+        ax.set_ylabel("Full-fidelity verdict\n(reference truth)", fontsize=9)
+
+        # Highlight false approval cell
+        false_app_pct = 100 * cm_norm[0, 1]  # full=NO-GO, simple=GO
+        ax.add_patch(plt.Rectangle(
+            (0.5, -0.5), 1, 1, fill=False,
+            edgecolor="#c0392b", lw=2.5, linestyle="--"
+        ))
+
+        r_tbl = tbl[tbl["regime"] == regime]
+        fa_pct = r_tbl["false_approval_pct"].iloc[0] if len(r_tbl) else 0
+        ax.set_title(
+            f"{regime}  (n={n})\nFalse approval: {fa_pct:.0f}%",
+            fontweight="bold", color=REGIME_COLORS[regime]
+        )
+
+    fig.suptitle(
+        "Simple Simulator Decision Accuracy by Regime\n"
+        "Rows = full-fidelity verdict (reference truth).  Cols = simple simulator verdict.\n"
+        "Red dashed box = false approval: simple says fly, full says don't.",
+        fontsize=9.5,
+    )
+    plt.colorbar(im, ax=axes[-1], label="Fraction (row-normalised)", shrink=0.8)
+    out = FIG_DIR / "exp4a_simple_confusion.png"
+    fig.savefig(out, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved: {out}")
+
+
 # ── Print tables ──────────────────────────────────────────────────────────────
 
-def print_tables(df, tbl_mismatch, tbl_complexity):
+def print_tables(df, tbl_mismatch, tbl_complexity, paired=None, tbl_paired=None):
     agree_overall = df["baseline_agrees"].mean()
     print("\n" + "="*65)
     print("Exp4A: Decision-Disagreement Audit")
@@ -406,7 +517,7 @@ def print_tables(df, tbl_mismatch, tbl_complexity):
 
     print(f"\nOverall Exp4-full vs Exp1 GO/NOGO agreement: {agree_overall:.1%}")
 
-    print("\n--- Baseline mismatch by regime ---")
+    print("\n--- Baseline mismatch by regime (thrust_var fault contamination) ---")
     print(f"  {'Regime':<12s} {'Agree':>8s}  {'95% CI':>14s}  Exp4 GO  Exp1 GO")
     for _, r in tbl_mismatch.iterrows():
         print(f"  {r.regime:<12s} {r.agree_pct:>7.1f}%  "
@@ -431,14 +542,30 @@ def print_tables(df, tbl_mismatch, tbl_complexity):
         pct  = 100 * df[col].mean()
         print(f"  {MODULE_LABELS[module]:<18s} {pct:>7.1f}%")
 
-    # Note about what Exp4A cannot yet answer
-    print("\n--- What this audit does NOT yet answer ---")
-    print("  The paired simple-vs-full run (Exp4A proper) requires running")
-    print("  FidelityConfig.simple() for all 1200 designs to get actual")
-    print("  simple-model GO/NOGO.  This is not in the current dataset.")
-    print("  Current analysis uses n_decision_flips as a proxy only.")
-    print("  Run: python sim/experiment_runner.py exp4simple")
-    print("  to generate the paired data.")
+    if paired is not None and tbl_paired is not None:
+        print("\n" + "="*65)
+        print("Exp4A: Direct Simple-vs-Full Paired Comparison (exp4simple)")
+        print("="*65)
+        print(f"  {'Regime':<12s}  {'S==F':>7s}  {'95% CI':>14s}  {'FalseAppr':>10s}  FalseRej")
+        for _, r in tbl_paired.iterrows():
+            print(f"  {r.regime:<12s}  {r.simple_vs_full_pct:>6.1f}%  "
+                  f"[{r.simple_vs_full_ci_lo:.1f}%, {r.simple_vs_full_ci_hi:.1f}%]  "
+                  f"{r.false_approval_pct:>9.1f}%  {r.false_rejections:>8d}")
+
+        print("\n  Key finding:")
+        inf_row = tbl_paired[tbl_paired["regime"] == "INFEASIBLE"]
+        frag_row = tbl_paired[tbl_paired["regime"] == "FRAGILE"]
+        if len(inf_row):
+            fa = inf_row["false_approval_pct"].iloc[0]
+            print(f"    INFEASIBLE false approval rate: {fa:.1f}%  "
+                  f"(simple sim approves {fa:.0f}% of physically unstable designs)")
+        if len(frag_row):
+            agree = frag_row["simple_vs_full_pct"].iloc[0]
+            print(f"    FRAGILE simple==full: {agree:.1f}%  "
+                  f"({'coin flip' if 45 < agree < 55 else 'better than chance'})")
+    else:
+        print("\n--- Paired simple-vs-full data not yet available ---")
+        print("  Run: python sim/experiment_runner.py exp4simple")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -448,28 +575,43 @@ if __name__ == "__main__":
     df = load_data()
     print(f"  {len(df)} designs loaded")
 
+    paired = load_paired_data()
+    if paired is not None:
+        print(f"  Paired simple-vs-full data: {len(paired)} designs")
+        tbl_paired = table_simple_vs_full(paired)
+    else:
+        print("  No paired data found (run exp4simple to generate)")
+        tbl_paired = None
+
     tbl_mismatch   = table_baseline_mismatch(df)
     tbl_complexity = table_fidelity_complexity_by_regime(df)
 
-    print_tables(df, tbl_mismatch, tbl_complexity)
+    print_tables(df, tbl_mismatch, tbl_complexity, paired, tbl_paired)
 
     print("\nGenerating figures...")
-    print("[1/3] Baseline mismatch map")
+    print("[1/4] Baseline mismatch map")
     fig_baseline_mismatch(df, tbl_mismatch)
 
-    print("[2/3] Per-module decision-flip rates")
+    print("[2/4] Per-module decision-flip rates")
     fig_decision_flips(df)
 
-    print("[3/3] Fidelity complexity by regime")
+    print("[3/4] Fidelity complexity by regime")
     fig_fidelity_complexity(df, tbl_complexity)
+
+    if paired is not None:
+        print("[4/4] Simple vs Full confusion matrix (paired data)")
+        fig_simple_confusion(paired, tbl_paired)
+    else:
+        print("[4/4] Skipped — no paired data (run exp4simple first)")
 
     # Save audit results
     audit_out = EXP_DIR / "exp4a_decision_audit.csv"
-    df[[
+    cols = [
         "rocket_id", "design_id", "regime_label", "p_unstable", "servo_slew_deg_s",
         "exp4_full_go", "exp1_go", "baseline_agrees",
         "n_decision_flips", "candidate_false_optimism", "candidate_false_pessimism",
         "needs_paired_run",
-    ] + [f"decision_flip_{m}" for m in MODULES]].to_csv(audit_out, index=False)
+    ] + [f"decision_flip_{m}" for m in MODULES]
+    df[cols].to_csv(audit_out, index=False)
     print(f"\n  Saved: {audit_out}")
     print(f"\nAll outputs in {FIG_DIR}")

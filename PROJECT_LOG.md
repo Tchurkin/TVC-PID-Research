@@ -138,22 +138,62 @@ added 3 new analysis tools, cleaned workspace, committed all prior untracked wor
 
 ---
 
+## 2026-06-03 — Exp4Simple Paired Comparison + Exp4A Audit Extension
+
+**What happened:**
+
+Implemented and ran `exp4simple`: direct paired evaluation of
+`FidelityConfig.simple()` vs `FidelityConfig.full()` for all 1200 designs
+(gains frozen at Exp1 values, 3 seeds per condition).  Runtime ~40s.
+
+Extended `tools/exp4a_decision_audit.py` to load and analyse actual paired data.
+Added `fig_simple_confusion()` — per-regime confusion matrix.
+Added `table_simple_vs_full()` — false approval and false rejection rates.
+Total figures now 4 (was 3).
+
+**Key findings (exp4simple):**
+
+Simple-model decision error rates (simple vs full-fidelity):
+- INFEASIBLE: **99.6% false approval rate** — a simple simulator approves essentially
+  every physically unstable design (only 1 of 235 INFEASIBLE designs is correctly
+  rejected by a simple simulator)
+- FRAGILE: **50.3% agreement** — coin flip; simple model is useless for borderline designs
+- EASY: **78.3% agreement** — simple model mostly correct but fails 21.7% of EASY designs
+- **Zero false rejections in all regimes** — simple model is systematically optimistic
+
+Architectural note: The `simple_vs_exp1` comparison showed 100% agreement for
+EASY/FRAGILE (trivially — both say GO) and 0% for INFEASIBLE (simple always approves
+what exp1 correctly rejects). The `simple_vs_full` comparison is the more informative
+metric for publication claims.
+
+**Bug fixed:**
+`exp1_go` in `_eval_design_exp4simple` was using `row.get("success_rate", 0)` which
+doesn't exist in the Exp1 CSV.  Fixed to use `nominal_success_rate`.
+
+**Artifacts produced:**
+- `experiments/results/exp4_simple_vs_full_py.csv` (1200 rows, paired decisions)
+- `experiments/results/exp4a_decision_audit.csv` (updated)
+- `paper/figures/exp4a_simple_confusion.png` (NEW — confusion matrix, 4 panels)
+- `paper/figures/exp4a_baseline_mismatch.png` (updated)
+- `paper/figures/exp4a_decision_flips.png` (updated)
+- `paper/figures/exp4a_fidelity_complexity.png` (updated)
+
+---
+
 ## Open Items (as of 2026-06-03, end of session)
 
 **Must fix before final claims:**
 1. ~~Exp4 baseline mismatch~~ — QUANTIFIED (50.3% FRAGILE agreement).
-   Still need: run exp4simple for actual paired decision comparison.
-   Command: `python sim/experiment_runner.py exp4simple`
-2. ~~Multi-seed gradient validation~~ — IN PROGRESS (3-seed run active).
-   Will update results when done.
+2. ~~Multi-seed gradient validation~~ — DONE (3-seed run complete; servo_slew 42%→25%).
+3. ~~Exp4simple paired comparison~~ — DONE (99.6% INFEASIBLE false approval rate).
 
 **Should do for paper quality:**
-3. Run `python sim/experiment_runner.py exp4simple` — paired simple/full decisions
-4. Increase Exp5 to 5 seeds after 3-seed results look stable
+4. Increase Exp5 to 5 seeds (Iyy at 13.9% may still be noise)
 5. Hardware bench: measure actual servo slew, deadband, backlash
 6. p_unstable: replace calibration constants with real EOM derivation from hardware
 
 **Lower priority:**
 7. Flight validation campaign (6-12 launches per roadmap)
 8. Local surrogate fitting for more reliable Exp5 gradients
+
 

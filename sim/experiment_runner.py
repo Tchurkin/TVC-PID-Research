@@ -685,6 +685,142 @@ def run_exp4_ablation(
     return df
 
 
+# ── Exp4 simple-vs-full paired comparison ────────────────────────────────────
+#
+# For each design: run SIMPLE fidelity (all modules off, no thrust_var fault)
+# and compare decision to Exp1 ground truth (also simple, no fault).
+#
+# Scientific question: at what rate does simple-model GO/NOGO agree with
+# full-fidelity GO/NOGO?  This is the direct measure of simple-model risk.
+#
+# Output schema (one row per design):
+#   design params ... | simple_go | full_go | decision_agrees | regime_label
+
+
+def _eval_design_exp4simple(row: dict) -> dict:
+    """
+    Evaluate one design under SIMPLE fidelity and FULL fidelity (with thrust_var fault).
+    Gains frozen at Exp1 best_Kp / best_Kd.
+    Returns a flat dict with both decisions and whether they agree.
+    """
+    if "best_Kp" not in row or "best_Kd" not in row:
+        raise ValueError(
+            f"Design {row.get('rocket_id','?')} missing best_Kp/best_Kd. "
+            "Run Exp1 first."
+        )
+    Kp = float(row["best_Kp"])
+    Kd = float(row["best_Kd"])
+
+    plant    = build_plant(row)
+    base_act = build_actuator(row)
+    base_sen = build_sensor(row)
+    base_dis = build_disturbance(row)
+
+    pid   = PIDParams(Kp=Kp, Kd=Kd, Ki=0.0, u_max=base_act.u_max, i_lim=base_act.u_max)
+    seeds = tuple(range(1, EXP4_N_SEEDS + 1))
+
+    # Simple fidelity — no fault, all modules off (matches Exp1 evaluation conditions)
+    simple_sc  = build_scenario(theta0_bias_std=0.0)
+    simple_cfg = FidelityConfig.simple()
+    simple_m   = _eval_one_fidelity(plant, base_act, base_sen, base_dis, simple_sc, pid, simple_cfg, seeds)
+
+    # Full fidelity — with thrust_var fault (Exp4 baseline)
+    full_sc  = build_scenario(theta0_bias_std=0.0)
+    full_sc.keff_fault_post = 0.85
+    full_sc.damp_fault_post = 0.75
+    full_sc.fault_time_s    = 1.5
+    full_cfg = FidelityConfig.full()
+    full_m   = _eval_one_fidelity(plant, base_act, base_sen, base_dis, full_sc, pid, full_cfg, seeds)
+
+    simple_go = int(simple_m["success_rate"] >= FRAGILE_SUCCESS_RATE)
+    full_go   = int(full_m["success_rate"]   >= FRAGILE_SUCCESS_RATE)
+    # Exp1 uses nominal_success_rate (tuned at full, evaluated at nominal wind)
+    exp1_sr   = row.get("nominal_success_rate", row.get("success_rate", 0))
+    exp1_go   = int(float(exp1_sr) >= FRAGILE_SUCCESS_RATE)
+
+    out = dict(
+        rocket_id          = row["rocket_id"],
+        design_id          = row["design_id"],
+        regime_label       = row.get("regime_label", "UNKNOWN"),
+        best_Kp            = Kp,
+        best_Kd            = Kd,
+        simple_success_rate = simple_m["success_rate"],
+        simple_rms         = simple_m["rms_error_deg"],
+        simple_go          = simple_go,
+        full_success_rate  = full_m["success_rate"],
+        full_rms           = full_m["rms_error_deg"],
+        full_go            = full_go,
+        exp1_go            = exp1_go,
+        simple_vs_full_agrees = int(simple_go == full_go),
+        simple_vs_exp1_agrees = int(simple_go == exp1_go),
+        full_vs_exp1_agrees   = int(full_go   == exp1_go),
+    )
+
+    for k in ["p_unstable", "mass", "Iyy", "static_margin", "Cm_alpha",
+              "control_effectiveness", "thrust", "servo_slew_deg_s",
+              "max_gimbal_deg", "latency_steps", "deadband", "backlash", "wind_strength"]:
+        out[k] = row.get(k)
+
+    return out
+
+
+def run_exp4simple(
+    designs_df: Optional[pd.DataFrame] = None,
+    n_jobs:     int = -1,
+    out_dir:    Path = RESULT_DIR,
+) -> pd.DataFrame:
+    """
+    Experiment 4-Simple: paired simple-model vs full-fidelity decision comparison.
+
+    Runs FidelityConfig.simple() and FidelityConfig.full() for all 1200 designs
+    with gains frozen at Exp1 values.  Produces the direct answer to:
+      "If an engineer uses a simple simulator to decide whether to build this rocket,
+       how often will they make the wrong call?"
+
+    Saves:
+      exp4_simple_vs_full_py.csv   (one row per design)
+    """
+    if designs_df is None:
+        py_path = out_dir / "exp1_regime_index_py.csv"
+        if not py_path.exists():
+            raise FileNotFoundError(
+                "Exp1 results not found.  Run run_exp1() first or pass designs_df."
+            )
+        designs_df = pd.read_csv(py_path)
+        if "best_Kp" not in designs_df.columns:
+            raise ValueError(
+                "Exp1 CSV missing best_Kp/best_Kd.  Re-run Exp1 with current code."
+            )
+
+    print(f"=== EXP4-SIMPLE (Python) n={len(designs_df)} designs ===")
+    print(f"    Seeds per condition: {EXP4_N_SEEDS}")
+    print(f"    Simple: FidelityConfig.simple() — no fault")
+    print(f"    Full:   FidelityConfig.full()   — with thrust_var fault at t=1.5s")
+    rows = designs_df.to_dict("records")
+
+    results = Parallel(n_jobs=n_jobs, verbose=5)(
+        delayed(_eval_design_exp4simple)(row) for row in rows
+    )
+
+    df = pd.DataFrame(results)
+
+    print("\n  Decision agreement by regime:")
+    for regime in ["EASY", "FRAGILE", "INFEASIBLE"]:
+        sub = df[df["regime_label"] == regime]
+        if len(sub) == 0:
+            continue
+        s_vs_f = sub["simple_vs_full_agrees"].mean()
+        s_vs_e = sub["simple_vs_exp1_agrees"].mean()
+        f_vs_e = sub["full_vs_exp1_agrees"].mean()
+        print(f"  [{regime:10s}] simple==full: {s_vs_f:.3f}  "
+              f"simple==exp1: {s_vs_e:.3f}  full==exp1: {f_vs_e:.3f}")
+
+    out = out_dir / "exp4_simple_vs_full_py.csv"
+    df.to_csv(out, index=False)
+    print(f"Saved: {out}")
+    return df
+
+
 # ── Exp5: performance landscape / evolution atlas ─────────────────────────────
 #
 # For each design: compute gradient and curvature of performance metrics w.r.t.
@@ -1039,6 +1175,8 @@ if __name__ == "__main__":
         run_exp4()
     elif cmd == "exp4abl":
         run_exp4_ablation()
+    elif cmd == "exp4simple":
+        run_exp4simple()
     elif cmd == "exp5":
         run_exp5_landscape()
     elif cmd == "both":
@@ -1050,4 +1188,4 @@ if __name__ == "__main__":
         run_exp4_ablation(df)
         run_exp5_landscape(df)
     else:
-        print("Usage: python experiment_runner.py [exp1|exp4|exp4abl|exp5|both|all] [n_designs]")
+        print("Usage: python experiment_runner.py [exp1|exp4|exp4abl|exp4simple|exp5|both|all] [n_designs]")
