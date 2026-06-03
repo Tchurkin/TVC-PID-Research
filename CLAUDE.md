@@ -168,11 +168,22 @@ Confidence:
 
 These issues must be remembered during future analysis.
 
-## Exp4 Baseline Mismatch
+## Exp4 Baseline Mismatch — QUANTIFIED
 
-A reviewer identified that Exp4 full-fidelity conditions differ from Exp1 evaluation conditions.
+Exp4 full-fidelity conditions differ from Exp1 evaluation conditions because
+Exp4 includes a thrust_var fault (keff drops 15% at t=1.5s) that was NOT present
+during Exp1 regime labeling.
 
-Any fidelity dominance claim must be checked for sensitivity to this mismatch.
+Quantified impact (from Exp4A audit, 2026-06-03):
+- EASY: 78.3% GO/NOGO agreement  [74.4%, 81.7%]
+- FRAGILE: 50.3% agreement  [45.8%, 54.8%] — effectively a coin flip
+- INFEASIBLE: 99.6% agreement (thrust fault doesn't change uncontrollable verdict)
+
+Interpretation: The baseline mismatch primarily affects FRAGILE designs.
+Any fidelity claim involving FRAGILE designs must caveat this.
+
+Next step: Run exp4simple (FidelityConfig.simple() for all 1200 designs) to get
+actual paired simple-vs-full decision comparison.
 
 ---
 
@@ -190,15 +201,17 @@ Before accepting dominance rankings:
 
 ## Gradient Reliability
 
-Current gradients use a stochastic simulator.
+Current Exp5 gradients use 3-seed averaging (improved from single-seed).
+3 seeds reduces stochastic variance ~1.7× but is not fully converged.
 
 Potential future fixes:
 
-* multi-seed gradients
+* 5+ seed gradients (preferred for publication)
 * local response surfaces
 * surrogate-based derivatives
 
-Do not treat current gradient outputs as fully validated.
+Topology classification has been hardened with absolute gradient guard
+(cliff_abs_min=0.05) to prevent noise-spike misclassification.
 
 ---
 
@@ -229,16 +242,25 @@ These remain hypotheses or open questions.
 # High-Priority Open Questions
 
 1. Which fidelity terms matter in each regime?
+   — Partially answered: wind dominates GO/NOGO; sensor_noise dominates RMS.
 
 2. Where do fidelity handoffs occur?
+   — Partially answered: spatial maps in fidelity_dominance.py figures.
 
 3. Can fidelity requirements be predicted from physical rocket properties?
+   — Open: needs Fidelity Requirement Atlas (atlas-style classifier).
 
 4. Does the stability frontier also predict simulator complexity requirements?
+   — Partial: INFEASIBLE needs 2-3 modules always; EASY can often use simple sim.
 
 5. Which Exp5 outputs survive multi-seed validation?
+   — In progress: 3-seed Exp5 run underway (2026-06-03).
 
 6. Which simulator findings survive real flight testing?
+   — Not started: requires hardware bench data + 6-12 flights.
+
+7. What is the actual simple-model vs full-model decision disagreement rate?
+   — Open: requires paired exp4simple run (FidelityConfig.simple() for 1200 designs).
 
 ---
 

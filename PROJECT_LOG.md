@@ -89,16 +89,71 @@ conditions. This is a methodological concern that must be resolved before public
 
 ---
 
-## Open Items (as of 2026-06-03)
+## 2026-06-03 — STS Finalist Readiness Audit + Fixes
+
+**What happened:**
+Full audit of workspace against STS finalist requirements.  Fixed 5 code issues,
+added 3 new analysis tools, cleaned workspace, committed all prior untracked work.
+
+**Issues fixed:**
+
+1. **Exp5 topology classifier hardened** (`sim/local_analysis.py`)
+   Added `cliff_abs_min=0.05` guard — cliff class now requires the gradient spike
+   to be absolutely significant, not just relatively large vs. near-zero noise.
+   Previous code could classify noisy flat designs as "cliff" due to stochastic spikes.
+
+2. **Multi-seed gradients wired** (`sim/experiment_runner.py`)
+   Added `EXP5_N_SEEDS_GRAD = 3` constant. Exp5 gradient field now averages over
+   3 simulation seeds instead of 1. Reduces stochastic variance ~1.7×.
+   3-seed re-run kicked off; will update exp5_gradient_field_py.csv when done.
+
+3. **p_unstable derivation documented** (`sim/design_space.py`)
+   Replaced TODO comment with full EOM derivation sketch showing how the formula
+   relates to linearised pitch dynamics. Magic constants (10, 52, 35) explained
+   as reference-value calibration factors.
+
+4. **Exp4A decision audit tool** (`tools/exp4a_decision_audit.py`)
+   New tool quantifying the Exp4 baseline mismatch.
+   Key finding: FRAGILE regime shows only **50.3%** GO/NOGO agreement between
+   Exp4 full-fidelity and Exp1 ground truth — the thrust_var fault coin-flips
+   half of all fragile designs. INFEASIBLE is unaffected (99.6% agreement).
+   Produces 3 new figures in paper/figures/.
+
+5. **Representative trajectory figures** (`paper/make_figures.py`)
+   Added `fig_representative_trajectories()` — plots θ(t) and u(t) for the
+   median-p_unstable design from each regime. Produces trajectories_by_regime.png.
+   This is the "show me the simulation" figure that builds paper credibility.
+
+**Workspace cleanup:**
+- Committed 91 stale MATLAB experiment file deletions (Direction_B, ModelRocket outputs)
+- Committed all untracked Python simulator work (230+ files) in one structured commit
+- Removed ~100 obsolete MATLAB experiment scripts and result CSVs
+- All meaningful work now tracked in git
+
+**New figures produced:**
+- `paper/figures/exp4a_baseline_mismatch.png`
+- `paper/figures/exp4a_decision_flips.png`
+- `paper/figures/exp4a_fidelity_complexity.png`
+- `paper/figures/trajectories_by_regime.png`
+
+---
+
+## Open Items (as of 2026-06-03, end of session)
 
 **Must fix before final claims:**
-1. Exp4 baseline mismatch — align Exp4 full-fidelity with Exp1 evaluation conditions
-2. Multi-seed gradient validation for Exp5 (current: single seed, noisy)
+1. ~~Exp4 baseline mismatch~~ — QUANTIFIED (50.3% FRAGILE agreement).
+   Still need: run exp4simple for actual paired decision comparison.
+   Command: `python sim/experiment_runner.py exp4simple`
+2. ~~Multi-seed gradient validation~~ — IN PROGRESS (3-seed run active).
+   Will update results when done.
 
 **Should do for paper quality:**
-3. Representative trajectory figures — 3 example flights (EASY / FRAGILE / INFEASIBLE)
-4. p_unstable physical derivation — replace magic constants with proper EOM
+3. Run `python sim/experiment_runner.py exp4simple` — paired simple/full decisions
+4. Increase Exp5 to 5 seeds after 3-seed results look stable
+5. Hardware bench: measure actual servo slew, deadband, backlash
+6. p_unstable: replace calibration constants with real EOM derivation from hardware
 
 **Lower priority:**
-5. Local surrogate fitting for more reliable Exp5 gradients
-6. Flight validation: bench + actual flight to falsify simulator predictions
+7. Flight validation campaign (6-12 launches per roadmap)
+8. Local surrogate fitting for more reliable Exp5 gradients
+
