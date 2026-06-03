@@ -239,13 +239,19 @@ def classify_regime(
     robustness: float,
 ) -> tuple[str, int]:
     """
-    Classify a design as EASY (2), FRAGILE (1), or INFEASIBLE (0).
+    Classify a design as EASY (2), MARGINAL (3), FRAGILE (1), or INFEASIBLE (0).
+
+    Four-class scheme:
+      EASY     (2) — robust to all gain conditions AND meets quality thresholds
+      MARGINAL (3) — robust to all gain conditions BUT high steady-state RMS;
+                     stable and reliable, just a poor tracker (not wind-sensitive)
+      FRAGILE  (1) — fails at least one gain condition; genuinely wind-sensitive
+      INFEASIBLE(0) — fails even nominal or extreme performance failure
 
     robustness = fraction of {nominal, under, over} gain sets that pass the
-    FRAGILE_SUCCESS_RATE threshold.  EASY requires robustness = 1.0 (all pass)
-    plus quality criteria.  FRAGILE requires robustness > 0 plus minimal quality.
+    FRAGILE_SUCCESS_RATE threshold.
 
-    Returns (label, code) where code ∈ {0, 1, 2}.
+    Returns (label, code) where code ∈ {0, 1, 2, 3}.
     """
     easy_q = (
         nominal_success_rate  >= EASY_SUCCESS_RATE
@@ -262,6 +268,10 @@ def classify_regime(
 
     if robustness >= EASY_ROBUSTNESS and easy_q:
         return "EASY", 2
+    elif robustness >= EASY_ROBUSTNESS and frag_q:
+        # Passes all gain conditions (not wind-sensitive) but fails EASY quality gate.
+        # High steady-state RMS — a tracking quality limitation, not physical fragility.
+        return "MARGINAL", 3
     elif robustness > 0.0 and frag_q:
         return "FRAGILE", 1
     else:

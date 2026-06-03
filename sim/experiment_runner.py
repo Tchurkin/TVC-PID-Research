@@ -1162,6 +1162,97 @@ def _compute_diminishing_returns(
     return rows
 
 
+# ── Exp5 regime-stratified servo slew payoff sweep ───────────────────────────
+
+def _sweep_slew_one_design(row: dict, slew_vals: np.ndarray, seeds: list[int]) -> list[dict]:
+    """
+    Sweep servo_slew_deg_s across slew_vals for one design at its own gains.
+    Returns per-(design, slew_val) success_rate averaged over seeds.
+    """
+    from local_analysis import _evaluate_design
+    Kp = float(row["best_Kp"])
+    Kd = float(row["best_Kd"])
+    cfg = FidelityConfig.full()
+    out = []
+    for val in slew_vals:
+        d = dict(row)
+        d["servo_slew_deg_s"] = float(val)
+        successes = []
+        for seed in seeds:
+            try:
+                r = _evaluate_design(d, Kp, Kd, cfg, seed=seed)
+                successes.append(int(r.success))
+            except Exception:
+                successes.append(0)
+        out.append({
+            "design_id":    row.get("design_id"),
+            "regime_label": row.get("regime_label"),
+            "slew_val":     float(val),
+            "success_rate": float(np.mean(successes)),
+        })
+    return out
+
+
+def run_exp5_slew_stratified(
+    designs_df:      Optional[pd.DataFrame] = None,
+    n_designs_regime: int = 60,
+    n_slew_points:   int = 25,
+    seeds:           list[int] = None,
+    n_jobs:          int = -1,
+    out_dir:         Path = RESULT_DIR,
+) -> pd.DataFrame:
+    """
+    Regime-stratified servo slew payoff sweep.
+
+    For each regime (EASY, MARGINAL, FRAGILE, INFEASIBLE), samples
+    n_designs_regime designs and sweeps servo_slew_deg_s from 20 to 120 deg/s.
+    Reports mean success_rate and quartiles per (regime, slew_val).
+
+    Saves: exp5_slew_stratified_py.csv
+    """
+    if seeds is None:
+        seeds = [1, 2, 3]
+
+    if designs_df is None:
+        py_path = out_dir / "exp1_regime_index_py.csv"
+        if not py_path.exists():
+            raise FileNotFoundError("Exp1 results not found.")
+        designs_df = pd.read_csv(py_path)
+
+    slew_vals = np.linspace(20.0, 120.0, n_slew_points)
+    regime_labels = ["EASY", "MARGINAL", "FRAGILE", "INFEASIBLE"]
+
+    all_rows = []
+    for regime in regime_labels:
+        sub = designs_df[designs_df["regime_label"] == regime]
+        if sub.empty:
+            print(f"  {regime}: no designs, skipping")
+            continue
+        sample = sub.sample(min(n_designs_regime, len(sub)), random_state=42).to_dict("records")
+        print(f"  {regime}: sweeping {len(sample)} designs × {n_slew_points} slew points × {len(seeds)} seeds")
+
+        per_design = Parallel(n_jobs=n_jobs)(
+            delayed(_sweep_slew_one_design)(row, slew_vals, seeds) for row in sample
+        )
+        for design_rows in per_design:
+            all_rows.extend(design_rows)
+
+    raw_df = pd.DataFrame(all_rows)
+
+    # Aggregate per (regime_label, slew_val)
+    agg = (raw_df
+           .groupby(["regime_label", "slew_val"])["success_rate"]
+           .agg(["mean", "std", lambda x: np.percentile(x, 25), lambda x: np.percentile(x, 75)])
+           .reset_index())
+    agg.columns = ["regime_label", "slew_val", "success_rate_mean", "success_rate_std",
+                   "success_rate_q25", "success_rate_q75"]
+
+    out_path = out_dir / "exp5_slew_stratified_py.csv"
+    agg.to_csv(out_path, index=False)
+    print(f"\nSaved: {out_path}  ({len(agg)} rows)")
+    return agg
+
+
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -1179,6 +1270,8 @@ if __name__ == "__main__":
         run_exp4simple()
     elif cmd == "exp5":
         run_exp5_landscape()
+    elif cmd == "exp5slew":
+        run_exp5_slew_stratified()
     elif cmd == "both":
         df = run_exp1(n_designs=n)
         run_exp4(df)
@@ -1188,4 +1281,4 @@ if __name__ == "__main__":
         run_exp4_ablation(df)
         run_exp5_landscape(df)
     else:
-        print("Usage: python experiment_runner.py [exp1|exp4|exp4abl|exp4simple|exp5|both|all] [n_designs]")
+        print("Usage: python experiment_runner.py [exp1|exp4|exp4abl|exp4simple|exp5|exp5slew|both|all] [n_designs]")

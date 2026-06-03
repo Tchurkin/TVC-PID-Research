@@ -11,21 +11,41 @@ Key distinction from naive global ranking:
   it change the tracking error number?).  A module that shifts RMS by
   10 deg is irrelevant if the design is clearly GO either way.
 
-  Fig 6 (metric_agreement) directly compares both framings side-by-side to
-  show that metric choice — not just parameter choice — drives the ranking.
+Analysis approach — frequency of effect (not tie-broken dominance):
+  Previous version assigned each design a single "dominant" module via max()
+  on a dict — causing arbitrary tie-breaking for 63% of designs.  This
+  version reports the fraction of designs where each module causes ANY
+  decision flip, separated by direction (+: removing module helps; -: hurts).
+  A design can contribute to multiple modules.  This is more informative and
+  eliminates tie-breaking entirely.
+
+  The old decision_dominant column is still computed for backward-compatible
+  spatial scatter and metric-agreement figures, but is no longer the headline.
+
+Baseline note (added to every Exp4 figure caption):
+  Full-fidelity baseline includes a thrust-efficiency fault (keff drops 15%
+  at t=1.5 s) that was absent during gain tuning (Exp1).  Gains are frozen
+  at Exp1 values throughout.  This means 'removing thrust_var' partially
+  de-adversarialises the baseline rather than purely isolating thrust variation.
+
+Regime scheme (4 classes as of 2026-06-03):
+  EASY (2)      — robust to all gain conditions + meets quality thresholds
+  MARGINAL (3)  — robust to all gain conditions but high steady-state RMS
+                  (stable, reliable, poor tracker; not wind-sensitive)
+  FRAGILE (1)   — fails at least one gain condition (genuinely wind-sensitive)
+  INFEASIBLE (0)— fails nominal evaluation
 
 Run:
   cd project_root
   python tools/fidelity_dominance.py
 
 Outputs to paper/figures/:
-  fidelity_regime_bars.png        — per-regime dominant module distribution
-  fidelity_spatial_scatter.png    — all 1200 designs in (p_unstable × slew) space,
-                                    coloured by decision-dominant module
-  fidelity_handoff.png            — how dominance shifts along p_unstable and slew axes
+  fidelity_effect_frequency.png   — % of designs where each module causes a flip,
+                                    by regime and direction (REPLACES regime_bars)
+  fidelity_spatial_scatter.png    — all 1200 designs coloured by decision-dominant module
+  fidelity_handoff.png            — dominance handoff along p_unstable and slew axes
   fidelity_multisensitivity.png   — how many modules each design needs
-  fidelity_complexity_map.png     — n_modules needed, coloured in 2D space
-  fidelity_metric_agreement.png   — RMS-dominant vs GO/NOGO-dominant, agreement map
+  fidelity_metric_agreement.png   — RMS-dominant vs GO/NOGO-dominant comparison
 """
 
 from __future__ import annotations
@@ -81,8 +101,18 @@ MODULE_LABELS = {
     "latency":      "Sensor Latency",
     "deadband":     "Deadband",
 }
-REGIME_COLORS  = {"EASY": "#2ecc71", "FRAGILE": "#f39c12", "INFEASIBLE": "#e74c3c"}
-REGIME_ORDER   = ["EASY", "FRAGILE", "INFEASIBLE"]
+REGIME_COLORS = {
+    "EASY":       "#2ecc71",
+    "MARGINAL":   "#f1c40f",
+    "FRAGILE":    "#e67e22",
+    "INFEASIBLE": "#e74c3c",
+}
+REGIME_ORDER = ["EASY", "MARGINAL", "FRAGILE", "INFEASIBLE"]
+
+THRUST_FAULT_NOTE = (
+    "Baseline caveat: full-fidelity includes a 15% thrust-efficiency fault at t=1.5 s\n"
+    "absent during gain tuning — see Methods."
+)
 
 
 # ── Data loading and preprocessing ───────────────────────────────────────────
@@ -91,28 +121,36 @@ def load_data() -> pd.DataFrame:
     """Load Exp4 ablation data and add derived columns."""
     df = pd.read_csv(EXP_DIR / "exp4_ablation_study_py.csv")
 
-    # Decision-dominant module: the one with the largest |delta_success| for this design.
-    # This tells us which module most changes the engineering decision (GO/NOGO).
+    # ── Frequency-of-effect columns (one per module, three directions) ────────
+    # These replace the tie-broken decision_dominant column as the primary metric.
+    # A design contributes to a module's count regardless of whether other modules
+    # also have non-zero delta_success — no tie-breaking needed.
+    for m in MODULES:
+        col = f"delta_success_{m}"
+        if col in df.columns:
+            df[f"effect_pos_{m}"] = (df[col] > 0).astype(int)   # removing module helps
+            df[f"effect_neg_{m}"] = (df[col] < 0).astype(int)   # removing module hurts
+            df[f"effect_any_{m}"] = (df[col] != 0).astype(int)  # any effect
+
+    # ── Decision-dominant module (kept for spatial scatter and metric comparison)
+    # WARNING: 63% of designs have ties at the same |delta_success|; max() breaks
+    # ties by module order.  Use frequency-of-effect columns for primary claims.
     delta_cols = {m: f"delta_success_{m}" for m in MODULES}
     def _dominant(row):
         scores = {m: abs(row[col]) for m, col in delta_cols.items() if col in row.index}
         return max(scores, key=scores.get)
     df["decision_dominant"] = df.apply(_dominant, axis=1)
 
-    # RMS-dominant module: the one with the largest |delta_rms| (shifts tracking error most).
-    # This is what a naive "which module is important?" study would report.
+    # ── RMS-dominant module (kept for metric-agreement figure) ────────────────
     rms_cols = {m: f"delta_rms_{m}" for m in MODULES}
     def _rms_dominant(row):
         scores = {m: abs(row[col]) for m, col in rms_cols.items() if col in row.index}
         return max(scores, key=scores.get)
     df["rms_dominant"] = df.apply(_rms_dominant, axis=1)
 
-    # Agreement: do both metrics point to the same dominant module?
     df["metrics_agree"] = df["decision_dominant"] == df["rms_dominant"]
 
-    # Count of modules that flip the GO/NOGO decision for this design.
-    # A design with n_flips=0 can be simulated with a basic model.
-    # A design with n_flips=5 requires many physics layers to model correctly.
+    # ── Module complexity: count of modules that cause any decision flip ───────
     flip_cols = [f"decision_flip_{m}" for m in MODULES if f"decision_flip_{m}" in df.columns]
     df["n_modules_flip"] = df[flip_cols].sum(axis=1)
 
@@ -136,23 +174,36 @@ def wilson_ci(successes: int, n: int, z: float = 1.96) -> tuple[float, float]:
     return (max(0.0, centre - half), min(1.0, centre + half))
 
 
-# ── Table 1: Regime-stratified decision-dominant distribution ─────────────────
+# ── Table 1: Regime-stratified frequency-of-effect ───────────────────────────
 
-def table_regime_dominance(df: pd.DataFrame) -> pd.DataFrame:
+def table_regime_effect_frequency(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    For each regime × module: what fraction of designs show any non-zero
+    delta_success when this module is ablated?  Reported separately for
+    positive direction (removing helps) and negative (removing hurts).
+
+    This replaces the old decision_dominant table, which was distorted by
+    63% tie-breaking.  A design may appear in multiple modules simultaneously.
+    """
     rows = []
     for regime in REGIME_ORDER:
-        sub  = df[df["regime_label"] == regime]
-        n    = len(sub)
+        sub = df[df["regime_label"] == regime]
+        n   = len(sub)
+        if n == 0:
+            continue
         for module in MODULES:
-            k    = (sub["decision_dominant"] == module).sum()
-            frac = k / n
-            lo, hi = wilson_ci(k, n)
+            k_pos = sub[f"effect_pos_{module}"].sum() if f"effect_pos_{module}" in sub.columns else 0
+            k_neg = sub[f"effect_neg_{module}"].sum() if f"effect_neg_{module}" in sub.columns else 0
+            k_any = sub[f"effect_any_{module}"].sum() if f"effect_any_{module}" in sub.columns else 0
+            lo_any, hi_any = wilson_ci(k_any, n)
             rows.append(dict(
-                regime=regime, module=module,
-                n_designs=n, n_dominant=k,
-                pct=round(100 * frac, 1),
-                ci_lo=round(100 * lo, 1),
-                ci_hi=round(100 * hi, 1),
+                regime=regime, module=module, n_designs=n,
+                n_effect_any=k_any, n_effect_pos=k_pos, n_effect_neg=k_neg,
+                pct_any =round(100 * k_any / n, 1),
+                pct_pos =round(100 * k_pos / n, 1),
+                pct_neg =round(100 * k_neg / n, 1),
+                ci_lo=round(100 * lo_any, 1),
+                ci_hi=round(100 * hi_any, 1),
             ))
     return pd.DataFrame(rows)
 
@@ -204,53 +255,75 @@ def table_multisensitivity(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows[rows.index if False else 0:])  # all rows
 
 
-# ── Figure 1: Decision-dominant module by regime ──────────────────────────────
+# ── Figure 1: Frequency-of-effect by regime (replaces old regime_bars) ────────
 
-def fig_regime_bars(df: pd.DataFrame, tbl: pd.DataFrame):
+def fig_effect_frequency(df: pd.DataFrame, tbl: pd.DataFrame):
     """
-    Three panels (one per regime) showing how often each fidelity module is
-    the decision-dominant module, with 95% Wilson confidence intervals.
+    Four panels (one per regime) showing the fraction of designs where each
+    fidelity module causes ANY decision flip when ablated, split by direction:
+      Orange bar = removing module HELPS  (module was limiting performance)
+      Red bar    = removing module HURTS  (module was stabilising the system)
 
-    Reading this: if a bar is tall, removing that module is what most often
-    changes whether you'd fly the rocket or not — for designs in that regime.
+    Unlike the old 'dominant module' figure, each design can contribute to
+    multiple modules — no tie-breaking.  Bars may sum to >100%.
+
+    Reading this: a tall orange bar means this module frequently limits
+    whether you'd approve the rocket.  A visible red component means the
+    module plays a dual role (e.g. slew limits acting as accidental damping).
     """
-    fig, axes = plt.subplots(1, 3, figsize=(13, 5), constrained_layout=True)
+    n_regimes = len(REGIME_ORDER)
+    fig, axes = plt.subplots(1, n_regimes, figsize=(4 * n_regimes, 5),
+                             constrained_layout=True)
 
     for ax, regime in zip(axes, REGIME_ORDER):
-        sub = tbl[tbl["regime"] == regime].sort_values("pct", ascending=False)
+        sub = tbl[tbl["regime"] == regime].copy()
+        if sub.empty:
+            ax.set_visible(False)
+            continue
+        sub = sub.sort_values("pct_any", ascending=False)
         x   = np.arange(len(sub))
-        colors = [MODULE_COLORS.get(m, "#aaa") for m in sub["module"]]
-        bars = ax.bar(x, sub["pct"], color=colors, width=0.65, zorder=3, alpha=0.88)
+        w   = 0.35
 
-        # Wilson 95% CI error bars
-        yerr_lo = sub["pct"].values - sub["ci_lo"].values
-        yerr_hi = sub["ci_hi"].values - sub["pct"].values
-        ax.errorbar(x, sub["pct"], yerr=[yerr_lo, yerr_hi],
-                    fmt="none", color="black", capsize=4, lw=1.2, zorder=4)
+        # Positive direction: removing module improves decision (module was hurting)
+        ax.bar(x - w/2, sub["pct_pos"], width=w, color="#e67e22",
+               alpha=0.90, zorder=3, label="Removing helps")
+        # Negative direction: removing module worsens decision (module was helping)
+        ax.bar(x + w/2, sub["pct_neg"], width=w, color="#8e44ad",
+               alpha=0.90, zorder=3, label="Removing hurts")
+
+        # Wilson CI on total (any) effect frequency
+        yerr_lo = sub["pct_any"].values - sub["ci_lo"].values
+        yerr_hi = sub["ci_hi"].values  - sub["pct_any"].values
+        ax.errorbar(x, sub["pct_any"], yerr=[yerr_lo, yerr_hi],
+                    fmt="none", color="black", capsize=3, lw=1.0, zorder=5)
 
         ax.set_xticks(x)
         ax.set_xticklabels([MODULE_LABELS[m] for m in sub["module"]],
-                           rotation=38, ha="right", fontsize=8)
-        ax.set_ylabel("% of designs where this module\nmost changes GO/NOGO decision",
-                      fontsize=8)
-        n_regime = sub["n_designs"].iloc[0]
+                           rotation=40, ha="right", fontsize=7.5)
+        ax.set_ylabel("% of regime designs affected", fontsize=8)
+        n_regime = int(sub["n_designs"].iloc[0])
         ax.set_title(f"{regime}  (n={n_regime})", fontweight="bold",
                      color=REGIME_COLORS[regime])
-        ax.set_ylim(0, 100)
+        ax.set_ylim(0, 105)
         ax.grid(axis="y", alpha=0.3, lw=0.6)
+        ax.axhline(0, color="black", lw=0.6)
 
-        # Annotate top bar
-        top_row = sub.iloc[0]
-        ax.text(x[0], top_row["pct"] + top_row["ci_hi"] - top_row["pct"] + 2,
-                f"{top_row['pct']:.0f}%", ha="center", fontsize=8, fontweight="bold")
+        if ax == axes[0]:
+            ax.legend(fontsize=7.5, loc="upper right")
+
+        # Annotate top bar total
+        top = sub.iloc[0]
+        ax.text(x[0], top["pct_any"] + (top["ci_hi"] - top["pct_any"]) + 2,
+                f"{top['pct_any']:.0f}%", ha="center", fontsize=7.5, fontweight="bold")
 
     fig.suptitle(
-        "Decision-Dominant Fidelity Module by Regime\n"
-        "Which simulator module most changes the GO/NOGO decision when removed?  "
-        "Error bars = 95% Wilson CI.",
-        fontsize=9.5,
+        "Fidelity Module Effect Frequency by Regime\n"
+        "% of designs in each regime where ablating this module changes the GO/NOGO decision.\n"
+        "A design may appear in multiple modules.  "
+        + THRUST_FAULT_NOTE,
+        fontsize=8.5,
     )
-    out = FIG_DIR / "fidelity_regime_bars.png"
+    out = FIG_DIR / "fidelity_effect_frequency.png"
     fig.savefig(out, dpi=200, bbox_inches="tight")
     plt.close(fig)
     print(f"  Saved: {out}")
@@ -365,9 +438,10 @@ def fig_handoff(df: pd.DataFrame):
 
     fig.suptitle(
         "Fidelity Dominance Handoff Along Key Design Axes\n"
-        "Each horizontal slice shows what fraction of rockets in that bin "
-        "have each module as their most decision-critical fidelity term.",
-        fontsize=9.5,
+        "Each horizontal slice shows the fraction of rockets in that bin "
+        "where each module is the most decision-critical fidelity term.\n"
+        + THRUST_FAULT_NOTE,
+        fontsize=8.5,
     )
     out = FIG_DIR / "fidelity_handoff.png"
     fig.savefig(out, dpi=200, bbox_inches="tight")
@@ -440,8 +514,9 @@ def fig_multisensitivity(df: pd.DataFrame):
 
     fig.suptitle(
         "Fidelity Complexity: How Many Modules Must Be Modelled?\n"
-        "0 = simple simulator is sufficient.  Higher = more physics layers required.",
-        fontsize=9.5,
+        "0 = simple simulator is sufficient.  Higher = more physics layers required.\n"
+        + THRUST_FAULT_NOTE,
+        fontsize=8.5,
     )
     out = FIG_DIR / "fidelity_multisensitivity.png"
     fig.savefig(out, dpi=200, bbox_inches="tight")
@@ -643,8 +718,8 @@ def fig_metric_agreement(df: pd.DataFrame, tbl_agree: pd.DataFrame):
     fig.suptitle(
         "RMS Error vs GO/NOGO Decision: Two Ways to Measure Fidelity Importance\n"
         "The metric choice changes the ranking — sensor noise dominates RMS, "
-        "wind dominates engineering decisions.",
-        fontsize=9.5,
+        "wind dominates engineering decisions.\n" + THRUST_FAULT_NOTE,
+        fontsize=8.5,
     )
     out = FIG_DIR / "fidelity_metric_agreement.png"
     fig.savefig(out, dpi=200, bbox_inches="tight")
@@ -654,24 +729,30 @@ def fig_metric_agreement(df: pd.DataFrame, tbl_agree: pd.DataFrame):
 
 # ── Print tables ──────────────────────────────────────────────────────────────
 
-def print_tables(tbl_regime, tbl_context, tbl_multi, tbl_agree):
-    print("\n" + "="*65)
-    print("TABLE 1: Decision-dominant fidelity module by regime")
-    print("         (which module most changes GO/NOGO when removed)")
-    print("="*65)
+def print_tables(tbl_effect, tbl_context, tbl_multi, tbl_agree):
+    print("\n" + "="*70)
+    print("TABLE 1: Fidelity module effect frequency by regime")
+    print("         % of designs where ablating each module causes any GO/NOGO flip")
+    print("         Positive = removing module helps; Negative = removing hurts")
+    print("="*70)
     for regime in REGIME_ORDER:
-        sub = tbl_regime[tbl_regime["regime"] == regime].sort_values("pct", ascending=False)
-        n   = sub["n_designs"].iloc[0]
+        sub = tbl_effect[tbl_effect["regime"] == regime].sort_values("pct_any", ascending=False)
+        if sub.empty:
+            continue
+        n = int(sub["n_designs"].iloc[0])
         print(f"\n  {regime}  (n={n})")
-        print(f"  {'Module':<18s} {'%':>6s}   {'95% CI':>14s}")
+        print(f"  {'Module':<18s} {'Any%':>6s}  {'Pos%':>6s}  {'Neg%':>6s}  {'95% CI':>14s}")
         for _, row in sub.head(5).iterrows():
             print(f"  {MODULE_LABELS[row['module']]:<18s} "
-                  f"{row['pct']:>5.1f}%   "
+                  f"{row['pct_any']:>5.1f}%  "
+                  f"{row['pct_pos']:>5.1f}%  "
+                  f"{row['pct_neg']:>5.1f}%  "
                   f"[{row['ci_lo']:.1f}%, {row['ci_hi']:.1f}%]")
 
-    print("\n" + "="*65)
+    print("\n" + "="*70)
     print("TABLE 2: Decision-dominant module by spatial context")
-    print("="*65)
+    print("         (note: tie-broken; use TABLE 1 for primary claims)")
+    print("="*70)
     for ctx in tbl_context["context"].unique():
         sub = tbl_context[tbl_context["context"] == ctx]
         n   = sub["n_context"].iloc[0]
@@ -680,27 +761,27 @@ def print_tables(tbl_regime, tbl_context, tbl_multi, tbl_agree):
             print(f"  {MODULE_LABELS[row['module']]:<18s} "
                   f"{row['pct']:>5.1f}%  [{row['ci_lo']:.1f}, {row['ci_hi']:.1f}]")
 
-    print("\n" + "="*65)
+    print("\n" + "="*70)
     print("TABLE 3: Fidelity complexity (n modules needed) by regime")
-    print("="*65)
+    print("="*70)
     for regime in REGIME_ORDER:
         sub = tbl_multi[tbl_multi["regime"] == regime]
-        n   = sub[sub["n_modules_flip"]==0]["n_designs"].sum() + \
-              sub[sub["n_modules_flip"]>0]["n_designs"].sum()
+        if sub.empty:
+            continue
+        n = sub["n_designs"].sum()
         print(f"\n  {regime}  (n={n})")
         for _, row in sub.iterrows():
             k    = int(row["n_modules_flip"])
             note = " <- simple sim OK" if k == 0 else (" <- needs 1 module" if k == 1 else "")
             print(f"  {k} module(s): {row['pct']:>5.1f}%{note}")
 
-    print("\n" + "="*65)
+    print("\n" + "="*70)
     print("TABLE 4: Metric agreement — RMS-dominant vs Decision-dominant")
-    print("         Does the metric choice change which module tops the list?")
-    print("="*65)
+    print("="*70)
     print(f"\n  {'Regime':<12s} {'Agree %':>9s}  {'95% CI':>14s}  "
           f"{'Top (Decision)':>18s}  {'Top (RMS)':>18s}")
     for _, row in tbl_agree.iterrows():
-        agree_note = "  <- same!" if row["top_decision"] == row["top_rms"] else "  <- DIFFERENT"
+        agree_note = "  same!" if row["top_decision"] == row["top_rms"] else "  DIFFERENT"
         print(f"  {row['regime']:<12s} {row['agree_pct']:>8.1f}%  "
               f"[{row['ci_lo']:.1f}%, {row['ci_hi']:.1f}%]  "
               f"{MODULE_LABELS[row['top_decision']]:>18s}  "
@@ -714,33 +795,31 @@ if __name__ == "__main__":
     print("Loading data...")
     df = load_data()
     print(f"  {len(df)} designs loaded")
+    print(f"  Regimes: {df['regime_label'].value_counts().to_dict()}")
 
     print("\nComputing tables...")
-    tbl_regime  = table_regime_dominance(df)
+    tbl_effect  = table_regime_effect_frequency(df)
     tbl_context = table_context_dominance(df)
     tbl_multi   = table_multisensitivity(df)
     tbl_agree   = table_metric_agreement(df)
 
-    print_tables(tbl_regime, tbl_context, tbl_multi, tbl_agree)
+    print_tables(tbl_effect, tbl_context, tbl_multi, tbl_agree)
 
     print("\nGenerating figures...")
 
-    print("\n[1/6] Regime-stratified dominance bars")
-    fig_regime_bars(df, tbl_regime)
+    print("\n[1/5] Effect frequency bars (replaces old dominance bars)")
+    fig_effect_frequency(df, tbl_effect)
 
-    print("[2/6] Spatial scatter")
+    print("[2/5] Spatial scatter")
     fig_spatial_scatter(df)
 
-    print("[3/6] Dominance handoff along axes")
+    print("[3/5] Dominance handoff along axes")
     fig_handoff(df)
 
-    print("[4/6] Multi-module sensitivity")
+    print("[4/5] Multi-module sensitivity")
     fig_multisensitivity(df)
 
-    print("[5/6] Wind vs sensor-noise vs slew dominance maps")
-    fig_wind_vs_sn(df)
-
-    print("[6/6] Metric agreement: RMS vs Decision dominant")
+    print("[5/5] Metric agreement: RMS vs Decision dominant")
     fig_metric_agreement(df, tbl_agree)
 
     print(f"\nAll outputs in {FIG_DIR}")
