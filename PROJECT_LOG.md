@@ -180,20 +180,78 @@ doesn't exist in the Exp1 CSV.  Fixed to use `nominal_success_rate`.
 
 ---
 
+---
+
+## 2026-06-03 — Regime Split + Analysis Hardening
+
+**What happened:**
+
+Four-class regime scheme introduced: EASY / MARGINAL / FRAGILE / INFEASIBLE.
+- Old FRAGILE (n=477) split into MARGINAL (n=300, robustness=1.0, backlash-limited)
+  and FRAGILE (n=177, robustness<1.0, genuinely wind-sensitive).
+- All CSVs relabeled; no re-simulation required.
+
+Exp4 dominance analysis replaced:
+- Old: tie-broken "dominant module" (63% of designs had arbitrary tie-breaks).
+- New: frequency-of-effect — % of designs where ablating each module causes any
+  decision flip, split by positive/negative direction.
+- Slew bidirectionality now visible in figure (33% helps / 30% hurts in EASY).
+- Thrust-fault caveat added to all Exp4 figure captions.
+- New figure: fidelity_effect_frequency.png
+
+Exp5 CSV hardened:
+- Added grad_scaled_* columns (range-scaled); raw grad_rms_* retained.
+- Topology classification removed from paper figures (not validated vs regime boundaries).
+- Regime-stratified servo slew payoff curves added (exp5_slew_stratified_py.csv).
+
+Three methodological robustness analyses added:
+
+1. MARGINAL mechanism (marginal_mechanism.png):
+   - Backlash is dominant cause: MARGINAL mean=0.148 vs EASY mean=0.099 (d=0.73)
+   - Backlash-RMS correlation r=0.384, p=3.8e-29 within EASY+MARGINAL pool
+   - Logistic regression AUC=0.806 (EASY vs MARGINAL classification)
+   - Physical mechanism: actuator play creates dead zone; persistent tracking error
+   - MARGINAL needs better actuators, not better control
+
+2. Threshold sensitivity (threshold_sensitivity.png):
+   - Under +/-20% EASY_RMS_DEG variation: only 8.8% of designs change EASY/MARGINAL
+   - FRAGILE count: 177, INFEASIBLE count: 235 — both completely stable at ALL thresholds
+   - FRAGILE_SUCCESS_RATE: +/-20% band is within the flat discrete region (3-seed metric)
+   - Key sentence: "Regime structure qualitatively unchanged under +/-20% threshold variation"
+
+3. Seed sensitivity (seed_sensitivity.png):
+   - 74.4% of Exp4 designs have unambiguous outcomes (success_rate = 0 or 1.0)
+   - Population-level SE dominated by n_designs (~2.3pp), not n_seeds
+   - Adding seeds 4-5 reduces SE by <0.5pp — below detection threshold
+   - Defense: population-level claims are robust; Wilson CI accounts for sampling uncertainty
+
+**Artifacts produced:**
+- tools/regime_robustness_analysis.py
+- paper/figures/marginal_mechanism.png
+- paper/figures/threshold_sensitivity.png
+- paper/figures/seed_sensitivity.png
+- paper/figures/fidelity_effect_frequency.png
+- paper/figures/exp5_slew_payoff_stratified.png
+- experiments/results/exp5_slew_stratified_py.csv
+
+---
+
 ## Open Items (as of 2026-06-03, end of session)
 
 **Must fix before final claims:**
-1. ~~Exp4 baseline mismatch~~ — QUANTIFIED (50.3% FRAGILE agreement).
-2. ~~Multi-seed gradient validation~~ — DONE (3-seed run complete; servo_slew 42%→25%).
+1. ~~Exp4 baseline mismatch~~ — QUANTIFIED and disclosed in all figure captions.
+2. ~~Multi-seed gradient validation~~ — DONE (3-seed run complete).
 3. ~~Exp4simple paired comparison~~ — DONE (99.6% INFEASIBLE false approval rate).
+4. ~~FRAGILE regime split~~ — DONE (MARGINAL introduced; all CSVs relabeled).
+5. ~~Exp4 dominance tie-breaking~~ — DONE (replaced with frequency-of-effect).
 
 **Should do for paper quality:**
-4. Increase Exp5 to 5 seeds (Iyy at 13.9% may still be noise)
-5. Hardware bench: measure actual servo slew, deadband, backlash
-6. p_unstable: replace calibration constants with real EOM derivation from hardware
+6. Increase Exp5 to 5 seeds (Iyy at 13.9% may still be noise)
+7. Hardware bench: measure actual servo slew, deadband, backlash
+8. p_unstable: replace calibration constants with real EOM derivation from hardware
 
 **Lower priority:**
-7. Flight validation campaign (6-12 launches per roadmap)
-8. Local surrogate fitting for more reliable Exp5 gradients
+9. Flight validation campaign (6-12 launches per roadmap)
+10. Local surrogate fitting for more reliable Exp5 gradients
 
 
