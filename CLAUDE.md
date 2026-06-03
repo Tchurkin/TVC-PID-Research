@@ -57,17 +57,24 @@ The project is moving away from global rankings and toward regime-dependent fide
 
 ## Exp1 – Regime Mapping
 
-Status: Strong
+Status: Strong (4-class scheme as of 2026-06-03)
 
 Designs:
 
 * 1200 Latin Hypercube samples
 
-Main outputs:
+Main outputs (4-class scheme, counts as of 2026-06-03):
 
-* EASY regime
-* FRAGILE regime
-* INFEASIBLE regime
+* EASY (n=488): robust to all gain conditions, meets quality thresholds
+* MARGINAL (n=300): robust to all gain conditions, high steady-state RMS (>8 deg)
+  — passes all wind/gain tests; fails only the EASY RMS quality threshold
+  — NOT wind-sensitive; tracking quality is the limiting factor
+* FRAGILE (n=177): fails at least one gain condition; genuinely wind-sensitive
+* INFEASIBLE (n=235): fails even nominal evaluation
+
+CRITICAL: Old FRAGILE (n=477) was split into MARGINAL + FRAGILE.
+62.9% of old "FRAGILE" designs (MARGINAL) are robust with robustness=1.0.
+Any claim that references old FRAGILE regime is now split between MARGINAL and FRAGILE.
 
 Important findings:
 
@@ -100,35 +107,48 @@ Modules:
 * thrust_var
 * deadband
 
-Key finding (use delta_success, not delta_rms):
+Key finding — use frequency-of-effect (NOT tie-broken dominance percentages):
 
-Wind is the decision-dominant module in all three regimes:
-* EASY: Wind 55.3%, Slew 24.8%, Sensor noise 7.0%
-* FRAGILE: Wind 50.1%, Slew 20.8%, Sensor noise 20.3%
-* INFEASIBLE: Wind 72.8%, Sensor noise 22.1%
+Old "Wind is dominant X%" figures are replaced. 63% of designs had tied dominance,
+making those percentages artifacts of Python dict ordering. New metric: % of designs
+where each module causes any decision flip (effect_any), split by direction.
 
-Metric comparison finding:
+Frequency-of-effect by regime (2026-06-03, 4-class scheme):
+* EASY:      Slew 62.7% any (33% helps / 30% hurts), Sensor Noise 61.9%, Wind 55.3%
+* MARGINAL:  Sensor Noise 87.0%, Slew 77.3%, Wind 73.7%
+* FRAGILE:   Sensor Noise 89.3%, Wind 75.7%, Slew 75.7%
+* INFEASIBLE:Sensor Noise 100%, Wind 96.2%, Slew 72.3%
 
-RMS-dominant and decision-dominant modules agree only 22.5% (EASY), 45.9% (FRAGILE), 85.1% (INFEASIBLE) of the time.
-Sensor noise tops the RMS ranking; wind tops the GO/NOGO ranking.
-The choice of metric determines the ranking.
+Critical finding on Slew bidirectionality:
+* In EASY: 33% of designs — removing slew HELPS (slew was limiting); 30% removing slew HURTS
+* Designs where removing slew hurts: higher original servo_slew (85.4) + lower p_unstable (1.265)
+* This is a gain-confound artifact: aggressive gains tuned with fast actuator become unstable
+  when slew is removed. Must be disclosed as a limitation.
 
-Fidelity complexity:
-* 47% of EASY designs need zero fidelity modules (simple simulator OK)
-* 0% of INFEASIBLE designs can use a simple simulator (all need 2-3 modules)
+Metric comparison finding (4-class):
+* EASY/MARGINAL/FRAGILE: RMS metric and decision metric disagree on top module
+* Sensor noise tops the RMS ranking; wind + sensor noise top the GO/NOGO ranking
+* INFEASIBLE 85.1% agreement (both metrics agree: wind dominates)
+
+Fidelity complexity (4-class):
+* EASY: 47% need zero fidelity modules (simple simulator OK)
+* MARGINAL: 27% need zero modules
+* FRAGILE: 13% need zero modules
+* INFEASIBLE: 0% — all need 2-3 modules
 
 Simple-model decision error rates (exp4simple paired run, 2026-06-03):
-* INFEASIBLE: simple model has 99.6% FALSE APPROVAL rate — virtually every physically
-  unstable design would be wrongly approved by a simple simulator
-* FRAGILE: simple vs full agreement = 50.3% (coin flip) — simple model is useless here
+* INFEASIBLE: simple model has 99.6% FALSE APPROVAL rate
+* MARGINAL: (new — not yet computed separately; was pooled with FRAGILE)
+* FRAGILE: simple vs full agreement = 50.3% (coin flip — but this was OLD pooled FRAGILE)
 * EASY: simple vs full agreement = 78.3% — simple model mostly correct but 21.7% wrong
 * There were ZERO false rejections in any regime (simple model is always optimistic)
+NOTE: The old FRAGILE agreement (50.3%) mixes MARGINAL and FRAGILE. Recompute per new class.
 
 Key open issue:
 
 Exp4 baseline mismatch: Exp4 full-fidelity includes thrust_var fault (keff drops 15% at 1.5s)
-but Exp1 regime labels were computed without this fault. Only 71.3% of designs have the same
-GO/NOGO between Exp4 full and Exp1. This must be addressed before final claims.
+but Exp1 regime labels were computed without this fault. Caveat added to all Exp4 figure captions.
+This affects all Exp4 claims — disclosed in figures, must be addressed before final publication.
 
 Current direction:
 
@@ -142,28 +162,42 @@ Confidence: MEDIUM-HIGH (finding is robust; baseline mismatch remains a methodol
 
 ## Exp5 – Design-Space Topology
 
-Status: Complete (N=1200), results exploratory — require multi-seed validation
+Status: Partial — topology analysis removed; stratified slew payoff is new lead result
 
 Current outputs:
 
-* gradient field (central finite differences, range-scaled)
-* topology classification: bowl 84.8%, cliff 15.0%, ridge 0.2%
+* gradient field (central finite differences, 3-seed average, range-scaled)
+  — Exp5 CSV now has both grad_rms_* (raw, physical units) and grad_scaled_* (range-scaled)
+  — Do NOT compare raw grad_rms_* columns across parameters (unit bias)
 * evolution paths (5 gradient-descent steps per design, 7200 rows)
 * diminishing returns curves (population-level, top 5 parameters)
+* NEW: regime-stratified servo slew payoff curves (exp5_slew_stratified_py.csv)
+
+Topology analysis REMOVED from paper figures (2026-06-03):
+* Cliff/bowl classification is uniformly distributed across regimes (~15-17% cliff in all)
+* Does NOT correlate with regime boundaries or stability proximity
+* Not validated by seed-variance test
+* Do not cite topology results in paper
 
 Strongest surviving result:
 
-servo slew diminishing returns (population median, EASY+FRAGILE designs)
+Regime-stratified servo slew payoff (exp5_slew_payoff_stratified.png):
+* EASY: plateaus at ~0.60 success rate around 40-50 deg/s
+* MARGINAL/FRAGILE: plateau below EASY level (~0.48-0.52) — cannot servo-slew to EASY
+* INFEASIBLE: no plateau — keeps slowly improving even at 120 deg/s but never useful
+* Key engineering message: beyond ~60 deg/s, slew is not the binding constraint
 
 Known issues:
 
-* single-seed gradients — stochastic noise contaminates finite differences
-* gradient blow-up near stability boundaries (cliff designs)
-* topology reproducibility not yet demonstrated across seeds
-* unit bias was present in early runs; fixed by range-scaling gradients
+* Stratified payoff uses full fidelity (thrust_var fault included) — success rates are
+  lower than Exp1 values; relative regime ordering is informative, absolute levels are not
+* 3-seed gradients: Iyy at 13.9% best_param may still be noise
+* INFEASIBLE gradient analysis removed (numerically unreliable for diverging trajectories)
+* Gains frozen from Exp1; not re-tuned per slew value — bidirectionality still present
 
 Confidence:
 
+* Stratified slew payoff: MEDIUM-HIGH (clear qualitative ordering across regimes)
 * Diminishing returns: MEDIUM-HIGH
 * Terrain maps: MEDIUM
 * Gradient bottlenecks: LOW (do not cite without multi-seed validation)
