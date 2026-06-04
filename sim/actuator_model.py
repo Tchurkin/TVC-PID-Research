@@ -86,10 +86,22 @@ def step_actuator(
     delta = du_slewed * dt
 
     # ── 3. Deadband ─────────────────────────────────────────────────────────
-    # Stiction: if the servo's distance from the commanded position is below the
-    # deadband threshold, the servo cannot overcome stiction and does not move.
-    # Applied to position error (not per-step delta) so the threshold is meaningful
-    # regardless of slew rate or timestep.
+    # Stiction: the servo does not move if the position error from the current
+    # servo position to the commanded position is below the breakaway threshold.
+    #
+    # Physical model: stiction force is proportional to the POSITION ERROR
+    # (the spring force demand of the servo trying to reach the command).
+    # When |u_cmd - u_servo| < deadband, the stiction force exceeds the
+    # spring force and the servo is locked.
+    #
+    # Result: the servo stops when it gets within (deadband) of u_cmd,
+    # creating a persistent steady-state error equal to the deadband.
+    # This is the correct physical behavior of a servo with stiction —
+    # the steady-state error is exactly why deadband matters for tracking.
+    #
+    # Note: DO NOT use |delta| here. At max slew (75 deg/s → 0.005 code/step),
+    # |delta| is always smaller than any reasonable deadband, which would
+    # permanently freeze the servo. Position error is the correct check.
     if abs(u_cmd - state.u_servo) < params.deadband:
         delta = 0.0
 
@@ -108,6 +120,12 @@ def step_actuator(
 
     # ── 5. Saturation ───────────────────────────────────────────────────────
     u_out_sat = float(np.clip(u_out_new, -params.u_max, params.u_max))
+
+    # Clip u_servo to the saturation limits as well.
+    # Without this clip, u_servo accumulates past u_max when the output is
+    # saturated (integrator windup in the servo state), causing the backlash
+    # hysteresis gap to grow artificially on direction reversal after saturation.
+    u_servo_new = float(np.clip(u_servo_new, -params.u_max, params.u_max))
 
     # Update state
     state.u_servo = u_servo_new

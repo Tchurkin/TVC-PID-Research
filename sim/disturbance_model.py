@@ -46,8 +46,29 @@ class GustState:
     g: float = 0.0
 
 
-def init_gust_state() -> GustState:
-    return GustState(g=0.0)
+def init_gust_state(
+    params: DisturbanceParams | None = None,
+    rng: np.random.Generator | None = None,
+) -> GustState:
+    """
+    Initialise gust state from stationary distribution.
+
+    The AR(1) gust process has stationary distribution N(0, gust_std).
+    Starting at g=0 causes the first ~3τ seconds (≈1.2 s for τ=0.4 s) to
+    have understated disturbance, making the simulator systematically optimistic
+    in the early phase of flight.
+
+    The correct initialisation draws from the stationary distribution so that
+    the simulation begins in a statistically representative gust environment
+    from t=0.
+
+    If params or rng are not provided, falls back to g=0 (backward compatible).
+    """
+    if params is not None and rng is not None and params.gust_std > 0:
+        g0 = float(params.gust_std * rng.standard_normal())
+    else:
+        g0 = 0.0   # backward compatible: caller does not provide params/rng
+    return GustState(g=g0)
 
 
 def step_disturbance(

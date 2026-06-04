@@ -1,6 +1,31 @@
 """
 fidelity_config.py — Independent fidelity module toggle system.
 
+Physical fidelity modules (new as of 2026-06-04)
+──────────────────────────────────────────────────
+  nonlinear_aero  Replace theta with sin(theta) in aerodynamic pitching moment.
+                  Removes small-angle approximation; important for |theta| > 20 deg.
+                  Effect: slightly more accurate trajectories near 20–60 deg excursions.
+
+  dyn_aero        Dynamic pressure q_dyn varies with flight speed.
+                  When on: velocity is integrated alongside pitch dynamics using
+                  T(t), drag, and gravity; q_dyn = 0.5*rho*v² changes in real-time.
+                  When off: constant q_dyn at a reference value (current simple mode).
+                  Effect: early flight has understated aerodynamic moments (low v);
+                  late flight has increased aerodynamic moments (high v).
+
+  thrust_curve    Realistic time-varying thrust T(t) from motor_model.py.
+                  When on: T follows an F15-class profile (rise, plateau, taper).
+                  When off: constant T at design-space 'thrust' parameter value.
+                  Effect: early spike then taper changes control authority envelope.
+
+  cg_shift        CG and I_yy evolve as propellant burns.
+                  When on: CG moves forward ~1-3 mm over 3 s burn (F-class).
+                  When off: fixed CG and I_yy from design parameters.
+                  Effect: small for F-class; larger for G/H class motors.
+                  Also reduces instability rate p toward end of burn.
+
+
 Replaces the cumulative fidelity ladder (L0→L5) with a bitmask-style
 FidelityConfig where each physics module is an independent boolean flag.
 
@@ -23,7 +48,12 @@ Module definitions
   latency      FIFO sensor pipeline delay (sensor_latency_steps > 1)
   sensor_noise Gyro white noise, bias init, bias random walk, LSB quantisation
   thrust_var   Mid-burn keff and aero_damp degradation fault at t=fault_time_s
-  deadband     Servo stiction — position error below threshold produces no motion
+  deadband     Servo stiction — per-step movement below threshold produces no motion
+
+  nonlinear_aero  sin(theta) in aero moment — removes small-angle approximation
+  dyn_aero        time-varying q_dyn from velocity integration (T, drag, gravity)
+  thrust_curve    realistic F15 thrust profile vs constant average thrust
+  cg_shift        CG and I_yy evolution from propellant burn
 
 Ablation convention
 ───────────────────
@@ -60,6 +90,16 @@ ABLATION_MODULES: list[str] = [
     "sensor_noise",
     "thrust_var",
     "deadband",
+    # Physical fidelity modules (new 2026-06-04) — ablatable from full()
+    "nonlinear_aero",
+    "dyn_aero",
+    "thrust_curve",
+    "cg_shift",
+]
+
+# Original 7 modules only — for backward-compatible ablation against legacy_full()
+ABLATION_MODULES_LEGACY: list[str] = [
+    "wind", "backlash", "slew", "latency", "sensor_noise", "thrust_var", "deadband",
 ]
 
 
@@ -71,18 +111,23 @@ class FidelityConfig:
 
     Do not modify fields directly — use .ablate() to get a new config.
     """
-    wind:         bool = True
-    backlash:     bool = True
-    slew:         bool = True
-    latency:      bool = True
-    sensor_noise: bool = True
-    thrust_var:   bool = True
-    deadband:     bool = True
+    wind:           bool = True
+    backlash:       bool = True
+    slew:           bool = True
+    latency:        bool = True
+    sensor_noise:   bool = True
+    thrust_var:     bool = True
+    deadband:       bool = True
+    # Physical fidelity modules (new 2026-06-04)
+    nonlinear_aero: bool = True   # sin(theta) vs theta in aero moment
+    dyn_aero:       bool = True   # time-varying q_dyn from velocity integration
+    thrust_curve:   bool = True   # realistic T(t) profile vs constant thrust
+    cg_shift:       bool = True   # evolving CG/I_yy from propellant burn
 
     # ── Named constructors ─────────────────────────────────────────────────
     @classmethod
     def full(cls) -> "FidelityConfig":
-        """All physics modules active.  Highest fidelity."""
+        """All physics modules active.  Highest fidelity (includes new physical modules)."""
         return cls()
 
     @classmethod
@@ -91,6 +136,19 @@ class FidelityConfig:
         return cls(
             wind=False, backlash=False, slew=False,
             latency=False, sensor_noise=False, thrust_var=False, deadband=False,
+            nonlinear_aero=False, dyn_aero=False, thrust_curve=False, cg_shift=False,
+        )
+
+    @classmethod
+    def legacy_full(cls) -> "FidelityConfig":
+        """
+        Full fidelity matching the pre-2026-06-04 simulator (7 original modules).
+        New physical modules are OFF — use for comparison with old Exp1/Exp4 results.
+        """
+        return cls(
+            wind=True, backlash=True, slew=True,
+            latency=True, sensor_noise=True, thrust_var=True, deadband=True,
+            nonlinear_aero=False, dyn_aero=False, thrust_curve=False, cg_shift=False,
         )
 
     @classmethod
@@ -201,8 +259,17 @@ def apply_fidelity_config(
         sc.fault_time_s     = float("inf")
 
     # ── deadband ──────────────────────────────────────────────────────────────
-    # Removes stiction effect.  Servo responds to arbitrarily small position errors.
+    # Removes stiction effect.  Servo responds to arbitrarily small per-step movements.
     if not cfg.deadband:
         act.deadband = 0.0
+
+    # ── Physical fidelity flags: stored on ScenarioParams for simulator routing ──
+    # These are read by simulator.py to select simple vs. full physics mode.
+    # We attach them as dynamic attributes since ScenarioParams is a dataclass;
+    # simulator.py uses getattr(scenario, flag, False) to read them safely.
+    sc.use_nonlinear_aero = cfg.nonlinear_aero  # sin(theta) in aero moment
+    sc.use_dyn_aero       = cfg.dyn_aero        # time-varying q_dyn
+    sc.use_thrust_curve   = cfg.thrust_curve     # realistic T(t) profile
+    sc.use_cg_shift       = cfg.cg_shift         # CG/I_yy evolution
 
     return act, sen, dis, sc

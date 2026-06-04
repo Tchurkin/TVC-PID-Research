@@ -106,6 +106,28 @@ def simulate(
     N = int(round(scenario.t_end / dt)) + 1
     t = np.arange(N) * dt
 
+    # ── Detect high-fidelity physical modules ─────────────────────────────────
+    # These are set on the scenario by apply_fidelity_config() when new flags are on.
+    use_dyn_aero    = getattr(scenario, "use_dyn_aero",    False)
+    use_thrust_curve = getattr(scenario, "use_thrust_curve", False)
+    use_cg_shift    = getattr(scenario, "use_cg_shift",    False)
+    use_nonlinear   = getattr(scenario, "use_nonlinear_aero", False)
+
+    # Import new physics modules only when needed
+    aero_params  = None
+    motor_params = None
+    motor_state  = None
+    if use_dyn_aero or use_nonlinear or use_thrust_curve or use_cg_shift:
+        from aero_model import AeroParams, dynamic_pressure, velocity_step
+        from motor_model import MotorParams, MotorState, motor_thrust_and_mdot
+        from motor_model import motor_vehicle_mass, motor_cg_position, motor_inertia_correction
+        aero_params  = AeroParams.from_design(plant.Cm_alpha_signed, plant.static_margin)
+        motor_params = MotorParams.F15(rocket_length=2.0 * plant.l_nozzle_m)
+        motor_state  = MotorState.initial(motor_params)
+
+    # Flight state for dynamic pressure integration
+    v_flight = 0.01  # m/s — small nonzero to avoid division by zero in damping
+
     # ── Allocate output arrays ────────────────────────────────────────────────
     theta_arr = np.zeros(N)
     q_arr     = np.zeros(N)
@@ -122,7 +144,8 @@ def simulate(
     # ── Initialise sub-model states ───────────────────────────────────────────
     act_state   = ActuatorState(u_servo=0.0, u_output=0.0)
     sens_state  = init_sensor_state(sensor, theta0, rng)
-    gust_state  = init_gust_state()
+    # Stationary gust initialisation — draws from N(0, gust_std) at t=0
+    gust_state  = init_gust_state(disturbance, rng)
     pid_state   = PIDState(i_state=0.0, q_ctrl_prev=0.0)
 
     # Seed measurements at k=0 from initial condition
@@ -141,6 +164,45 @@ def simulate(
         damp_fault = scenario.damp_fault_post if post_fault else 1.0
         bias_post  = scenario.disturb_bias_post if post_fault else 0.0
 
+        # ── Resolve current-step physical quantities ──────────────────────────
+        # These are constant in simple mode and time-varying in full mode.
+
+        if use_thrust_curve and motor_params is not None:
+            T_now, mdot = motor_thrust_and_mdot(motor_params, t[k])
+            motor_state.advance(mdot, dt)
+        else:
+            from units import REF_THRUST_N
+            T_now = plant.thrust_scale * REF_THRUST_N
+            mdot  = 0.0
+
+        if use_cg_shift and motor_params is not None and motor_state is not None:
+            m_dry_casing = plant.m_kg + motor_params.m_casing
+            m_total  = motor_vehicle_mass(plant.m_kg, motor_params, motor_state)
+            x_cg_now = motor_cg_position(
+                plant.l_nozzle_m * 0.56,  # dry CG at 56% of (2×l_nozzle) rocket length
+                m_dry_casing, motor_params, motor_state
+            )
+            I_yy_now = motor_inertia_correction(
+                plant.Iyy_kgm2, plant.l_nozzle_m * 0.56,
+                m_dry_casing, motor_params, motor_state, x_cg_now
+            )
+        else:
+            m_total  = plant.m_kg
+            I_yy_now = plant.Iyy_kgm2
+
+        if use_dyn_aero and aero_params is not None:
+            q_dyn_now = dynamic_pressure(v_flight)
+            # Advance velocity (translational dynamics)
+            v_flight = velocity_step(
+                v_flight, m_total, T_now,
+                theta_arr[k - 1], q_dyn_now, aero_params, dt=dt
+            )
+        else:
+            # Constant reference dynamic pressure from design space
+            # At average flight speed for the reference motor
+            v_ref_avg = 30.0  # m/s typical average speed for F-class rocket
+            q_dyn_now = 0.5 * 1.20 * v_ref_avg**2  # ≈ 540 Pa
+
         # 1. Disturbance
         d_raw = step_disturbance(
             gust_state, disturbance, t[k], dt, rng,
@@ -156,10 +218,17 @@ def simulate(
         u_act = step_actuator(act_state, actuator, u_cmd, dt)
         u_act_arr[k] = u_act
 
-        # 4. Plant
+        # 4. Plant — route to simple or full physics based on scenario flags
         theta_new, q_new = step_plant(
             theta_arr[k - 1], q_arr[k - 1], u_act, d_eff,
             plant, keff_fault, damp_fault,
+            # High-fidelity args (None → simple mode if flags are off)
+            aero_params  = aero_params if (use_dyn_aero or use_nonlinear) else None,
+            q_dyn        = q_dyn_now   if (use_dyn_aero or use_nonlinear) else None,
+            v            = v_flight    if (use_dyn_aero or use_nonlinear) else None,
+            T_now        = T_now       if (use_dyn_aero or use_nonlinear) else None,
+            I_yy_now     = I_yy_now    if (use_dyn_aero or use_nonlinear) else None,
+            nonlinear_aero = use_nonlinear,
         )
         theta_arr[k] = theta_new
         q_arr[k]     = q_new
