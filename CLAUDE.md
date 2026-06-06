@@ -40,22 +40,32 @@ If a conclusion is weak, say so.
 
 # Current Thesis Direction
 
-Current working thesis (updated 2026-06-05):
+Current working thesis (updated 2026-06-06):
 
-A TVC rocket's controllability boundary is determined primarily by its rotational inertia (Iyy)
-relative to its wind-environment loading, NOT by aerodynamic instability (p_unstable).
-Rockets with small Iyy in high-wind environments require high-bandwidth controllers,
-which require accurate slew and latency modeling for correct design decisions.
+⚠️ MAJOR REVISION: The slew formula had a π/180 unit error (servos modeled 57.3× too slow).
+After fix: INFEASIBLE=0. The Iyy × wind_strength controllability boundary is DEAD — it was
+entirely a slew artifact. All prior INFEASIBLE findings, Exp4 fidelity results, and Exp5
+slew payoff curves are INVALID and must not be cited.
 
-The simulator fidelity requirements depend on where a design sits relative to this
-Iyy × wind_strength controllability boundary.
+NEW THESIS: The servo slew rate is the single dominant hardware constraint for hobby TVC.
+The minimum required slew is ~40 deg/s for reliable attitude hold and maneuvers up to 15°,
+PROVIDED gains are co-optimized with the servo. Below ~15 deg/s, even attitude hold fails.
 
-IMPORTANT: The p_unstable proxy has near-zero correlation with regime under full-physics
-evaluation. Do NOT claim that aerodynamic instability is the primary controllability predictor.
+The MARGINAL regime (3.6% of designs) is entirely a slow-servo cluster:
+— 77% of MARGINAL designs have servo_slew < 20 deg/s; median = 12.5 deg/s
+— Mechanism: slew limit reached frequently (slew_sat_frac=0.23), authority never saturated
+— Optimal gain for slow-servo TVC is LOW (Kp=2); high gains exceed servo bandwidth
 
-Correct claim: Iyy and wind_strength jointly determine regime; p_unstable is a secondary factor.
+The S2R fidelity story has INVERTED:
+— Old story: simple model falsely approves INFEASIBLE designs (99.6%)
+— New story: simple model picks Kp=2 for all designs; for FRAGILE this is too low →
+  15.4% false REJECTIONS; for MARGINAL it's accidentally optimal → 24% better SR
 
-The project is moving away from global rankings and toward regime-dependent fidelity requirements.
+IMPORTANT: p_unstable still has near-zero correlation with regime. The "p_unstable is negligible"
+finding survives. The Iyy and wind_strength findings do NOT survive.
+
+The project is studying: servo slew threshold as a function of task complexity,
+and gain co-design as the mechanism linking servo hardware to controller performance.
 
 ---
 
@@ -77,44 +87,39 @@ Design space (current):
 * servo_slew_deg_s: [5, 120], static_margin: [-0.30, 0.30], Cm_alpha: [-90, -15]
 * motor_scale: [0.5, 3.0], max_gimbal_deg: [2, 15]
 
-Main outputs (4-class scheme, counts as of 2026-06-05):
+⚠️ ALL COUNTS BELOW ARE SUPERSEDED. See thesis update above.
+Old counts (pre-slew-fix, invalid): EASY=850, MARGINAL=241, FRAGILE=68, INFEASIBLE=41.
 
-* EASY (n=850, 71%): nom_sr=1.00, robustness=1.00 — works in all conditions
-* MARGINAL (n=241, 20%): nom_sr=0.72, robustness=1.00 — WIND-SENSITIVE (not gain-sensitive)
-  — REINTERPRETATION: MARGINAL is NOT about high RMS; it is about wind-environment sensitivity.
-  — MARGINAL designs have 27% higher wind_strength than EASY (mean 0.303 vs 0.223).
-  — They pass all gain robustness checks but fail ~28% of random wind realizations.
-* FRAGILE (n=68, 6%): nom_sr=0.76, robustness=0.56 — gain-sensitive (fails some gain conditions)
-* INFEASIBLE (n=41, 3%): nom_sr=0.30, robustness=0.23 — cannot be stabilized
+CURRENT counts (post-slew-fix, from exp1_regime_index_py.csv, 2026-06-06):
+* EASY     (n=1144, 95.3%): all gain conditions pass, nom_sr ≥ 0.80
+* MARGINAL (n=43,   3.6%):  all gain conditions pass, nom_sr = 0.667 — SERVO-SLEW LIMITED
+  — 77% have servo_slew < 20 deg/s (median 12.5 deg/s)
+  — slew_sat_frac = 0.228, u_cmd_sat_frac ≈ 0 (servo limit, not gimbal limit)
+  — optimal gain is Kp=2 (gentle); high gains worsen performance with slow servo
+* FRAGILE  (n=13,   1.1%):  fails some gain robustness conditions
+  — simple model always picks Kp=2; full physics needs Kp=40-80
+  — 15.4% get falsely REJECTED by simple-model gains (too gentle for disturbance rejection)
+* INFEASIBLE (n=0,  0.0%): gone — was entirely slew artifact
 
-RELIABLE BOUNDARY: FRAGILE+INFEASIBLE = 109 (9.1%) is stable across methodology variants.
-SOFT BOUNDARY: EASY vs MARGINAL split is autotune-sensitive (varies ~350 designs across runs).
+Key findings (2026-06-06):
 
-Regime evolution (INFEASIBLE count as methodology improved):
-* Old simple-mode: INFEASIBLE=235 (19.6%) — mostly tuner artifacts
-* Full-phys 4x4: INFEASIBLE=74 — grid floor and T/W contamination removed
-* Full-phys 5x5 2-seed: INFEASIBLE=41 (3.4%) — current best; 34% residual paradox (near-boundary noise)
+FINDING 1: p_unstable still has near-zero correlation with regime (r≈0). CONFIRMED.
 
-Key findings (2026-06-05):
+FINDING 2 (REVISED): servo_slew_deg_s is the ONLY predictor of regime difficulty (r=-0.189).
+  Iyy: r≈-0.045, wind_strength: r≈+0.009, motor_scale: r≈+0.042 — all negligible.
+  The Iyy × wind finding was a slew artifact. Do NOT cite it.
 
-FINDING 1: p_unstable has near-zero correlation with regime (r≈0 for all class comparisons).
-Do NOT cite p_unstable as the primary controllability predictor.
+FINDING 3 (SURVIVES): Aerodynamic instability does not help maneuverability.
+  Stable designs outperform unstable on all tasks. Gap grows with maneuver amplitude.
+  At 10° maneuver, stable=86.8% vs unstable=68.8% at slew=120 (18pp gap, does not close).
 
-FINDING 2: Primary physical predictors of regime are:
-  — wind_strength (design parameter): strongest predictor; INFEASIBLE designs have 44% higher wind
-  — Iyy: second strongest; INFEASIBLE Iyy=0.014 vs rest=0.025 (44% lower)
-  — motor_scale: moderate predictor; higher thrust → higher q_dyn → stronger wind loading
-  p_unstable: negligible (r≈0 across all regime comparisons)
+FINDING 4 (NEW): Servo slew threshold is ~40 deg/s for reliable TVC with co-optimized gains.
+  Below 20 deg/s: even attitude hold is unreliable (50-90% success).
+  At 40 deg/s: hold and maneuvers to 15° are fully reliable (100%) when gains are co-designed.
+  The gain co-design insight: optimal Kp for slow-servo (Kp=2) ≠ optimal for fast-servo (Kp=40-80).
 
-FINDING 3: Aerodynamic instability does NOT make rockets more wind-resistant or maneuverable.
-The opposite is true: unstable aerodynamics amplify wind disturbances. The TVC fights both
-instability and wind simultaneously rather than having aerodynamics partially absorb the wind.
-
-FINDING 4: The controllability boundary lives in (Iyy, wind_strength) space, not p_unstable space.
-Small Iyy + strong wind = fast dynamics overwhelmed by disturbances = INFEASIBLE.
-
-Confidence: MEDIUM-HIGH (regime counts are autotune-sensitive near EASY/MARGINAL boundary;
-FRAGILE+INFEASIBLE total is stable; physical predictor findings are robust across runs).
+Confidence: HIGH for FINDING 1 (p_unstable negligible), MEDIUM-HIGH for FINDING 4 (slew threshold).
+FINDING 2 (servo_slew only predictor): MEDIUM (based on current 1200-design LHS; r=-0.189 is weak).
 
 ---
 
@@ -136,56 +141,31 @@ Modules:
 * thrust_var
 * deadband
 
-Key finding — use frequency-of-effect (NOT tie-broken dominance percentages):
+⚠️ ALL EXP4 RESULTS BELOW ARE INVALID — based on pre-slew-fix simulator and INFEASIBLE=235 labels.
+Do NOT cite frequency-of-effect rates, false-approval rates, or module dominance rankings.
 
-Old "Wind is dominant X%" figures are replaced. 63% of designs had tied dominance,
-making those percentages artifacts of Python dict ordering. New metric: % of designs
-where each module causes any decision flip (effect_any), split by direction.
+NEW S2R findings (2026-06-06, from targeted tests on post-fix regime labels):
 
-Frequency-of-effect by regime (2026-06-03, 4-class scheme):
-* EASY:      Slew 62.7% any (33% helps / 30% hurts), Sensor Noise 61.9%, Wind 55.3%
-* MARGINAL:  Sensor Noise 87.0%, Slew 77.3%, Wind 73.7%
-* FRAGILE:   Sensor Noise 89.3%, Wind 75.7%, Slew 75.7%
-* INFEASIBLE:Sensor Noise 100%, Wind 96.2%, Slew 72.3%
+Simple model ALWAYS selects Kp=2 regardless of design (no wind/noise → gentle gains sufficient).
+Full physics needs Kp=5-80 depending on disturbance environment.
 
-Critical finding on Slew bidirectionality:
-* In EASY: 33% of designs — removing slew HELPS (slew was limiting); 30% removing slew HURTS
-* Designs where removing slew hurts: higher original servo_slew (85.4) + lower p_unstable (1.265)
-* This is a gain-confound artifact: aggressive gains tuned with fast actuator become unstable
-  when slew is removed. Must be disclosed as a limitation.
+| Regime | n tested | Agreement | False Approval | False Rejection | SR(simple-gains) | SR(full-gains) |
+|---|---|---|---|---|---|---|
+| EASY | 20 | 100% | 0% | 0% | 0.960 | 1.000 |
+| MARGINAL | 43 | 100% | 0% | 0% | 0.907 | 0.730 |
+| FRAGILE | 13 | 84.6% | 0% | 15.4% | 0.631 | 0.862 |
 
-Metric comparison finding (4-class):
-* EASY/MARGINAL/FRAGILE: RMS metric and decision metric disagree on top module
-* Sensor noise tops the RMS ranking; wind + sensor noise top the GO/NOGO ranking
-* INFEASIBLE 85.1% agreement (both metrics agree: wind dominates)
+Key new insight: simple model is NOT dangerous (0% false approvals).
+It HELPS MARGINAL designs (accidentally picks the right gentle gains for slow servos).
+It HURTS FRAGILE designs (too gentle for disturbance rejection → 15.4% false rejections).
 
-Fidelity complexity (4-class):
-* EASY: 47% need zero fidelity modules (simple simulator OK)
-* MARGINAL: 27% need zero modules
-* FRAGILE: 13% need zero modules
-* INFEASIBLE: 0% — all need 2-3 modules
+The old "99.6% false approval" story is DEAD (INFEASIBLE=0).
+The old "simple model always optimistic" finding is DEAD for FRAGILE.
+The old slew bidirectionality finding is a slew-bug artifact.
 
-Simple-model decision error rates (exp4simple paired run, 2026-06-03):
-* INFEASIBLE: simple model has 99.6% FALSE APPROVAL rate
-* MARGINAL: (new — not yet computed separately; was pooled with FRAGILE)
-* FRAGILE: simple vs full agreement = 50.3% (coin flip — but this was OLD pooled FRAGILE)
-* EASY: simple vs full agreement = 78.3% — simple model mostly correct but 21.7% wrong
-* There were ZERO false rejections in any regime (simple model is always optimistic)
-NOTE: The old FRAGILE agreement (50.3%) mixes MARGINAL and FRAGILE. Recompute per new class.
+Priority: Re-run full Exp4C with corrected slew and new regime labels before any submission.
 
-Key open issue:
-
-Exp4 baseline mismatch: Exp4 full-fidelity includes thrust_var fault (keff drops 15% at 1.5s)
-but Exp1 regime labels were computed without this fault. Caveat added to all Exp4 figure captions.
-This affects all Exp4 claims — disclosed in figures, must be addressed before final publication.
-
-Current direction:
-
-Build a Fidelity Requirement Atlas:
-
-Given a rocket's physical properties, determine which fidelity terms are necessary to obtain correct design conclusions.
-
-Confidence: MEDIUM-HIGH (finding is robust; baseline mismatch remains a methodological concern)
+Confidence: LOW for any specific Exp4 percentages (all need re-run)
 
 ---
 
@@ -208,13 +188,12 @@ Topology analysis REMOVED from paper figures (2026-06-03):
 * Not validated by seed-variance test
 * Do not cite topology results in paper
 
-Strongest surviving result:
+⚠️ ALL EXP5 SLEW PAYOFF RESULTS ARE INVALID — based on pre-slew-fix simulator.
+The regime-stratified slew payoff curves (EASY/MARGINAL/FRAGILE/INFEASIBLE) used the buggy
+slew formula. With INFEASIBLE=0 and MARGINAL redefined as slow-servo, these curves are void.
 
-Regime-stratified servo slew payoff (exp5_slew_payoff_stratified.png):
-* EASY: plateaus at ~0.60 success rate around 40-50 deg/s
-* MARGINAL/FRAGILE: plateau below EASY level (~0.48-0.52) — cannot servo-slew to EASY
-* INFEASIBLE: no plateau — keeps slowly improving even at 120 deg/s but never useful
-* Key engineering message: beyond ~60 deg/s, slew is not the binding constraint
+Surviving result: Exp5 gradient/topology analysis was already removed from paper figures (2026-06-03).
+There are no surviving Exp5 results ready for publication.
 
 Known issues:
 
