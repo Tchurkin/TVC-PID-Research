@@ -42,6 +42,8 @@ import numpy as np
 from units import (
     SUCCESS_MAX_THETA_DEG, SUCCESS_END_ERROR_DEG,
     SUCCESS_RMS_ERROR_DEG, SUCCESS_PEAK_ERROR_DEG,
+    DIVERGE_THETA_DEG, BAND_30_THETA_DEG, BAND_20_THETA_DEG, BAND_10_THETA_DEG,
+    F15_AVG_THRUST_N,
 )
 from plant_dynamics import PlantParams, step_plant
 from actuator_model import ActuatorParams, ActuatorState, step_actuator
@@ -55,6 +57,7 @@ class ScenarioParams:
     t_end: float = 3.0                  # burn duration (s)
     theta_ref: float = 0.0              # constant pitch reference (rad)
     theta0_bias_std: float = 0.0        # std of random initial angle offset (rad)
+    theta0_fixed_deg: float = 0.0       # deterministic initial angle (deg); overrides bias when non-zero
     # Optional midburn fault
     fault_time_s: float = float("inf")  # time at which fault activates (s)
     keff_fault_post: float = 1.0        # keff multiplier after fault
@@ -81,6 +84,11 @@ class SimResult:
     slew_sat_frac: float
     settling_time_s: float
     oscillation_score: float
+    # Divergence and progressive tracking bands
+    diverged: bool       # max |theta| >= 90 deg — rocket out of control
+    band_30_pass: bool   # max |theta| < 30 deg
+    band_20_pass: bool   # max |theta| < 20 deg
+    band_10_pass: bool   # max |theta| < 10 deg
 
 
 def simulate(
@@ -122,7 +130,10 @@ def simulate(
         from motor_model import MotorParams, MotorState, motor_thrust_and_mdot
         from motor_model import motor_vehicle_mass, motor_cg_position, motor_inertia_correction
         aero_params  = AeroParams.from_design(plant.Cm_alpha_signed, plant.static_margin)
-        motor_params = MotorParams.F15(rocket_length=2.0 * plant.l_nozzle_m)
+        motor_params = MotorParams.F15(
+            rocket_length=2.0 * plant.l_nozzle_m,
+            scale=plant.motor_scale,
+        )
         motor_state  = MotorState.initial(motor_params)
 
     # Flight state for dynamic pressure integration
@@ -136,7 +147,10 @@ def simulate(
     q_m_arr     = np.zeros(N)
 
     # ── Initial conditions ────────────────────────────────────────────────────
-    theta0 = scenario.theta0_bias_std * rng.standard_normal()
+    if scenario.theta0_fixed_deg != 0.0:
+        theta0 = np.deg2rad(scenario.theta0_fixed_deg)
+    else:
+        theta0 = scenario.theta0_bias_std * rng.standard_normal()
     theta_arr[0]   = theta0
     q_arr[0]       = 0.0
     u_act_arr[0]   = 0.0
@@ -171,19 +185,21 @@ def simulate(
             T_now, mdot = motor_thrust_and_mdot(motor_params, t[k])
             motor_state.advance(mdot, dt)
         else:
-            from units import REF_THRUST_N
-            T_now = plant.thrust_scale * REF_THRUST_N
+            # All designs use the F15 motor. When thrust_curve is off, model as
+            # constant average thrust (F15 T_avg = 14.4 N). T_now only affects
+            # dynamics when dyn_aero=True; in simple mode it is unused.
+            T_now = F15_AVG_THRUST_N
             mdot  = 0.0
 
         if use_cg_shift and motor_params is not None and motor_state is not None:
             m_dry_casing = plant.m_kg + motor_params.m_casing
             m_total  = motor_vehicle_mass(plant.m_kg, motor_params, motor_state)
             x_cg_now = motor_cg_position(
-                plant.l_nozzle_m * 0.56,  # dry CG at 56% of (2×l_nozzle) rocket length
+                plant.l_nozzle_m,  # CG from nose = rocket_length − l_nozzle_m = l_nozzle_m
                 m_dry_casing, motor_params, motor_state
             )
             I_yy_now = motor_inertia_correction(
-                plant.Iyy_kgm2, plant.l_nozzle_m * 0.56,
+                plant.Iyy_kgm2, plant.l_nozzle_m,
                 m_dry_casing, motor_params, motor_state, x_cg_now
             )
         else:
@@ -198,10 +214,17 @@ def simulate(
                 theta_arr[k - 1], q_dyn_now, aero_params, dt=dt
             )
         else:
-            # Constant reference dynamic pressure from design space
-            # At average flight speed for the reference motor
-            v_ref_avg = 30.0  # m/s typical average speed for F-class rocket
-            q_dyn_now = 0.5 * 1.20 * v_ref_avg**2  # ≈ 540 Pa
+            # Design-appropriate constant reference dynamic pressure.
+            # Estimate average flight speed from net thrust and mass so that
+            # the dyn_aero ablation measures "does q_dyn vary with speed?"
+            # rather than "is the aerodynamic calibration correct?".
+            #
+            # Simple ballistic estimate: a_net = (T - m*g) / m, v_mid = a_net * t_end/2.
+            # Clamped to a minimum of 0.5 m/s² net acceleration (covers T/W < 1 cases).
+            T_eff  = F15_AVG_THRUST_N * plant.motor_scale
+            a_net  = max(0.5, (T_eff - plant.m_kg * 9.81) / max(0.1, plant.m_kg))
+            v_mid  = a_net * (scenario.t_end * 0.5)   # velocity at burn midpoint
+            q_dyn_now = 0.5 * 1.20 * v_mid**2
 
         # 1. Disturbance
         d_raw = step_disturbance(
@@ -250,6 +273,11 @@ def simulate(
     end_e  = float(np.abs(err_d[-1]))
     max_th = float(np.max(np.abs(theta_d)))
 
+    diverged     = max_th >= DIVERGE_THETA_DEG
+    band_30_pass = max_th < BAND_30_THETA_DEG
+    band_20_pass = max_th < BAND_20_THETA_DEG
+    band_10_pass = max_th < BAND_10_THETA_DEG
+
     success = (
         max_th  < SUCCESS_MAX_THETA_DEG
         and end_e   < SUCCESS_END_ERROR_DEG
@@ -296,4 +324,8 @@ def simulate(
         slew_sat_frac=slew_sat_frac,
         settling_time_s=settling_time,
         oscillation_score=osc_score,
+        diverged=diverged,
+        band_30_pass=band_30_pass,
+        band_20_pass=band_20_pass,
+        band_10_pass=band_10_pass,
     )

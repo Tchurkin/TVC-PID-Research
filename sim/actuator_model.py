@@ -99,7 +99,7 @@ def step_actuator(
     # This is the correct physical behavior of a servo with stiction —
     # the steady-state error is exactly why deadband matters for tracking.
     #
-    # Note: DO NOT use |delta| here. At max slew (75 deg/s → 0.005 code/step),
+    # Note: DO NOT use |delta| here. At max slew (75 deg/s → 60 CU/s → 0.30 CU/step at 200 Hz),
     # |delta| is always smaller than any reasonable deadband, which would
     # permanently freeze the servo. Position error is the correct check.
     if abs(u_cmd - state.u_servo) < params.deadband:

@@ -1,0 +1,23 @@
+Exp4C Prediction Error Study — Metadata
+========================================
+n_designs         : 1200
+n_modules         : 8
+modules           : ['backlash', 'slew', 'latency', 'deadband', 'nonlinear_aero', 'dyn_aero', 'thrust_curve', 'cg_shift']
+n_seeds           : 5
+reality_config    : _exp4a_baseline_cfg() — 10 modules ON, thrust_var=OFF
+motor             : F15 for all designs; constant 14.4 N when thrust_curve=OFF
+gains             : tuned per module in ablated sim (4x4 grid, seed=1)
+go_threshold      : FRAGILE_SUCCESS_RATE = 0.35
+output_format     : long — one row per (design x module), 10,800 rows
+primary_metric    : rms_prediction_error = |rms_predicted - rms_reality|
+secondary_metric  : decision_error = (go_predicted != go_reality)
+rms_bias          : rms_reality - rms_predicted  (+ve = sim too optimistic)
+reference_row     : module_ablated='reference'; tune+eval at full reality
+approx_sims       : 274,800
+scientific_q      : Which modules cause prediction error when omitted from engineer's sim?
+
+Regime counts:
+  EASY      : 696
+  MARGINAL  : 195
+  FRAGILE   : 93
+  INFEASIBLE: 216

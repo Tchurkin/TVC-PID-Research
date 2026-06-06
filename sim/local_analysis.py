@@ -65,7 +65,7 @@ from simulator import simulate, SimResult
 
 GRAD_PARAMS_CONTINUOUS = [
     "mass", "Iyy", "static_margin", "Cm_alpha",
-    "control_effectiveness", "thrust",
+    "control_effectiveness", "motor_scale",
     "servo_slew_deg_s", "max_gimbal_deg",
     "deadband", "backlash", "wind_strength",
 ]
@@ -131,11 +131,11 @@ def _perturbed_design(base: dict, param: str, delta: float) -> dict:
     d[param] = np.clip(raw, lo, hi)
 
     # Recompute derived variables
-    if param in ("static_margin", "Cm_alpha", "thrust"):
+    if param in ("static_margin", "Cm_alpha", "motor_scale"):
         d["p_unstable"] = estimate_p_unstable(
             d.get("static_margin", REF["static_margin"]),
             d.get("Cm_alpha",      REF["Cm_alpha"]),
-            d.get("thrust",        REF["thrust"]),
+            d.get("motor_scale",   REF["motor_scale"]),
         )
     return d
 
@@ -526,7 +526,7 @@ def sample_neighborhood(
     df = pd.DataFrame(X, columns=_ALL_NAMES)
     df["latency_steps"] = df["latency_steps"].round().astype(int).clip(1, 6)
     df["p_unstable"] = df.apply(
-        lambda r: estimate_p_unstable(r["static_margin"], r["Cm_alpha"], r["thrust"]),
+        lambda r: estimate_p_unstable(r["static_margin"], r["Cm_alpha"], r["motor_scale"]),
         axis=1,
     )
     df["center_design_id"] = design.get("design_id", -1)

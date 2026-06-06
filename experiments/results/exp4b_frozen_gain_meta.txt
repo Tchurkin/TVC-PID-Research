@@ -1,0 +1,21 @@
+Exp4B Frozen-Gain Ablation — Metadata
+========================================
+n_designs          : 1200
+n_modules          : 10
+modules            : ['wind', 'backlash', 'slew', 'latency', 'sensor_noise', 'deadband', 'nonlinear_aero', 'dyn_aero', 'thrust_curve', 'cg_shift']
+n_seeds            : 5
+baseline           : 10-module full physics (thrust_var=False)
+gains              : FROZEN from Exp1 simple-mode tuning
+gain_sources       : {'exp1': 1200}
+go_nogo_threshold  : FRAGILE_SUCCESS_RATE = 0.35
+build_plant        : design-specific Cm_alpha, static_margin, Iyy, mass
+l_nozzle_m         : 0.25 m (fixed, all designs share 0.5 m airframe)
+scientific_question: Given simple-mode gains, which modules flip decisions?
+contrast_with      : Exp4A (re-tuned gains) — separates physics sensitivity
+                     from gain compensation
+
+Regime counts:
+  EASY      : 488
+  MARGINAL  : 300
+  FRAGILE   : 177
+  INFEASIBLE: 235

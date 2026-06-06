@@ -86,19 +86,27 @@ class MotorParams:
         return 0.5 * (self.x_motor_fore + self.x_motor_aft)
 
     @classmethod
-    def F15(cls, rocket_length: float = 0.50) -> "MotorParams":
+    def F15(cls, rocket_length: float = 0.50, scale: float = 1.0) -> "MotorParams":
         """
         F15-class APCP motor (mid-F, ~43 Ns, 3 s burn).
         Motor occupies aft 15% of rocket length.
+
+        Measured masses: wet ~100 g, dry casing ~40 g, propellant ~60 g.
+        The cardboard/clay Estes casing is relatively light compared to
+        aluminum-cased APCP motors, giving a ~60% propellant fraction.
+
+        scale: linear scaling factor applied to thrust AND both mass terms.
+               scale=1.0 → standard F15.  scale=2.0 → motor with 2× total impulse,
+               2× propellant mass, 2× casing mass.  Burn time is unchanged.
         """
         return cls(
-            T_peak          = 22.0,
-            T_avg           = 14.4,
+            T_peak          = 22.0  * scale,
+            T_avg           = 14.4  * scale,
             t_peak          = 0.12,
             t_plateau_end   = 2.4,
             t_burn          = 3.0,
-            m_prop_total    = 0.028,
-            m_casing        = 0.048,
+            m_prop_total    = 0.060 * scale,   # 60 g propellant at scale=1 (wet 100g - dry 40g)
+            m_casing        = 0.040 * scale,   # 40 g dry casing at scale=1
             x_motor_fore    = rocket_length * 0.85,
             x_motor_aft     = rocket_length * 1.00,
         )

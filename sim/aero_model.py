@@ -167,8 +167,14 @@ class AeroParams:
         proportional to −(L/D)² for a cylindrical body.  For L=0.5, D=0.04:
             (L/D) ≈ 12.5 → Cmq ≈ −15 (finless, conservative estimate)
         """
-        Cm_alpha_physical = abs(Cm_alpha_signed)  # positive = destabilising
-        CN_alpha = 2.0  # finless body of revolution (Barrowman, slender body)
+        CN_alpha = 2.0  # finless/finned body (Barrowman, slender body)
+        # Signed Cm_alpha:
+        #   static_margin_calibers > 0 → CP forward of CG → destabilising (+)
+        #   static_margin_calibers = 0 → neutral
+        #   static_margin_calibers < 0 → CP aft of CG → restoring (−, stable rocket)
+        # This allows aerodynamically stable designs (finned rockets with positive
+        # static margin in the traditional sense) to be included in the design space.
+        Cm_alpha_physical = CN_alpha * static_margin_calibers
 
         # Pitch damping: finless body; proportional to body slenderness
         L_D_ratio = L_ROCKET / D_REF

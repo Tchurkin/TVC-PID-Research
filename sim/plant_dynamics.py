@@ -99,7 +99,11 @@ class PlantParams:
       m_kg            vehicle dry mass (kg)
     """
     # Simple-mode parameters (always required)
-    p_unstable:    float               # open-loop instability rate (1/s), ≥ 0
+    p_unstable:    float               # open-loop instability rate (1/s), ≥ 0 (legacy, kept for compatibility)
+    lambda_aero:   float = 0.0        # signed aerodynamic stiffness (rad/s²/rad):
+                                       #   > 0: unstable (= p_unstable²), diverging
+                                       #   = 0: neutrally stable
+                                       #   < 0: stable (= −ω_n²), restoring
     control_eff:   float = REF_KEFF    # nominal keff (rad/s² / code unit)
     aero_damp:     float = REF_AERO_DAMP
 
@@ -116,6 +120,7 @@ class PlantParams:
     l_nozzle_m:      float = 0.25      # moment arm from nozzle to CG (m), ≈ 50% of L
     Iyy_kgm2:        float = 0.018     # actual Iyy (kg·m²)
     m_kg:            float = 1.20      # dry vehicle mass (kg)
+    motor_scale:     float = 1.0       # F15 motor scale (1.0 = standard F15)
 
 
 def simple_effective_params(
@@ -163,14 +168,15 @@ def step_plant_simple(
     implementation.  Used when high-fidelity flags (nonlinear_aero, dyn_aero,
     thrust_curve, cg_shift) are all off.
 
-    EOM: theta_ddot = keff_phys × u_act - damp_eff × q + p² × theta + d(t)
+    EOM: theta_ddot = keff_phys × u_act - damp_eff × q + lambda_aero × theta + d(t)
+    where lambda_aero > 0 = unstable (diverging), lambda_aero < 0 = stable (restoring).
     """
     keff_phys, damp_eff = simple_effective_params(plant, keff_fault, damp_fault)
 
     qdot = (
         keff_phys * u_act
         - damp_eff * q
-        + plant.p_unstable ** 2 * theta
+        + plant.lambda_aero * theta     # signed: + diverges, − restores
         + disturbance
     )
 

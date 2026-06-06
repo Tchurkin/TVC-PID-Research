@@ -49,7 +49,7 @@ from scipy.stats import qmc
 
 from units import (
     REF_MASS_KG, REF_IYY_KGM2, REF_THRUST_N, REF_KEFF, REF_AERO_DAMP,
-    REF_MAX_GIMBAL_DEG, REF_U_MAX,
+    REF_MAX_GIMBAL_DEG, REF_U_MAX, F15_AVG_THRUST_N,
     EASY_SUCCESS_RATE, EASY_ROBUSTNESS, EASY_U_SAT_FRAC, EASY_SLEW_SAT_FRAC,
     EASY_RMS_DEG, EASY_SETTLING_S, EASY_OSC_SCORE,
     FRAGILE_SUCCESS_RATE, FRAGILE_RMS_DEG,
@@ -70,7 +70,7 @@ REF = dict(
     static_margin=0.10,
     Cm_alpha=-52.0,
     control_effectiveness=REF_KEFF,
-    thrust=REF_THRUST_N,
+    motor_scale=1.0,           # replaces thrust; scale=1 → standard F15 (14.4 N avg)
     servo_slew_deg_s=75.0,
     max_gimbal_deg=REF_MAX_GIMBAL_DEG,
     deadband=0.05,
@@ -84,52 +84,79 @@ REF = dict(
 
 DESIGN_NAMES = [
     "mass", "Iyy", "static_margin", "Cm_alpha", "control_effectiveness",
-    "thrust", "servo_slew_deg_s", "max_gimbal_deg", "latency_steps",
+    "motor_scale", "servo_slew_deg_s", "max_gimbal_deg", "latency_steps",
     "deadband", "backlash", "wind_strength",
 ]
+# motor_scale replaces thrust: scales the F15 motor linearly in thrust and mass.
+#   0.5 → half-F15 (~7.2 N avg, wet 50 g)   — marginal lift for lightest designs
+#   1.0 → standard F15 (14.4 N avg, wet 100 g)
+#   3.0 → triple-F15 (43.2 N avg, wet 300 g) — approaching G-class territory
+# max_gimbal_deg floor lowered to 2 deg to create genuinely authority-limited designs
+# servo_slew_deg_s floor lowered to 5 deg/s — extreme slew limit for "how cheap is too cheap?"
+# static_margin extended to [0.02, 0.30] — approach neutral stability on the low end
+# Cm_alpha extended to [-90, -15] — wider aerodynamic instability range
+# static_margin is now SIGNED:
+#   > 0: CP forward of CG → aerodynamically UNSTABLE (TVC must actively stabilise)
+#   = 0: neutrally stable
+#   < 0: CP aft of CG   → aerodynamically STABLE   (fins provide passive stability)
+# Range [-0.30, +0.30] calibers: covers stable finned rockets to very unstable finless.
+# Convention matches Barrowman theory (positive stability margin → CP aft → stable).
 DESIGN_LO = np.array([
-    0.90, 0.010,  0.04, -70.0,  5.0, 25.0,  20.0,  8.0, 1.0, 0.00, 0.00, 0.05
+    0.90, 0.010, -0.30, -90.0,  5.0, 0.50,   5.0,  2.0, 1.0, 0.00, 0.00, 0.05
 ])
 DESIGN_HI = np.array([
-    2.10, 0.040,  0.24, -30.0, 14.0, 50.0, 120.0, 15.0, 6.0, 0.15, 0.25, 0.45
+    2.10, 0.040,  0.30, -15.0, 14.0, 3.00, 120.0, 15.0, 6.0, 0.15, 0.25, 0.45
 ])
 
 
 # ── p_unstable proxy ──────────────────────────────────────────────────────────
 
+def estimate_lambda_aero(
+    static_margin: float,
+    Cm_alpha: float,
+    motor_scale: float = 1.0,
+) -> float:
+    """
+    Signed aerodynamic stiffness (rad/s²/rad) for the simple-mode EOM.
+
+    EOM term: lambda_aero × theta
+      lambda_aero > 0: destabilising (CP forward, TVC rocket without fins)
+      lambda_aero = 0: neutral
+      lambda_aero < 0: restoring  (CP aft, finned stable rocket)
+
+    Magnitude formula (calibrated, not first-principles):
+      p_or_wn = 10 × |static_margin| × |Cm_alpha| / 52 × sqrt(35 / T_eff)
+    Then:
+      unstable (static_margin > 0): lambda_aero = +p²
+      stable   (static_margin < 0): lambda_aero = −ω_n²
+      neutral  (static_margin = 0): lambda_aero = 0
+
+    Calibration constants (10, 52, 35) are NOT derived from first principles.
+    Known STS vulnerability — see CLAUDE.md.  p_unstable proxy also has near-zero
+    correlation with regime under full-physics evaluation; Iyy and wind_strength
+    are the dominant regime predictors.
+    """
+    effective_thrust = F15_AVG_THRUST_N * motor_scale
+    magnitude = (
+        10.0 * abs(static_margin) * abs(Cm_alpha) / 52.0
+        * np.sqrt(35.0 / max(1e-6, effective_thrust))
+    )
+    if static_margin > 0.0:
+        return magnitude ** 2    # unstable: positive = diverging
+    elif static_margin < 0.0:
+        return -(magnitude ** 2) # stable: negative = restoring
+    else:
+        return 0.0               # neutral
+
+
 def estimate_p_unstable(
     static_margin: float,
     Cm_alpha: float,
-    thrust: float,
+    motor_scale: float = 1.0,
 ) -> float:
-    """
-    Proxy open-loop instability rate (1/s) from design variables.
-    Formula matches MATLAB run_exp1_stability_authority_frontier.m.
-
-    Derivation sketch:
-      The linearised pitch EOM for a rocket with CG-CP offset is:
-        Iyy * θ̈ ≈ M_aero * θ + M_control + M_disturbance
-      where M_aero = Cm_alpha * q_dyn * S_ref * L_ref.
-      For the unstable case (Cm_alpha < 0 with our sign convention, positive
-      moment for positive θ), the open-loop instability rate is:
-        p = sqrt(|M_aero| / Iyy)
-          ∝ sqrt(|Cm_alpha| * q_dyn)
-          ∝ sqrt(|Cm_alpha| * thrust)   [q_dyn ~ thrust at low speed]
-      static_margin calibrates the effective aerodynamic moment arm.
-      Iyy is fixed at reference (REF_IYY_KGM2) for this proxy formula.
-
-    Known limitation: constants (10, 52, 35) are calibration values fit to
-    hobby-TVC data, not derived from first principles.  The reference values
-    (Cm_alpha_ref = -52, thrust_ref = 35 N) set the scale.  static_margin
-    scales the aero moment arm.  10 is a dimensionless calibration factor.
-    This is a documented STS vulnerability — see CLAUDE.md.
-    """
-    # p = scale * static_margin * |Cm_alpha| / Cm_alpha_ref * sqrt(thrust_ref / thrust)
-    # scale=10, Cm_alpha_ref=52, thrust_ref=35 N — calibrated to match MATLAB reference
-    return max(
-        0.0,
-        10.0 * static_margin * abs(Cm_alpha) / 52.0 * np.sqrt(35.0 / max(1e-6, thrust))
-    )
+    """Backward-compat alias: instability rate (1/s) ≥ 0. Zero for stable designs."""
+    lam = estimate_lambda_aero(static_margin, Cm_alpha, motor_scale)
+    return float(np.sqrt(max(0.0, lam)))
 
 
 # ── LHS sampler ───────────────────────────────────────────────────────────────
@@ -137,18 +164,42 @@ def estimate_p_unstable(
 def sample_lhs(n: int, seed: int = 42) -> pd.DataFrame:
     """
     Latin Hypercube sample of the 12-D design space.
-    Adds derived columns: p_unstable, design_id, rocket_id.
-    """
-    sampler = qmc.LatinHypercube(d=len(DESIGN_NAMES), seed=seed)
-    X = qmc.scale(sampler.random(n), DESIGN_LO, DESIGN_HI)
+    Adds derived columns: p_unstable, design_id, rocket_id, tw_ratio.
 
-    df = pd.DataFrame(X, columns=DESIGN_NAMES)
+    Feasibility filter: designs with T/W < 1 (motor thrust insufficient to lift the
+    rocket against gravity) are excluded and resampled until n feasible designs are
+    obtained.  These designs are physically unrealizable — the simulator assigns them
+    near-zero aerodynamic forces, making them appear trivially controllable (EASY)
+    even though they cannot launch.
+    """
+    rng_seed = seed
+    collected: list[np.ndarray] = []
+    target = n
+    # Oversample and filter until we have enough feasible designs.
+    while len(collected) < target:
+        sampler = qmc.LatinHypercube(d=len(DESIGN_NAMES), seed=rng_seed)
+        batch_size = max(target * 2, 500)
+        X = qmc.scale(sampler.random(batch_size), DESIGN_LO, DESIGN_HI)
+        # T/W feasibility: F15_avg * motor_scale > mass * g
+        motor_scale_col = DESIGN_NAMES.index("motor_scale")
+        mass_col        = DESIGN_NAMES.index("mass")
+        T_eff = F15_AVG_THRUST_N * X[:, motor_scale_col]
+        W     = X[:, mass_col] * 9.81
+        feasible = T_eff > W
+        collected.extend(X[feasible])
+        rng_seed += 1  # shift seed on retry so we don't resample identical points
+
+    X_out = np.array(collected[:target])
+    df = pd.DataFrame(X_out, columns=DESIGN_NAMES)
     df["latency_steps"] = df["latency_steps"].round().astype(int).clip(1, 6)
 
-    df["p_unstable"] = df.apply(
-        lambda r: estimate_p_unstable(r["static_margin"], r["Cm_alpha"], r["thrust"]),
+    df["lambda_aero"] = df.apply(
+        lambda r: estimate_lambda_aero(r["static_margin"], r["Cm_alpha"], r["motor_scale"]),
         axis=1,
     )
+    df["p_unstable"] = df["lambda_aero"].apply(lambda lam: float(np.sqrt(max(0.0, lam))))
+    df["aerodynamically_stable"] = df["static_margin"] < 0.0
+    df["tw_ratio"] = (F15_AVG_THRUST_N * df["motor_scale"]) / (df["mass"] * 9.81)
     df["design_id"] = np.arange(1, n + 1)
     df["rocket_id"] = [f"R{i:04d}" for i in range(1, n + 1)]
     return df
@@ -157,23 +208,43 @@ def sample_lhs(n: int, seed: int = 42) -> pd.DataFrame:
 # ── Config builders ───────────────────────────────────────────────────────────
 
 def build_plant(design: dict) -> PlantParams:
-    """Build PlantParams from a design row dict."""
-    mass    = design.get("mass",    REF["mass"])
-    Iyy     = design.get("Iyy",     REF["Iyy"])
-    thrust  = design.get("thrust",  REF["thrust"])
-    sm      = design.get("static_margin", REF["static_margin"])
-    Cma     = design.get("Cm_alpha",       REF["Cm_alpha"])
-    keff    = design.get("control_effectiveness", REF["control_effectiveness"])
-    p_unst  = design.get("p_unstable", estimate_p_unstable(sm, Cma, thrust))
+    """Build PlantParams from a design row dict.
+
+    Simple-mode fields (p_unstable, scales) are design-specific.
+    High-fidelity fields (Cm_alpha_signed, static_margin, Iyy_kgm2, m_kg,
+    max_gimbal_deg, motor_scale) are design-specific so full-physics mode
+    models the actual design.
+    l_nozzle_m is fixed at 0.25 m (all designs share 0.5 m airframe).
+    """
+    mass        = design.get("mass",    REF["mass"])
+    Iyy         = design.get("Iyy",     REF["Iyy"])
+    motor_scale = design.get("motor_scale", REF["motor_scale"])
+    sm          = design.get("static_margin", REF["static_margin"])
+    Cma         = design.get("Cm_alpha",       REF["Cm_alpha"])
+    keff        = design.get("control_effectiveness", REF["control_effectiveness"])
+    lam_aero    = design.get("lambda_aero", estimate_lambda_aero(sm, Cma, motor_scale))
+    p_unst      = float(np.sqrt(max(0.0, lam_aero)))
+    mg_deg      = design.get("max_gimbal_deg", REF["max_gimbal_deg"])
+
+    effective_thrust = F15_AVG_THRUST_N * motor_scale
 
     return PlantParams(
         p_unstable    = float(p_unst),
+        lambda_aero   = float(lam_aero),
         control_eff   = float(keff),
         aero_damp     = REF_AERO_DAMP,
         mass_scale    = float(np.clip(mass  / REF_MASS_KG,  0.30, 3.00)),
         inertia_scale = float(np.clip(REF_IYY_KGM2 / max(1e-9, Iyy), 0.20, 5.00)),
-        thrust_scale  = float(np.clip(thrust / REF_THRUST_N, 0.20, 5.00)),
+        thrust_scale  = float(np.clip(effective_thrust / REF_THRUST_N, 0.20, 5.00)),
         dt            = 0.005,
+        # High-fidelity fields — design-specific so full-physics mode is correct
+        Cm_alpha_signed = float(Cma),
+        static_margin   = float(sm),
+        Iyy_kgm2        = float(Iyy),
+        m_kg            = float(mass),
+        max_gimbal_deg  = float(mg_deg),
+        l_nozzle_m      = 0.25,   # fixed: all designs share 0.5 m airframe
+        motor_scale     = float(motor_scale),
     )
 
 
@@ -185,7 +256,7 @@ def build_actuator(design: dict) -> ActuatorParams:
     backlash     = design.get("backlash",  REF["backlash"])
 
     u_max    = REF_U_MAX * max_gimbal / REF_MAX_GIMBAL_DEG
-    slew_max = slew_deg_s * (np.pi / 180.0) * (REF_U_MAX / max_gimbal)
+    slew_max = slew_deg_s * (REF_U_MAX / REF_MAX_GIMBAL_DEG)  # = slew_deg_s × 12/15
 
     return ActuatorParams(
         u_max    = float(u_max),
@@ -242,11 +313,16 @@ def classify_regime(
     Classify a design as EASY (2), MARGINAL (3), FRAGILE (1), or INFEASIBLE (0).
 
     Four-class scheme:
-      EASY     (2) — robust to all gain conditions AND meets quality thresholds
-      MARGINAL (3) — robust to all gain conditions BUT high steady-state RMS;
-                     stable and reliable, just a poor tracker (not wind-sensitive)
-      FRAGILE  (1) — fails at least one gain condition; genuinely wind-sensitive
-      INFEASIBLE(0) — fails even nominal or extreme performance failure
+      EASY       (2) — robust to all gain conditions AND meets success-rate/RMS thresholds
+      MARGINAL   (3) — robust to all gain conditions BUT nom_sr < EASY threshold;
+                       wind-sensitive (fails some wind seeds) but not gain-sensitive
+      FRAGILE    (1) — fails at least one gain robustness condition; gain-sensitive
+      INFEASIBLE (0) — cannot be stabilized (fails even nominal evaluation)
+
+    oscillation_score is intentionally excluded from the EASY gate. After the slew-model
+    fix, fast-servo designs get high-Kp autotune solutions that produce many zero-crossings
+    but low RMS and perfect success rate — classifying them MARGINAL on osc_score alone
+    was a tuning artifact, not a physical controllability property.
 
     robustness = fraction of {nominal, under, over} gain sets that pass the
     FRAGILE_SUCCESS_RATE threshold.
@@ -259,7 +335,6 @@ def classify_regime(
         and nominal_slew_sat_frac <= EASY_SLEW_SAT_FRAC
         and nominal_rms_deg       <= EASY_RMS_DEG
         and nominal_settling_s    <= EASY_SETTLING_S
-        and nominal_osc_score     <= EASY_OSC_SCORE
     )
     frag_q = (
         nominal_success_rate >= FRAGILE_SUCCESS_RATE
@@ -269,8 +344,8 @@ def classify_regime(
     if robustness >= EASY_ROBUSTNESS and easy_q:
         return "EASY", 2
     elif robustness >= EASY_ROBUSTNESS and frag_q:
-        # Passes all gain conditions (not wind-sensitive) but fails EASY quality gate.
-        # High steady-state RMS — a tracking quality limitation, not physical fragility.
+        # Passes all gain conditions but fails the EASY success-rate threshold.
+        # Wind-sensitive: some wind seeds fail, but not gain-sensitive.
         return "MARGINAL", 3
     elif robustness > 0.0 and frag_q:
         return "FRAGILE", 1

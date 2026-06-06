@@ -1,0 +1,19 @@
+Exp4A Ablation — Metadata
+========================================
+n_designs         : 1200
+n_modules         : 10
+modules           : ['wind', 'backlash', 'slew', 'latency', 'sensor_noise', 'deadband', 'nonlinear_aero', 'dyn_aero', 'thrust_curve', 'cg_shift']
+n_seeds           : 5
+baseline          : FidelityConfig.full() with thrust_var=False
+gains             : re-tuned at baseline (4x4 grid, seed=1)
+go_nogo_threshold : FRAGILE_SUCCESS_RATE = 0.35
+build_plant       : design-specific Cm_alpha, static_margin, Iyy, mass, max_gimbal
+l_nozzle_m        : 0.25 m (fixed, all designs share 0.5 m airframe)
+aero_model        : Cm_alpha_physical = CN_alpha * static_margin (fixed 2026-06-04)
+cg_bug_fixed      : x_cg_dry = l_nozzle_m (fixed 2026-06-04)
+
+Regime counts:
+  EASY      : 488
+  MARGINAL  : 300
+  FRAGILE   : 177
+  INFEASIBLE: 235

@@ -40,14 +40,20 @@ If a conclusion is weak, say so.
 
 # Current Thesis Direction
 
-Current working thesis:
+Current working thesis (updated 2026-06-05):
 
-The physical regime of a TVC rocket determines both:
+A TVC rocket's controllability boundary is determined primarily by its rotational inertia (Iyy)
+relative to its wind-environment loading, NOT by aerodynamic instability (p_unstable).
+Rockets with small Iyy in high-wind environments require high-bandwidth controllers,
+which require accurate slew and latency modeling for correct design decisions.
 
-* whether the rocket is controllable
-* which simulator fidelity terms are required to make correct engineering decisions
+The simulator fidelity requirements depend on where a design sits relative to this
+Iyy × wind_strength controllability boundary.
 
-Different regions of design space may require different simulator fidelity.
+IMPORTANT: The p_unstable proxy has near-zero correlation with regime under full-physics
+evaluation. Do NOT claim that aerodynamic instability is the primary controllability predictor.
+
+Correct claim: Iyy and wind_strength jointly determine regime; p_unstable is a secondary factor.
 
 The project is moving away from global rankings and toward regime-dependent fidelity requirements.
 
@@ -57,35 +63,58 @@ The project is moving away from global rankings and toward regime-dependent fide
 
 ## Exp1 – Regime Mapping
 
-Status: Strong (4-class scheme as of 2026-06-03)
+Status: Major revision complete (2026-06-05). All prior Exp1 results are SUPERSEDED.
 
-Designs:
+Methodology (current):
+* 1200 LHS designs with T/W > 1 feasibility filter (no longer includes physically unliftable designs)
+* Full-physics evaluation: nonlinear_aero + dyn_aero + thrust_curve + cg_shift ON
+* Gain search: 5×5 grid KP=[2,5,15,40,80], KD=[1,2,8,16,32] with 2-seed autotune
+* Autotune objective: highest mean success rate across seeds 1+2; tiebreak by minimum RMS
+* Nominal evaluation: 3-seed average (wind is stochastic; single-seed is unreliable)
+* Under/over robustness: single seed=1 (binary pass/fail sufficient)
 
-* 1200 Latin Hypercube samples
+Design space (current):
+* servo_slew_deg_s: [5, 120], static_margin: [-0.30, 0.30], Cm_alpha: [-90, -15]
+* motor_scale: [0.5, 3.0], max_gimbal_deg: [2, 15]
 
-Main outputs (4-class scheme, counts as of 2026-06-03):
+Main outputs (4-class scheme, counts as of 2026-06-05):
 
-* EASY (n=488): robust to all gain conditions, meets quality thresholds
-* MARGINAL (n=300): robust to all gain conditions, high steady-state RMS (>8 deg)
-  — passes all wind/gain tests; fails only the EASY RMS quality threshold
-  — NOT wind-sensitive; tracking quality is the limiting factor
-* FRAGILE (n=177): fails at least one gain condition; genuinely wind-sensitive
-* INFEASIBLE (n=235): fails even nominal evaluation
+* EASY (n=850, 71%): nom_sr=1.00, robustness=1.00 — works in all conditions
+* MARGINAL (n=241, 20%): nom_sr=0.72, robustness=1.00 — WIND-SENSITIVE (not gain-sensitive)
+  — REINTERPRETATION: MARGINAL is NOT about high RMS; it is about wind-environment sensitivity.
+  — MARGINAL designs have 27% higher wind_strength than EASY (mean 0.303 vs 0.223).
+  — They pass all gain robustness checks but fail ~28% of random wind realizations.
+* FRAGILE (n=68, 6%): nom_sr=0.76, robustness=0.56 — gain-sensitive (fails some gain conditions)
+* INFEASIBLE (n=41, 3%): nom_sr=0.30, robustness=0.23 — cannot be stabilized
 
-CRITICAL: Old FRAGILE (n=477) was split into MARGINAL + FRAGILE.
-62.9% of old "FRAGILE" designs (MARGINAL) are robust with robustness=1.0.
-Any claim that references old FRAGILE regime is now split between MARGINAL and FRAGILE.
+RELIABLE BOUNDARY: FRAGILE+INFEASIBLE = 109 (9.1%) is stable across methodology variants.
+SOFT BOUNDARY: EASY vs MARGINAL split is autotune-sensitive (varies ~350 designs across runs).
 
-Important findings:
+Regime evolution (INFEASIBLE count as methodology improved):
+* Old simple-mode: INFEASIBLE=235 (19.6%) — mostly tuner artifacts
+* Full-phys 4x4: INFEASIBLE=74 — grid floor and T/W contamination removed
+* Full-phys 5x5 2-seed: INFEASIBLE=41 (3.4%) — current best; 34% residual paradox (near-boundary noise)
 
-* clear stability frontier
-* strong p_unstable interaction
-* strong servo slew interaction
-* meaningful robustness differences between regimes
+Key findings (2026-06-05):
 
-Confidence: HIGH
+FINDING 1: p_unstable has near-zero correlation with regime (r≈0 for all class comparisons).
+Do NOT cite p_unstable as the primary controllability predictor.
 
-Treat Exp1 as the most reliable foundation of the project.
+FINDING 2: Primary physical predictors of regime are:
+  — wind_strength (design parameter): strongest predictor; INFEASIBLE designs have 44% higher wind
+  — Iyy: second strongest; INFEASIBLE Iyy=0.014 vs rest=0.025 (44% lower)
+  — motor_scale: moderate predictor; higher thrust → higher q_dyn → stronger wind loading
+  p_unstable: negligible (r≈0 across all regime comparisons)
+
+FINDING 3: Aerodynamic instability does NOT make rockets more wind-resistant or maneuverable.
+The opposite is true: unstable aerodynamics amplify wind disturbances. The TVC fights both
+instability and wind simultaneously rather than having aerodynamics partially absorb the wind.
+
+FINDING 4: The controllability boundary lives in (Iyy, wind_strength) space, not p_unstable space.
+Small Iyy + strong wind = fast dynamics overwhelmed by disturbances = INFEASIBLE.
+
+Confidence: MEDIUM-HIGH (regime counts are autotune-sensitive near EASY/MARGINAL boundary;
+FRAGILE+INFEASIBLE total is stable; physical predictor findings are robust across runs).
 
 ---
 
@@ -262,6 +291,43 @@ Be careful when a later analysis "discovers" the importance of variables already
 
 Always check for circular reasoning.
 
+## Autotune Methodology Sensitivity (2026-06-05)
+
+The EASY/MARGINAL split is highly sensitive to the autotune method used:
+* Single-seed: 87% of designs defaulted to grid minimum (Kp=5) — gain floor artifact
+* RMS tiebreaker only: over-preferred high gains → EASY=494, MARGINAL=592
+* 2-seed success-rate primary, RMS tiebreaker: EASY=850, MARGINAL=241
+
+The EASY/MARGINAL boundary shifts by ~350 designs between autotune variants.
+FRAGILE+INFEASIBLE total is stable across all variants (~100-110 designs).
+
+Practical guidance: Report EASY+MARGINAL as "controllable" (91%) and FRAGILE+INFEASIBLE
+as "at-risk" (9%). Do not make precise claims about exact MARGINAL vs EASY counts
+until a more robust autotune (5+ seed averaging) is implemented.
+
+## Gain Grid Design (2026-06-05)
+
+Current grid: KP=[2,5,15,40,80], KD=[1,2,8,16,32] (5×5 = 25 combinations)
+Autotune: 2-seed average success rate primary, then RMS tiebreaker, then best-effort RMS.
+
+Known limitation: 14/41 INFEASIBLE designs still show under_sr > nom_sr (34%).
+These are near-boundary designs where the true optimal gains lie between grid points.
+Continuous optimization (Bayesian or gradient-based) would resolve this but is out of scope.
+
+## T/W Filter (2026-06-05)
+
+Design space now enforces T/W > 1 in sample_lhs() — iteratively resamples until all
+designs have motor thrust exceeding rocket weight. Without this filter, 20.7% of designs
+were physically unliftable but appeared EASY in simulation (near-zero aerodynamic forces).
+
+## dyn_aero Reference Pressure (2026-06-05)
+
+When dyn_aero=OFF, the constant reference q_dyn is now per-design:
+  q = 0.5 × 1.20 × v_mid²  where  v_mid = max(0.5, (T_eff - m×g)/m) × (t_end/2)
+This ranges from ~0.3 Pa (low motor_scale + heavy) to ~1900 Pa (high motor_scale + light).
+Old value: hardcoded 540 Pa for all designs — inflated aerodynamic forces by 10-100× for
+most designs, making dyn_aero ablation results partly a calibration artifact.
+
 ---
 
 # Rejected or Unsupported Claims
@@ -269,9 +335,18 @@ Always check for circular reasoning.
 Do not present these as established findings.
 
 * Sensor noise globally dominates simulator fidelity requirements.
-  (Disproven by delta_success analysis — wind dominates GO/NOGO decisions.
-   Sensor noise dominates RMS shifts only, which is the wrong metric for engineering decisions.)
+  (Disproven by delta_success analysis — wind dominates GO/NOGO decisions.)
 * Infeasible rockets are primarily aerodynamic-limited.
+  (DISPROVEN 2026-06-05: INFEASIBLE is driven by high wind_strength + low Iyy, not high p_unstable.)
+* p_unstable is the primary predictor of controllability.
+  (DISPROVEN 2026-06-05: p_unstable has near-zero correlation with regime under full-physics eval.
+   Iyy and wind_strength are the dominant predictors.)
+* Aerodynamic instability improves wind resistance or maneuverability for TVC attitude-hold.
+  (DISPROVEN: instability amplifies wind disturbances; stable aerodynamics help absorb wind.
+   The fighter-jet analogy does not apply to attitude-hold TVC rockets.)
+* slew × latency interaction is super-additive.
+  (DISPROVEN: mean interaction ratio = 0.55 across 50 tests — strongly sub-additive.
+   Both ablations push gains in the same direction; combined effect saturates at single-ablation level.)
 * Gradient bottlenecks are validated design levers.
 * Evolution paths represent physically validated improvement trajectories.
 * Topology classes have been proven reproducible.

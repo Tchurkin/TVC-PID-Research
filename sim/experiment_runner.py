@@ -53,6 +53,7 @@ from controller import PIDParams
 from sensor_model import SensorParams
 from actuator_model import ActuatorParams
 from disturbance_model import DisturbanceParams
+from fidelity_config import FidelityConfig, apply_fidelity_config, ABLATION_MODULES
 from simulator import ScenarioParams, simulate, SimResult
 from units import FRAGILE_SUCCESS_RATE
 
@@ -60,9 +61,13 @@ ROOT       = Path(__file__).resolve().parents[1]
 RESULT_DIR = ROOT / "experiments" / "results"
 RESULT_DIR.mkdir(parents=True, exist_ok=True)
 
-# ── Tuning grid (matches MATLAB P.tuning block) ───────────────────────────────
-KP_GRID     = [10.0, 20.0, 45.0, 80.0]
-KD_GRID     = [4.0,  8.0, 16.0, 32.0]
+# ── Tuning grid ───────────────────────────────────────────────────────────────
+# Extended range to cover sub-Kp=5 optima: diagnostics showed 87% of designs
+# chose the previous floor (Kp=5), and ~54% of INFEASIBLE designs had their
+# under-gains (Kp=3, Kd=1.2) outperform the nominal (Kp=5, Kd=2), proving
+# the true optimum was below the grid minimum.
+KP_GRID     = [2.0, 5.0, 15.0, 40.0, 80.0]
+KD_GRID     = [1.0, 2.0,  8.0, 16.0, 32.0]
 UNDER_SCALE = 0.60
 OVER_SCALE  = 1.40
 
@@ -161,6 +166,10 @@ def _run_one(
     r: SimResult = simulate(pid, plant, act, sen, dis, sc, seed=seed)
     return dict(
         success          = r.success,
+        diverged         = r.diverged,
+        band_30_pass     = r.band_30_pass,
+        band_20_pass     = r.band_20_pass,
+        band_10_pass     = r.band_10_pass,
         rms_error_deg    = r.rms_error_deg,
         peak_error_deg   = r.peak_error_deg,
         end_error_deg    = r.end_error_deg,
@@ -175,14 +184,18 @@ def _run_one(
 def _aggregate(runs: list[dict]) -> dict:
     """Aggregate a list of run dicts into mean/max summary."""
     return dict(
-        success_rate    = float(np.mean([r["success"] for r in runs])),
-        rms_error_deg   = float(np.mean([r["rms_error_deg"] for r in runs])),
-        peak_error_deg  = float(np.max([r["peak_error_deg"] for r in runs])),
-        end_error_deg   = float(np.mean([r["end_error_deg"] for r in runs])),
-        max_theta_deg   = float(np.max([r["max_theta_deg"] for r in runs])),
-        u_cmd_sat_frac  = float(np.mean([r["u_cmd_sat_frac"] for r in runs])),
-        slew_sat_frac   = float(np.mean([r["slew_sat_frac"] for r in runs])),
-        settling_time_s = float(np.mean([r["settling_time_s"] for r in runs])),
+        success_rate     = float(np.mean([r["success"]      for r in runs])),
+        diverge_rate     = float(np.mean([r["diverged"]     for r in runs])),
+        band_30_rate     = float(np.mean([r["band_30_pass"] for r in runs])),
+        band_20_rate     = float(np.mean([r["band_20_pass"] for r in runs])),
+        band_10_rate     = float(np.mean([r["band_10_pass"] for r in runs])),
+        rms_error_deg    = float(np.mean([r["rms_error_deg"]    for r in runs])),
+        peak_error_deg   = float(np.max( [r["peak_error_deg"]   for r in runs])),
+        end_error_deg    = float(np.mean([r["end_error_deg"]    for r in runs])),
+        max_theta_deg    = float(np.max( [r["max_theta_deg"]    for r in runs])),
+        u_cmd_sat_frac   = float(np.mean([r["u_cmd_sat_frac"]   for r in runs])),
+        slew_sat_frac    = float(np.mean([r["slew_sat_frac"]    for r in runs])),
+        settling_time_s  = float(np.mean([r["settling_time_s"]  for r in runs])),
         oscillation_score= float(np.mean([r["oscillation_score"] for r in runs])),
     )
 
@@ -199,41 +212,122 @@ def autotune_grid(
     Kd_grid: list[float] = KD_GRID,
 ) -> tuple[float, float]:
     """
-    Grid search for (Kp, Kd) that maximises single-seed success.
-    Returns (best_Kp, best_Kd).
+    Grid search for (Kp, Kd) that best stabilises the design.
+
+    Selection rule (2-seed average for tuning stability):
+      1. Primary criterion: highest mean success_rate across seeds (1,2).
+      2. Tiebreaker among equal success rates: lowest mean RMS error.
+      3. If nothing succeeds: lowest mean RMS regardless of success.
+
+    Two seeds prevent the single-seed artefact where high-gain combos that
+    happen to minimise RMS on one specific wind realisation are selected even
+    though they diverge on other seeds.  Two seeds also prevent the inverse
+    artefact of the old approach (defaulting to the grid minimum the moment
+    any combo gives success on seed=1).  Three seeds would be better but
+    triples tuning cost; two captures most of the benefit.
     """
     best_Kp, best_Kd = Kp_grid[0], Kd_grid[0]
-    best_sr = -1.0
+    best_sr  = -1.0
+    best_rms = float("inf")
     for Kp in Kp_grid:
         for Kd in Kd_grid:
             pid = PIDParams(Kp=Kp, Kd=Kd, Ki=0.0, u_max=act.u_max, i_lim=act.u_max)
-            r = _run_one(pid, plant, act, sen, dis, sc, seed=1)
-            sr = 1.0 if r["success"] else 0.0
-            if sr > best_sr:
-                best_sr = sr
+            r1 = _run_one(pid, plant, act, sen, dis, sc, seed=1)
+            r2 = _run_one(pid, plant, act, sen, dis, sc, seed=2)
+            sr  = 0.5 * (float(r1["success"]) + float(r2["success"]))
+            rms = 0.5 * (float(r1["rms_error_deg"]) + float(r2["rms_error_deg"]))
+            if sr > best_sr or (sr == best_sr and rms < best_rms):
+                best_sr  = sr
+                best_rms = rms
                 best_Kp, best_Kd = Kp, Kd
     return best_Kp, best_Kd
+
+
+KI_GRID_PID: list[float] = [0.5, 2.0, 8.0, 20.0]
+
+
+def autotune_grid_pid(
+    plant,
+    act:  ActuatorParams,
+    sen:  SensorParams,
+    dis:  DisturbanceParams,
+    sc:   ScenarioParams,
+    Kp_grid: list[float] = KP_GRID,
+    Kd_grid: list[float] = KD_GRID,
+    Ki_grid: list[float] = None,
+) -> tuple[float, float, float]:
+    """
+    Staged PID grid search.  Returns (best_Kp, best_Kd, best_Ki).
+
+    Stage 1: PD search over Kp × Kd (same as autotune_grid).
+    Stage 2: Ki search with Kp/Kd fixed.
+
+    The two-stage approach avoids the 4× runtime penalty of a full 3D grid
+    while capturing most of the benefit of integral action.  Limitation: the
+    optimal Ki may shift the optimal Kp/Kd; treat results as a good approximation.
+    """
+    if Ki_grid is None:
+        Ki_grid = KI_GRID_PID
+
+    # Stage 1: find best Kp, Kd (reuse PD tuner)
+    best_Kp, best_Kd = autotune_grid(plant, act, sen, dis, sc, Kp_grid, Kd_grid)
+
+    # Stage 2: search Ki with fixed Kp, Kd
+    best_Ki, best_sr = 0.0, -1.0
+    for Ki in Ki_grid:
+        pid = PIDParams(Kp=best_Kp, Kd=best_Kd, Ki=Ki,
+                        u_max=act.u_max, i_lim=act.u_max)
+        r = _run_one(pid, plant, act, sen, dis, sc, seed=1)
+        sr = 1.0 if r["success"] else 0.0
+        if sr > best_sr:
+            best_sr = sr
+            best_Ki = Ki
+    return best_Kp, best_Kd, best_Ki
 
 
 # ── Exp1: regime mapping ──────────────────────────────────────────────────────
 
 def _eval_design_exp1(row: dict) -> dict:
-    """Evaluate one design for Exp1: tune → nominal/under/over → classify."""
+    """
+    Evaluate one design for Exp1: tune → nominal/under/over → classify.
+
+    Uses full-physics config (all structural modules ON, no fault injection)
+    so regime labels reflect the TRUE controllability boundary, not the
+    simple-mode tuner's approximate proxy.  This resolves the regime validity
+    problem where Exp1-INFEASIBLE designs succeeded at 98.6% in full physics.
+    """
     plant = build_plant(row)
     act   = build_actuator(row)
     sen   = build_sensor(row)
     dis   = build_disturbance(row)
     sc    = build_scenario(theta0_bias_std=0.0)
 
+    # Full-physics config: all structural modules ON, no fault injection.
+    # Matches Exp4C reality config so regime labels are valid in that context.
+    physics_cfg = FidelityConfig(
+        wind=True, backlash=True, slew=True, latency=True,
+        sensor_noise=True, thrust_var=False, deadband=True,
+        nonlinear_aero=True, dyn_aero=True, thrust_curve=True, cg_shift=True,
+    )
+    act, sen, dis, sc = apply_fidelity_config(act, sen, dis, sc, physics_cfg)
+
     best_Kp, best_Kd = autotune_grid(plant, act, sen, dis, sc)
 
-    def eval_gains(Kp, Kd):
+    def eval_nominal(Kp, Kd):
+        pid = PIDParams(Kp=Kp, Kd=Kd, Ki=0.0, u_max=act.u_max, i_lim=act.u_max)
+        # 3 seeds: wind is stochastic — single-seed is too noisy near the EASY/MARGINAL
+        # RMS boundary (8 deg).  Under/over checks only need 1 seed since they produce
+        # a binary pass/fail for the robustness score.
+        runs = [_run_one(pid, plant, act, sen, dis, sc, seed=s) for s in (1, 2, 3)]
+        return _aggregate(runs)
+
+    def eval_robustness(Kp, Kd):
         pid = PIDParams(Kp=Kp, Kd=Kd, Ki=0.0, u_max=act.u_max, i_lim=act.u_max)
         return _aggregate([_run_one(pid, plant, act, sen, dis, sc, seed=1)])
 
-    nominal = eval_gains(best_Kp, best_Kd)
-    under   = eval_gains(UNDER_SCALE * best_Kp, UNDER_SCALE * best_Kd)
-    over    = eval_gains(OVER_SCALE  * best_Kp, OVER_SCALE  * best_Kd)
+    nominal = eval_nominal(best_Kp, best_Kd)
+    under   = eval_robustness(UNDER_SCALE * best_Kp, UNDER_SCALE * best_Kd)
+    over    = eval_robustness(OVER_SCALE  * best_Kp, OVER_SCALE  * best_Kd)
 
     n_pass = (
         int(nominal["success_rate"] >= FRAGILE_SUCCESS_RATE)
@@ -261,7 +355,7 @@ def _eval_design_exp1(row: dict) -> dict:
         static_margin      = row["static_margin"],
         Cm_alpha           = row["Cm_alpha"],
         control_effectiveness = row["control_effectiveness"],
-        thrust             = row["thrust"],
+        motor_scale        = row["motor_scale"],
         servo_slew_deg_s   = row["servo_slew_deg_s"],
         max_gimbal_deg     = row["max_gimbal_deg"],
         latency_steps      = row["latency_steps"],
@@ -275,6 +369,13 @@ def _eval_design_exp1(row: dict) -> dict:
         over_success_rate    = over["success_rate"],
         robustness           = robustness,
         n_success_gain_sets  = n_pass,
+        # Progressive band metrics (fraction of seeds passing each threshold)
+        nominal_diverge_rate = nominal["diverge_rate"],
+        nominal_band_30_rate = nominal["band_30_rate"],
+        nominal_band_20_rate = nominal["band_20_rate"],
+        nominal_band_10_rate = nominal["band_10_rate"],
+        under_diverge_rate   = under["diverge_rate"],
+        over_diverge_rate    = over["diverge_rate"],
         rms_error_deg        = nominal["rms_error_deg"],
         peak_error_deg       = nominal["peak_error_deg"],
         end_error_deg        = nominal["end_error_deg"],
@@ -297,10 +398,16 @@ def run_exp1(
     out_dir: Path = RESULT_DIR,
 ) -> pd.DataFrame:
     """
-    Experiment 1: map EASY/FRAGILE/INFEASIBLE over the 12-D LHS design space.
+    Experiment 1: map EASY/MARGINAL/FRAGILE/INFEASIBLE over the 12-D LHS design space.
+
+    Regime labels are now computed under full-physics conditions (nonlinear_aero,
+    dyn_aero, thrust_curve, cg_shift ON; no fault injection) so that labels
+    are valid in the Exp4C evaluation environment.
     Saves results to out_dir/exp1_regime_index_py.csv.
     """
-    print(f"=== EXP1 (Python) n={n_designs} seed={seed} ===")
+    print(f"=== EXP1 (Python, full-physics regime labels) n={n_designs} seed={seed} ===")
+    print(f"    Fidelity: full physics (nonlinear_aero, dyn_aero, thrust_curve, cg_shift ON)")
+    print(f"    Gain grid: {len(KP_GRID)}x{len(KD_GRID)} = {len(KP_GRID)*len(KD_GRID)} combos")
     designs = sample_lhs(n_designs, seed)
     rows = designs.to_dict("records")
 
@@ -310,9 +417,12 @@ def run_exp1(
 
     df = pd.DataFrame(results)
     counts = df["regime_label"].value_counts()
-    print(f"Regime counts:  EASY={counts.get('EASY',0)}  "
-          f"FRAGILE={counts.get('FRAGILE',0)}  "
-          f"INFEASIBLE={counts.get('INFEASIBLE',0)}")
+    print(f"Regime counts:  EASY={counts.get('EASY',0)}  MARGINAL={counts.get('MARGINAL',0)}  "
+          f"FRAGILE={counts.get('FRAGILE',0)}  INFEASIBLE={counts.get('INFEASIBLE',0)}")
+    # Divergence summary
+    if "nominal_diverge_rate" in df.columns:
+        n_diverge = (df["nominal_diverge_rate"] > 0).sum()
+        print(f"Any divergence nominally: {n_diverge}/{n_designs} designs")
 
     out = out_dir / "exp1_regime_index_py.csv"
     df.to_csv(out, index=False)
@@ -380,7 +490,7 @@ def _eval_design_exp4(row: dict) -> list[dict]:
             Iyy              = row.get("Iyy"),
             static_margin    = row.get("static_margin"),
             Cm_alpha         = row.get("Cm_alpha"),
-            thrust           = row.get("thrust"),
+            motor_scale      = row.get("motor_scale"),
             servo_slew_deg_s = row.get("servo_slew_deg_s"),
             max_gimbal_deg   = row.get("max_gimbal_deg"),
             latency_steps    = row.get("latency_steps"),
@@ -490,8 +600,6 @@ def run_exp4(
 #   Positive = removing wind WORSENS rms (wind was helping dampen oscillations?)
 #   Large |delta| = this module matters for this design.
 
-from fidelity_config import FidelityConfig, apply_fidelity_config, ABLATION_MODULES
-
 # Number of seeds to average over for Exp4 delta estimation.
 # More seeds = less RNG noise in delta metrics.  3 is sufficient for identification.
 EXP4_N_SEEDS = 3
@@ -524,6 +632,10 @@ def _eval_one_fidelity(
         r: SimResult = simulate(pid_k, plant, act, sen, dis, sc, seed=s)
         runs.append(dict(
             success           = int(r.success),
+            diverged          = r.diverged,
+            band_30_pass      = r.band_30_pass,
+            band_20_pass      = r.band_20_pass,
+            band_10_pass      = r.band_10_pass,
             rms_error_deg     = r.rms_error_deg,
             end_error_deg     = r.end_error_deg,
             max_theta_deg     = r.max_theta_deg,
@@ -577,7 +689,7 @@ def _eval_design_exp4_ablation(row: dict) -> dict:
     )
     # Pass through design params
     for k in ["p_unstable", "mass", "Iyy", "static_margin", "Cm_alpha",
-              "control_effectiveness", "thrust", "servo_slew_deg_s",
+              "control_effectiveness", "motor_scale", "servo_slew_deg_s",
               "max_gimbal_deg", "latency_steps", "deadband", "backlash", "wind_strength"]:
         out[k] = row.get(k)
 
@@ -757,7 +869,7 @@ def _eval_design_exp4simple(row: dict) -> dict:
     )
 
     for k in ["p_unstable", "mass", "Iyy", "static_margin", "Cm_alpha",
-              "control_effectiveness", "thrust", "servo_slew_deg_s",
+              "control_effectiveness", "motor_scale", "servo_slew_deg_s",
               "max_gimbal_deg", "latency_steps", "deadband", "backlash", "wind_strength"]:
         out[k] = row.get(k)
 
@@ -881,7 +993,7 @@ def _eval_design_exp5(row: dict) -> dict:
         best_magnitude  = best_mag,
     )
     for k in ["p_unstable", "mass", "Iyy", "static_margin", "Cm_alpha",
-              "control_effectiveness", "thrust", "servo_slew_deg_s",
+              "control_effectiveness", "motor_scale", "servo_slew_deg_s",
               "max_gimbal_deg", "latency_steps", "deadband", "backlash", "wind_strength"]:
         out[k] = row.get(k)
 
@@ -1038,11 +1150,11 @@ def _sweep_one_design(row: dict, param: str, sweep_vals: np.ndarray) -> list[dic
     for val in sweep_vals:
         d = dict(row)
         d[param] = float(val)
-        if param in ("static_margin", "Cm_alpha", "thrust"):
+        if param in ("static_margin", "Cm_alpha", "motor_scale"):
             d["p_unstable"] = _est_p(
                 d.get("static_margin", REF["static_margin"]),
                 d.get("Cm_alpha",      REF["Cm_alpha"]),
-                d.get("thrust",        REF["thrust"]),
+                d.get("motor_scale",   REF["motor_scale"]),
             )
         try:
             r = _evaluate_design(d, Kp, Kd, cfg, seed=1)
@@ -1124,7 +1236,7 @@ def _compute_diminishing_returns(
     [Legacy] Single-anchor sweep.  Retained for reference; the pipeline now uses
     _compute_diminishing_returns_population() for smoother, representative curves.
     """
-    from design_space import DESIGN_LO, DESIGN_HI, DESIGN_NAMES, estimate_p_unstable
+    from design_space import DESIGN_LO, DESIGN_HI, DESIGN_NAMES, estimate_p_unstable, estimate_lambda_aero
     lo_map = dict(zip(DESIGN_NAMES, DESIGN_LO))
     hi_map = dict(zip(DESIGN_NAMES, DESIGN_HI))
 
@@ -1135,13 +1247,13 @@ def _compute_diminishing_returns(
         for val in sweep_vals:
             d = dict(ref_design)
             d[param] = float(val)
-            # Recompute p_unstable if needed
-            if param in ("static_margin", "Cm_alpha", "thrust"):
-                d["p_unstable"] = estimate_p_unstable(
-                    d.get("static_margin", REF["static_margin"]),
-                    d.get("Cm_alpha",      REF["Cm_alpha"]),
-                    d.get("thrust",        REF["thrust"]),
-                )
+            # Recompute aerodynamic terms if needed
+            if param in ("static_margin", "Cm_alpha", "motor_scale"):
+                sm  = d.get("static_margin", REF["static_margin"])
+                cma = d.get("Cm_alpha",      REF["Cm_alpha"])
+                ms  = d.get("motor_scale",   REF["motor_scale"])
+                d["lambda_aero"] = estimate_lambda_aero(sm, cma, ms)
+                d["p_unstable"]  = estimate_p_unstable(sm, cma, ms)
             try:
                 from local_analysis import _evaluate_design
                 r = _evaluate_design(d, ref_Kp, ref_Kd, cfg, seed=1)
@@ -1253,6 +1365,915 @@ def run_exp5_slew_stratified(
     return agg
 
 
+# ── Exp4A: 10-module ablation, no fault injection ─────────────────────────────
+#
+# Experiment design:
+#   Baseline = FidelityConfig.full() with thrust_var DISABLED.
+#   This is a physically-grounded baseline: all real aerodynamic/actuator/sensor
+#   physics are modeled but no fault event is injected.
+#
+#   Why exclude thrust_var:
+#     The other 9 modules model physics always present in flight (wind, sensor
+#     noise, servo limits, nonlinear aero, etc.).  thrust_var models a specific
+#     motor degradation event that may or may not occur.  Mixing fault injection
+#     into the fidelity baseline conflates "accurate physics" with "worst-case
+#     scenario."  Exp4A measures physics fidelity requirements only.
+#
+#   Gains are RE-TUNED at the 10-module baseline for each design.
+#   This is important because the full-physics mode (dyn_aero, nonlinear_aero)
+#   changes dynamics significantly vs legacy simple mode, so Exp1 gains are
+#   suboptimal here.
+#
+#   Seeds: 5 per condition (baseline + each of 10 ablations = 11 × 5 = 55 runs).
+#   Total: 1200 × 55 = 66 000 simulations.
+#
+#   build_plant() now passes design-specific Cm_alpha_signed, static_margin,
+#   Iyy_kgm2, m_kg, max_gimbal_deg to PlantParams, so each design's full-physics
+#   aerodynamics are correct (not all evaluated as the reference rocket).
+#
+# Output: exp4a_ablation_py.csv — one row per design, wide format.
+#   Columns: design params | baseline metrics | per-module deltas and flip flags
+#   Metadata written to exp4a_ablation_meta.txt alongside the CSV.
+
+EXP4A_MODULES: list[str] = [
+    "wind",
+    "backlash",
+    "slew",
+    "latency",
+    "sensor_noise",
+    "deadband",
+    "nonlinear_aero",
+    "dyn_aero",
+    "thrust_curve",
+    "cg_shift",
+]
+EXP4A_N_SEEDS: int = 5
+
+
+def _exp4a_baseline_cfg() -> FidelityConfig:
+    """10-module baseline for Exp4A (all physics on, no fault injection)."""
+    return FidelityConfig(
+        wind=True, backlash=True, slew=True, latency=True,
+        sensor_noise=True, thrust_var=False, deadband=True,
+        nonlinear_aero=True, dyn_aero=True, thrust_curve=True, cg_shift=True,
+    )
+
+
+def _eval_design_exp4a(row: dict) -> dict:
+    """
+    Exp4A: 10-module ablation for one design.
+
+    Protocol:
+      1. Build design-specific PlantParams (now includes physical aero params).
+      2. Tune Kp/Kd at 10-module baseline (seed=1, 4×4 grid).
+      3. Evaluate baseline with EXP4A_N_SEEDS seeds.
+      4. For each of 10 modules: disable it, evaluate with EXP4A_N_SEEDS seeds.
+      5. Compute delta metrics and GO/NOGO flip flags.
+    """
+    plant    = build_plant(row)
+    base_act = build_actuator(row)
+    base_sen = build_sensor(row)
+    base_dis = build_disturbance(row)
+    base_sc  = build_scenario(theta0_bias_std=0.0)
+    # No fault on base_sc — Exp4A baseline is fault-free
+
+    baseline_cfg = _exp4a_baseline_cfg()
+    seeds = tuple(range(1, EXP4A_N_SEEDS + 1))
+
+    # Tune at 10-module baseline
+    act_t, sen_t, dis_t, sc_t = apply_fidelity_config(
+        base_act, base_sen, base_dis, base_sc, baseline_cfg
+    )
+    best_Kp, best_Kd = autotune_grid(plant, act_t, sen_t, dis_t, sc_t)
+    pid = PIDParams(Kp=best_Kp, Kd=best_Kd, Ki=0.0,
+                    u_max=base_act.u_max, i_lim=base_act.u_max)
+
+    # Evaluate baseline
+    base_m = _eval_one_fidelity(
+        plant, base_act, base_sen, base_dis, base_sc, pid, baseline_cfg, seeds
+    )
+    base_go = base_m["success_rate"] >= FRAGILE_SUCCESS_RATE
+
+    out = dict(
+        rocket_id    = row["rocket_id"],
+        design_id    = row["design_id"],
+        regime_label = row.get("regime_label", "UNKNOWN"),
+        best_Kp      = best_Kp,
+        best_Kd      = best_Kd,
+    )
+    for k in ["p_unstable", "mass", "Iyy", "static_margin", "Cm_alpha",
+              "control_effectiveness", "motor_scale", "servo_slew_deg_s",
+              "max_gimbal_deg", "latency_steps", "deadband", "backlash",
+              "wind_strength"]:
+        out[k] = row.get(k)
+
+    out["baseline_success_rate"] = base_m["success_rate"]
+    out["baseline_rms"]          = base_m["rms_error_deg"]
+    out["baseline_peak"]         = base_m["peak_error_deg"]
+    out["baseline_max_theta"]    = base_m["max_theta_deg"]
+    out["baseline_u_sat"]        = base_m["u_cmd_sat_frac"]
+    out["baseline_slew_sat"]     = base_m["slew_sat_frac"]
+    out["baseline_go"]           = int(base_go)
+
+    # Single-module ablations
+    delta_rms_abs: dict[str, float] = {}
+    for module in EXP4A_MODULES:
+        abl_cfg = baseline_cfg.ablate(module)
+        abl_m   = _eval_one_fidelity(
+            plant, base_act, base_sen, base_dis, base_sc, pid, abl_cfg, seeds
+        )
+        abl_go = abl_m["success_rate"] >= FRAGILE_SUCCESS_RATE
+
+        d_success = abl_m["success_rate"]  - base_m["success_rate"]
+        d_rms     = abl_m["rms_error_deg"] - base_m["rms_error_deg"]
+        d_peak    = abl_m["peak_error_deg"] - base_m["peak_error_deg"]
+        d_theta   = abl_m["max_theta_deg"] - base_m["max_theta_deg"]
+        flip      = int(base_go != abl_go)
+
+        # Direction: positive d_success = removing module improved outcome
+        # (module was making things worse).  "helps" / "hurts" / "" (no flip)
+        flip_dir = ("helps" if d_success > 0 else "hurts") if flip else ""
+
+        out[f"abl_success_{module}"]   = abl_m["success_rate"]
+        out[f"delta_success_{module}"] = d_success
+        out[f"delta_rms_{module}"]     = d_rms
+        out[f"delta_peak_{module}"]    = d_peak
+        out[f"delta_theta_{module}"]   = d_theta
+        out[f"decision_flip_{module}"] = flip
+        out[f"flip_dir_{module}"]      = flip_dir
+
+        delta_rms_abs[module] = abs(d_rms)
+
+    # Summary columns
+    out["dominant_module"]       = max(delta_rms_abs, key=delta_rms_abs.get)
+    out["dominant_delta_rms"]    = delta_rms_abs[out["dominant_module"]]
+    out["n_decision_flips"]      = sum(out[f"decision_flip_{m}"] for m in EXP4A_MODULES)
+    out["decision_flip_modules"] = (
+        " ".join(m for m in EXP4A_MODULES if out[f"decision_flip_{m}"] == 1) or "none"
+    )
+    # effect_any: fraction of modules that cause any flip (same as n_decision_flips/10)
+    out["fidelity_complexity"]   = out["n_decision_flips"]  # alias for clarity
+
+    return out
+
+
+def run_exp4a_ablation(
+    designs_df: Optional[pd.DataFrame] = None,
+    n_jobs:     int = -1,
+    out_dir:    Path = RESULT_DIR,
+) -> pd.DataFrame:
+    """
+    Experiment 4A: 10-module fidelity ablation (no thrust_var fault injection).
+
+    Baseline: FidelityConfig with all 10 physics modules active (thrust_var=False).
+    Gains re-tuned at baseline per design (4×4 grid, seed=1).
+    Seeds: EXP4A_N_SEEDS per condition.
+
+    Key differences from legacy Exp4 ablation:
+      - No fault injection in baseline (thrust_var excluded)
+      - Gains re-tuned at new baseline (not frozen from Exp1)
+      - build_plant() now passes design-specific physical params (Cm_alpha, Iyy, etc.)
+      - 5 seeds vs 3 → finer success_rate resolution for GO/NOGO decisions
+
+    Saves:
+      exp4a_ablation_py.csv   (one row per design, wide format)
+      exp4a_ablation_meta.txt (experiment metadata)
+    """
+    if designs_df is None:
+        py_path = out_dir / "exp1_regime_index_py.csv"
+        if not py_path.exists():
+            raise FileNotFoundError(
+                "Exp1 results not found.  Run run_exp1() first or pass designs_df."
+            )
+        designs_df = pd.read_csv(py_path)
+
+    n = len(designs_df)
+    print(f"=== EXP4A ABLATION  n={n} designs ===")
+    print(f"    Modules ({len(EXP4A_MODULES)}): {EXP4A_MODULES}")
+    print(f"    Seeds per condition : {EXP4A_N_SEEDS}")
+    print(f"    Baseline            : 10-module full physics (thrust_var=False)")
+    print(f"    Gains               : re-tuned at baseline per design")
+    print(f"    Simulations total   : {n} × {1 + len(EXP4A_MODULES)} conditions "
+          f"× {EXP4A_N_SEEDS} seeds + {n} × 16 tune = "
+          f"{n * (1 + len(EXP4A_MODULES)) * EXP4A_N_SEEDS + n * 16:,}")
+    rows = designs_df.to_dict("records")
+
+    results = Parallel(n_jobs=n_jobs, verbose=5)(
+        delayed(_eval_design_exp4a)(row) for row in rows
+    )
+
+    df = pd.DataFrame(results)
+
+    # ── Print frequency-of-effect summary ─────────────────────────────────
+    print("\n  Frequency of effect by module (% designs with any decision flip):")
+    for regime in ["EASY", "MARGINAL", "FRAGILE", "INFEASIBLE"]:
+        sub = df[df["regime_label"] == regime]
+        if sub.empty:
+            continue
+        parts = []
+        for m in EXP4A_MODULES:
+            col = f"decision_flip_{m}"
+            if col in sub.columns:
+                parts.append(f"{m}={sub[col].mean()*100:.1f}%")
+        print(f"  [{regime:10s}] {', '.join(parts)}")
+
+    print("\n  Fidelity complexity (n modules that flip decision) by regime:")
+    for regime in ["EASY", "MARGINAL", "FRAGILE", "INFEASIBLE"]:
+        sub = df[df["regime_label"] == regime]
+        if sub.empty:
+            continue
+        dist = sub["n_decision_flips"].value_counts().sort_index()
+        print(f"  [{regime:10s}] {dict(dist)}")
+
+    print("\n  Dominant module by design count:")
+    dom = df["dominant_module"].value_counts()
+    for m, cnt in dom.items():
+        print(f"    {m:<20s}: {cnt:4d}  ({100*cnt/len(df):.1f}%)")
+
+    # ── Save ──────────────────────────────────────────────────────────────
+    out_csv  = out_dir / "exp4a_ablation_py.csv"
+    out_meta = out_dir / "exp4a_ablation_meta.txt"
+    df.to_csv(out_csv, index=False)
+
+    meta_lines = [
+        "Exp4A Ablation — Metadata",
+        "=" * 40,
+        f"n_designs         : {len(df)}",
+        f"n_modules         : {len(EXP4A_MODULES)}",
+        f"modules           : {EXP4A_MODULES}",
+        f"n_seeds           : {EXP4A_N_SEEDS}",
+        f"baseline          : FidelityConfig.full() with thrust_var=False",
+        f"gains             : re-tuned at baseline (4x4 grid, seed=1)",
+        f"go_nogo_threshold : FRAGILE_SUCCESS_RATE = {FRAGILE_SUCCESS_RATE}",
+        f"build_plant       : design-specific Cm_alpha, static_margin, Iyy, mass, max_gimbal",
+        f"l_nozzle_m        : 0.25 m (fixed, all designs share 0.5 m airframe)",
+        f"aero_model        : Cm_alpha_physical = CN_alpha * static_margin (fixed 2026-06-04)",
+        f"cg_bug_fixed      : x_cg_dry = l_nozzle_m (fixed 2026-06-04)",
+        "",
+        "Regime counts:",
+    ]
+    for regime in ["EASY", "MARGINAL", "FRAGILE", "INFEASIBLE"]:
+        cnt = (df["regime_label"] == regime).sum()
+        meta_lines.append(f"  {regime:10s}: {cnt}")
+    out_meta.write_text("\n".join(meta_lines))
+
+    print(f"\nSaved: {out_csv}")
+    print(f"Saved: {out_meta}")
+    return df
+
+
+# ── Exp4B: frozen-gain 10-module ablation ─────────────────────────────────────
+#
+# Scientific question:
+#   "Given gains tuned in a simple (legacy) simulator, which physical fidelity
+#    modules cause decision flips when reality includes full physics?"
+#
+# This is the engineering-relevant question: an engineer tunes their controller
+# in a simplified simulation, then the rocket flies in reality.  Which physical
+# effects — absent from their simulator — invalidate their design decision?
+#
+# Key contrast with Exp4A:
+#   Exp4A re-tunes gains at full-physics baseline → measures RESIDUAL sensitivity
+#         after the controller has adapted to each module.
+#   Exp4B freezes gains from simple-mode tuning → measures TRUE sensitivity
+#         to each module given a suboptimal (simple-mode) controller.
+#
+# Gain policy:
+#   Gains sourced from Exp1 best_Kp / best_Kd (tuned at legacy simple-mode
+#   conditions: simple plant dynamics, design-specific actuator/sensor/disturbance).
+#   Fallback: autotune at FidelityConfig.simple() if Exp1 gains unavailable.
+#   Gains are NEVER re-tuned during Exp4B.
+#
+# Baseline:
+#   Same 10-module FidelityConfig as Exp4A (thrust_var=False).
+#   The controller is evaluated against full physics with its simple-mode gains.
+#
+# Interpretation guide (produced in summary output):
+#   Module m is "gain-compensated" if:  freq(Exp4B) >> freq(Exp4A)
+#     → an optimally-tuned controller can recover from omitting this module
+#     → simple-mode tuning is the vulnerability, not the physics itself
+#   Module m is "physics-critical" if:  freq(Exp4B) ≈ freq(Exp4A)
+#     → even optimal gains cannot compensate for omitting this module
+#     → the physics fundamentally changes the outcome
+#
+# Output: exp4b_frozen_gain_ablation_py.csv + exp4b_frozen_gain_meta.txt
+
+EXP4B_MODULES: list[str] = EXP4A_MODULES   # same 10 modules — direct comparison
+EXP4B_N_SEEDS: int = 5
+
+
+def _eval_design_exp4b(row: dict) -> dict:
+    """
+    Exp4B: frozen-gain 10-module ablation for one design.
+
+    Protocol:
+      1. Load Kp/Kd from Exp1 (simple-mode-tuned gains).
+         Fallback: autotune at FidelityConfig.simple() if not available.
+      2. Build design-specific PlantParams (physical aero params included).
+      3. Evaluate 10-module baseline with EXP4B_N_SEEDS seeds — gains NOT re-tuned.
+      4. For each of 10 modules: disable it, evaluate with EXP4B_N_SEEDS seeds.
+      5. Compute delta metrics and GO/NOGO flip flags.
+
+    Gains are identical across baseline and all 10 ablation conditions.
+    """
+    plant    = build_plant(row)
+    base_act = build_actuator(row)
+    base_sen = build_sensor(row)
+    base_dis = build_disturbance(row)
+    base_sc  = build_scenario(theta0_bias_std=0.0)
+    # No fault injection — Exp4B baseline is fault-free
+
+    seeds = tuple(range(1, EXP4B_N_SEEDS + 1))
+
+    # ── Gain source: Exp1 simple-mode tuning ─────────────────────────────
+    gain_source = "exp1"
+    try:
+        Kp = float(row["best_Kp"])
+        Kd = float(row["best_Kd"])
+        if not (np.isfinite(Kp) and np.isfinite(Kd)):
+            raise ValueError("non-finite gains")
+    except (KeyError, TypeError, ValueError):
+        # Fallback: tune at FidelityConfig.simple() (all modules OFF)
+        simple_cfg = FidelityConfig.simple()
+        act_s, sen_s, dis_s, sc_s = apply_fidelity_config(
+            base_act, base_sen, base_dis, base_sc, simple_cfg
+        )
+        Kp, Kd = autotune_grid(plant, act_s, sen_s, dis_s, sc_s)
+        gain_source = "simple_tune_fallback"
+
+    pid = PIDParams(Kp=Kp, Kd=Kd, Ki=0.0,
+                    u_max=base_act.u_max, i_lim=base_act.u_max)
+
+    # ── Evaluate 10-module baseline ───────────────────────────────────────
+    baseline_cfg = _exp4a_baseline_cfg()   # shared 10-module config
+    base_m  = _eval_one_fidelity(
+        plant, base_act, base_sen, base_dis, base_sc, pid, baseline_cfg, seeds
+    )
+    base_go = base_m["success_rate"] >= FRAGILE_SUCCESS_RATE
+
+    out = dict(
+        rocket_id    = row["rocket_id"],
+        design_id    = row["design_id"],
+        regime_label = row.get("regime_label", "UNKNOWN"),
+        gain_Kp      = Kp,
+        gain_Kd      = Kd,
+        gain_source  = gain_source,
+    )
+    for k in ["p_unstable", "mass", "Iyy", "static_margin", "Cm_alpha",
+              "control_effectiveness", "motor_scale", "servo_slew_deg_s",
+              "max_gimbal_deg", "latency_steps", "deadband", "backlash",
+              "wind_strength"]:
+        out[k] = row.get(k)
+
+    out["baseline_success_rate"] = base_m["success_rate"]
+    out["baseline_rms"]          = base_m["rms_error_deg"]
+    out["baseline_peak"]         = base_m["peak_error_deg"]
+    out["baseline_max_theta"]    = base_m["max_theta_deg"]
+    out["baseline_u_sat"]        = base_m["u_cmd_sat_frac"]
+    out["baseline_go"]           = int(base_go)
+
+    # ── Single-module ablations ───────────────────────────────────────────
+    delta_rms_abs: dict[str, float] = {}
+    for module in EXP4B_MODULES:
+        abl_cfg = baseline_cfg.ablate(module)
+        abl_m   = _eval_one_fidelity(
+            plant, base_act, base_sen, base_dis, base_sc, pid, abl_cfg, seeds
+        )
+        abl_go = abl_m["success_rate"] >= FRAGILE_SUCCESS_RATE
+
+        d_success = abl_m["success_rate"]  - base_m["success_rate"]
+        d_rms     = abl_m["rms_error_deg"] - base_m["rms_error_deg"]
+        d_peak    = abl_m["peak_error_deg"] - base_m["peak_error_deg"]
+        d_theta   = abl_m["max_theta_deg"] - base_m["max_theta_deg"]
+        flip      = int(base_go != abl_go)
+        flip_dir  = ("helps" if d_success > 0 else "hurts") if flip else ""
+
+        out[f"abl_success_{module}"]   = abl_m["success_rate"]
+        out[f"delta_success_{module}"] = d_success
+        out[f"delta_rms_{module}"]     = d_rms
+        out[f"delta_peak_{module}"]    = d_peak
+        out[f"delta_theta_{module}"]   = d_theta
+        out[f"decision_flip_{module}"] = flip
+        out[f"flip_dir_{module}"]      = flip_dir
+
+        delta_rms_abs[module] = abs(d_rms)
+
+    out["dominant_module"]       = max(delta_rms_abs, key=delta_rms_abs.get)
+    out["dominant_delta_rms"]    = delta_rms_abs[out["dominant_module"]]
+    out["n_decision_flips"]      = sum(out[f"decision_flip_{m}"] for m in EXP4B_MODULES)
+    out["decision_flip_modules"] = (
+        " ".join(m for m in EXP4B_MODULES if out[f"decision_flip_{m}"] == 1) or "none"
+    )
+    out["fidelity_complexity"]   = out["n_decision_flips"]
+
+    return out
+
+
+def run_exp4b_ablation(
+    designs_df: Optional[pd.DataFrame] = None,
+    exp4a_df:   Optional[pd.DataFrame] = None,
+    n_jobs:     int = -1,
+    out_dir:    Path = RESULT_DIR,
+) -> pd.DataFrame:
+    """
+    Experiment 4B: frozen-gain 10-module ablation.
+
+    Gains are fixed at Exp1 simple-mode values.  Evaluates all 10 modules
+    against the 10-module full-physics baseline to measure which modules
+    cause decision flips given a suboptimal (simple-mode) controller.
+
+    Optionally compares against Exp4A (re-tuned gains) to separate:
+      - Physics sensitivity (module matters regardless of gain quality)
+      - Gain compensation (module only matters because gains are suboptimal)
+
+    Saves:
+      exp4b_frozen_gain_ablation_py.csv
+      exp4b_frozen_gain_meta.txt
+    """
+    if designs_df is None:
+        py_path = out_dir / "exp1_regime_index_py.csv"
+        if not py_path.exists():
+            raise FileNotFoundError("Exp1 results not found.")
+        designs_df = pd.read_csv(py_path)
+        if "best_Kp" not in designs_df.columns:
+            raise ValueError(
+                "Exp1 CSV missing best_Kp/best_Kd.  Re-run Exp1 first."
+            )
+
+    n = len(designs_df)
+    n_sim = n * (1 + len(EXP4B_MODULES)) * EXP4B_N_SEEDS
+    print(f"=== EXP4B FROZEN-GAIN ABLATION  n={n} designs ===")
+    print(f"    Modules ({len(EXP4B_MODULES)}): {EXP4B_MODULES}")
+    print(f"    Seeds per condition  : {EXP4B_N_SEEDS}")
+    print(f"    Baseline             : 10-module full physics (thrust_var=False)")
+    print(f"    Gains                : FROZEN from Exp1 simple-mode tuning")
+    print(f"    Simulations total    : {n_sim:,}  (no tuning runs — gains pre-loaded)")
+    rows = designs_df.to_dict("records")
+
+    results = Parallel(n_jobs=n_jobs, verbose=5)(
+        delayed(_eval_design_exp4b)(row) for row in rows
+    )
+
+    df = pd.DataFrame(results)
+
+    # ── Frequency-of-effect table ─────────────────────────────────────────
+    print("\n  Frequency of effect by module × regime (% designs with decision flip):")
+    header = f"  {'':12}" + "".join(f"{m[:9]:>10}" for m in EXP4B_MODULES)
+    print(header)
+    freq_4b: dict[str, dict[str, float]] = {}
+    for regime in ["EASY", "MARGINAL", "FRAGILE", "INFEASIBLE"]:
+        sub = df[df["regime_label"] == regime]
+        if sub.empty:
+            continue
+        vals = {m: sub[f"decision_flip_{m}"].mean() * 100 for m in EXP4B_MODULES}
+        freq_4b[regime] = vals
+        row_str = f"  {regime:<12}" + "".join(f"{vals[m]:9.1f}%" for m in EXP4B_MODULES)
+        print(row_str)
+
+    # ── Comparison with Exp4A (if available) ─────────────────────────────
+    if exp4a_df is None:
+        exp4a_path = out_dir / "exp4a_ablation_py.csv"
+        if exp4a_path.exists():
+            exp4a_df = pd.read_csv(exp4a_path)
+
+    if exp4a_df is not None:
+        print("\n  Gain-compensation analysis (Exp4B - Exp4A frequency, % points):")
+        print("  Positive = frozen-gain is MORE sensitive => module is gain-compensated")
+        print("  Near zero = sensitivity persists under optimal gains => physics-critical")
+        print(f"  {'':12}" + "".join(f"{m[:9]:>10}" for m in EXP4B_MODULES))
+        for regime in ["EASY", "MARGINAL", "FRAGILE", "INFEASIBLE"]:
+            sub_a = exp4a_df[exp4a_df["regime_label"] == regime]
+            if sub_a.empty or regime not in freq_4b:
+                continue
+            diffs = []
+            for m in EXP4B_MODULES:
+                col = f"decision_flip_{m}"
+                fa = sub_a[col].mean() * 100 if col in sub_a.columns else 0.0
+                fb = freq_4b[regime].get(m, 0.0)
+                diffs.append(fb - fa)
+            row_str = f"  {regime:<12}" + "".join(f"{d:+9.1f}%" for d in diffs)
+            print(row_str)
+
+        print("\n  Classification (threshold: >=5pp difference):")
+        print(f"  {'':20}  {'Physics-critical':>18}  {'Gain-compensated':>18}")
+        for regime in ["EASY", "MARGINAL", "FRAGILE", "INFEASIBLE"]:
+            sub_a = exp4a_df[exp4a_df["regime_label"] == regime]
+            if sub_a.empty or regime not in freq_4b:
+                continue
+            phys_crit, gain_comp = [], []
+            for m in EXP4B_MODULES:
+                col = f"decision_flip_{m}"
+                fa = sub_a[col].mean() * 100 if col in sub_a.columns else 0.0
+                fb = freq_4b[regime].get(m, 0.0)
+                diff = fb - fa
+                if diff >= 5.0:
+                    gain_comp.append(m)
+                elif fb >= 5.0:
+                    phys_crit.append(m)
+            print(f"  {regime:<20}  {', '.join(phys_crit) or 'none':>18}  "
+                  f"{', '.join(gain_comp) or 'none':>18}")
+
+    # ── Fidelity complexity ───────────────────────────────────────────────
+    print("\n  Fidelity complexity (n modules that flip decision) by regime:")
+    for regime in ["EASY", "MARGINAL", "FRAGILE", "INFEASIBLE"]:
+        sub = df[df["regime_label"] == regime]
+        if sub.empty:
+            continue
+        pct_zero = (sub["n_decision_flips"] == 0).mean() * 100
+        pct_ge1  = (sub["n_decision_flips"] >= 1).mean() * 100
+        pct_ge3  = (sub["n_decision_flips"] >= 3).mean() * 100
+        mean_f   = sub["n_decision_flips"].mean()
+        print(f"  {regime:<10}  zero={pct_zero:.1f}%  1+={pct_ge1:.1f}%  "
+              f"3+={pct_ge3:.1f}%  mean={mean_f:.2f}")
+
+    # ── Directional effects ───────────────────────────────────────────────
+    print("\n  Directional effects (helps = removing module improves outcome):")
+    for m in EXP4B_MODULES:
+        helps = (df[f"flip_dir_{m}"] == "helps").sum()
+        hurts = (df[f"flip_dir_{m}"] == "hurts").sum()
+        total = helps + hurts
+        if total > 0:
+            print(f"    {m:<20s}: {total:3d} flips  ({helps} helps / {hurts} hurts)")
+
+    # ── Baseline success rates ────────────────────────────────────────────
+    print("\n  Baseline success rate at full-physics (frozen gains) by regime:")
+    for regime in ["EASY", "MARGINAL", "FRAGILE", "INFEASIBLE"]:
+        sub = df[df["regime_label"] == regime]
+        if sub.empty:
+            continue
+        sr  = sub["baseline_success_rate"]
+        go  = (sr >= FRAGILE_SUCCESS_RATE).mean() * 100
+        print(f"  {regime:<10}  mean_sr={sr.mean():.3f}  GO_rate={go:.1f}%  "
+              f"[{sr.min():.2f}, {sr.max():.2f}]")
+
+    # ── Save ──────────────────────────────────────────────────────────────
+    out_csv  = out_dir / "exp4b_frozen_gain_ablation_py.csv"
+    out_meta = out_dir / "exp4b_frozen_gain_meta.txt"
+    df.to_csv(out_csv, index=False)
+
+    gain_sources = df["gain_source"].value_counts().to_dict()
+    meta_lines = [
+        "Exp4B Frozen-Gain Ablation — Metadata",
+        "=" * 40,
+        f"n_designs          : {len(df)}",
+        f"n_modules          : {len(EXP4B_MODULES)}",
+        f"modules            : {EXP4B_MODULES}",
+        f"n_seeds            : {EXP4B_N_SEEDS}",
+        f"baseline           : 10-module full physics (thrust_var=False)",
+        f"gains              : FROZEN from Exp1 simple-mode tuning",
+        f"gain_sources       : {gain_sources}",
+        f"go_nogo_threshold  : FRAGILE_SUCCESS_RATE = {FRAGILE_SUCCESS_RATE}",
+        f"build_plant        : design-specific Cm_alpha, static_margin, Iyy, mass",
+        f"l_nozzle_m         : 0.25 m (fixed, all designs share 0.5 m airframe)",
+        f"scientific_question: Given simple-mode gains, which modules flip decisions?",
+        f"contrast_with      : Exp4A (re-tuned gains) — separates physics sensitivity",
+        f"                     from gain compensation",
+        "",
+        "Regime counts:",
+    ]
+    for regime in ["EASY", "MARGINAL", "FRAGILE", "INFEASIBLE"]:
+        cnt = (df["regime_label"] == regime).sum()
+        meta_lines.append(f"  {regime:10s}: {cnt}")
+    out_meta.write_text("\n".join(meta_lines))
+
+    print(f"\nSaved: {out_csv}")
+    print(f"Saved: {out_meta}")
+    return df
+
+
+# ── Exp4C: tune-in-ablated, test-in-reality ──────────────────────────────────
+#
+# Scientific question (correct one):
+#   "For each physics module X, if an engineer builds a simulator that omits X
+#    but includes everything else, how wrong are their performance predictions
+#    and engineering decisions?"
+#
+# This directly models what happens in practice: an engineer tunes their
+# controller in a simulator that is missing some physics, then the rocket flies
+# in reality (full physics).  The gap between the engineer's prediction and
+# the actual outcome is the cost of omitting that module.
+#
+# Key differences from Exp4A / Exp4B:
+#   Exp4A: tune at full → ablate → measure residual sensitivity (answers: does module
+#          matter after the controller adapts to it?)
+#   Exp4B: tune at simple → ablate from full → measure which modules flip decisions
+#          (measures ablation sensitivity given suboptimal gains)
+#   Exp4C: for each module X, tune at (full - X) → evaluate at full → measure
+#          prediction error (answers: what is the cost of not knowing about X?)
+#
+# Protocol per module X:
+#   1. Build "engineer's sim" = full 10-module physics MINUS module X
+#   2. Tune gains in engineer's sim (4x4 grid, seed=1)
+#   3. Evaluate those gains in "reality" (full 10-module physics), 5 seeds
+#   4. Evaluate those gains in engineer's sim (engineer's prediction), 5 seeds
+#   5. Compute: rms_prediction_error = |rms_reality - rms_predicted|
+#              rms_bias = rms_reality - rms_predicted (positive = sim too optimistic)
+#              decision_error = go_predicted != go_reality
+#
+# Motor standardization:
+#   All designs use F15 motor. thrust_curve=ON → F15 profile. thrust_curve=OFF →
+#   constant F15 average (14.4N × motor_scale). Design-space "motor_scale" parameter
+#   scales both thrust and motor mass; it replaced the old "thrust" proxy parameter.
+#   (simulator.py fix: T_now = F15_AVG_THRUST_N when thrust_curve=OFF)
+#
+# Output format: LONG (one row per design x module).
+#   1200 designs x 11 conditions (10 modules + reference) = 13,200 rows.
+#   Reference condition: tune at full reality, evaluate at full reality (rms_bias=0 by def).
+#
+# Primary metric:  rms_prediction_error (RMS in deg, continuous — no threshold compression)
+# Secondary metric: decision_error (GO/NOGO mismatch at FRAGILE_SUCCESS_RATE threshold)
+#
+# Output: exp4c_prediction_error_py.csv + exp4c_prediction_error_meta.txt
+
+EXP4C_MODULES: list[str] = [
+    # Structural physics modules only — wind and sensor_noise are excluded.
+    # Wind and sensor noise are stochastic uncertainty parameters that should be
+    # characterised via Monte Carlo robustness testing, NOT ablated from the
+    # design simulator. Omitting them from the sim doesn't change HOW you tune
+    # the controller (gain structure is the same), only the expected-value metric.
+    # These 8 modules DO change the closed-loop dynamics and therefore change
+    # the optimal gain set — that is the correct fidelity question.
+    "backlash",
+    "slew",
+    "latency",
+    "deadband",
+    "nonlinear_aero",
+    "dyn_aero",
+    "thrust_curve",
+    "cg_shift",
+]
+EXP4C_N_SEEDS: int = 5
+
+
+def _eval_design_exp4c(row: dict, controller_type: str = "PD") -> list[dict]:
+    """
+    Exp4C worker: tune-in-ablated, test-in-reality for one design.
+
+    controller_type: "PD" (default) or "PID".
+      PD  — pure proportional-derivative; Ki=0 everywhere.
+      PID — staged PD then Ki search via autotune_grid_pid.
+
+    Returns a list of dicts (one per module + one reference condition).
+    Each dict has the same schema so they can be concatenated directly.
+    """
+    plant    = build_plant(row)
+    base_act = build_actuator(row)
+    base_sen = build_sensor(row)
+    base_dis = build_disturbance(row)
+    base_sc  = build_scenario(theta0_bias_std=0.0)
+
+    reality_cfg = _exp4a_baseline_cfg()  # all 10 modules ON, thrust_var=OFF
+    seeds   = tuple(range(1, EXP4C_N_SEEDS + 1))
+    use_pid = controller_type.upper() == "PID"
+
+    def _tune(act, sen, dis, sc):
+        """Tune gains in the given sim config; return (Kp, Kd, Ki)."""
+        if use_pid:
+            return autotune_grid_pid(plant, act, sen, dis, sc)
+        Kp, Kd = autotune_grid(plant, act, sen, dis, sc)
+        return Kp, Kd, 0.0
+
+    # Design metadata passed through to every row
+    base_info = dict(
+        design_id       = row["design_id"],
+        rocket_id       = row["rocket_id"],
+        regime_label    = row.get("regime_label", "UNKNOWN"),
+        controller_type = controller_type,
+    )
+    for k in ["p_unstable", "mass", "Iyy", "static_margin", "Cm_alpha",
+              "control_effectiveness", "motor_scale", "servo_slew_deg_s",
+              "max_gimbal_deg", "latency_steps", "deadband", "backlash",
+              "wind_strength"]:
+        base_info[k] = row.get(k)
+
+    output_rows: list[dict] = []
+
+    # ── Reference: tune at full reality, evaluate at full reality ─────────
+    act_r, sen_r, dis_r, sc_r = apply_fidelity_config(
+        base_act, base_sen, base_dis, base_sc, reality_cfg
+    )
+    ref_Kp, ref_Kd, ref_Ki = _tune(act_r, sen_r, dis_r, sc_r)
+    ref_pid = PIDParams(Kp=ref_Kp, Kd=ref_Kd, Ki=ref_Ki,
+                        u_max=base_act.u_max, i_lim=base_act.u_max)
+    ref_m  = _eval_one_fidelity(
+        plant, base_act, base_sen, base_dis, base_sc, ref_pid, reality_cfg, seeds
+    )
+    ref_go = int(ref_m["success_rate"] >= FRAGILE_SUCCESS_RATE)
+    output_rows.append({
+        **base_info,
+        "module_ablated":       "reference",
+        "Kp":                   ref_Kp,
+        "Kd":                   ref_Kd,
+        "Ki":                   ref_Ki,
+        "rms_predicted":        ref_m["rms_error_deg"],
+        "rms_reality":          ref_m["rms_error_deg"],
+        "success_predicted":    ref_m["success_rate"],
+        "success_reality":      ref_m["success_rate"],
+        "rms_prediction_error": 0.0,
+        "rms_bias":             0.0,
+        "optimistic":           0,
+        "go_predicted":         ref_go,
+        "go_reality":           ref_go,
+        "decision_error":       0,
+    })
+
+    # ── Per-module ablations ───────────────────────────────────────────────
+    for module in EXP4C_MODULES:
+        ablated_cfg = reality_cfg.ablate(module)
+
+        # Engineer tunes gains in their incomplete simulator
+        act_a, sen_a, dis_a, sc_a = apply_fidelity_config(
+            base_act, base_sen, base_dis, base_sc, ablated_cfg
+        )
+        Kp_a, Kd_a, Ki_a = _tune(act_a, sen_a, dis_a, sc_a)
+        pid_a = PIDParams(Kp=Kp_a, Kd=Kd_a, Ki=Ki_a,
+                          u_max=base_act.u_max, i_lim=base_act.u_max)
+
+        pred_m = _eval_one_fidelity(
+            plant, base_act, base_sen, base_dis, base_sc, pid_a, ablated_cfg, seeds
+        )
+        real_m = _eval_one_fidelity(
+            plant, base_act, base_sen, base_dis, base_sc, pid_a, reality_cfg, seeds
+        )
+
+        go_pred  = int(pred_m["success_rate"] >= FRAGILE_SUCCESS_RATE)
+        go_real  = int(real_m["success_rate"]  >= FRAGILE_SUCCESS_RATE)
+        rms_bias = real_m["rms_error_deg"] - pred_m["rms_error_deg"]
+
+        output_rows.append({
+            **base_info,
+            "module_ablated":       module,
+            "Kp":                   Kp_a,
+            "Kd":                   Kd_a,
+            "Ki":                   Ki_a,
+            "rms_predicted":        pred_m["rms_error_deg"],
+            "rms_reality":          real_m["rms_error_deg"],
+            "success_predicted":    pred_m["success_rate"],
+            "success_reality":      real_m["success_rate"],
+            "rms_prediction_error": abs(rms_bias),
+            "rms_bias":             rms_bias,
+            "optimistic":           int(rms_bias > 0),
+            "go_predicted":         go_pred,
+            "go_reality":           go_real,
+            "decision_error":       int(go_pred != go_real),
+        })
+
+    return output_rows
+
+
+def run_exp4c(
+    designs_df:      Optional[pd.DataFrame] = None,
+    controller_type: str = "PD",
+    n_jobs:          int = -1,
+    out_dir:         Path = RESULT_DIR,
+) -> pd.DataFrame:
+    """
+    Experiment 4C: tune-in-ablated, test-in-reality fidelity necessity study.
+
+    controller_type: "PD" (default) or "PID".
+      Run with both to produce the controller-comparison atlas.
+      PD  output: exp4c_prediction_error_pd_py.csv
+      PID output: exp4c_prediction_error_pid_py.csv
+
+    For each physics module X:
+      - Tune gains (using controller_type) in simulator missing X
+      - Evaluate in full-physics reality
+      - Measure: RMS prediction error, bias direction, decision error rate
+
+    Output: long format, one row per (design x module).
+    Primary metric:   rms_prediction_error = |rms_predicted - rms_reality|
+    Secondary metric: decision_error (GO/NOGO mismatch)
+    Bias direction:   rms_bias > 0 means sim was too optimistic (reality worse)
+    """
+    ctype = controller_type.upper()
+    if ctype not in ("PD", "PID"):
+        raise ValueError(f"controller_type must be 'PD' or 'PID', got '{controller_type}'")
+
+    if designs_df is None:
+        py_path = out_dir / "exp1_regime_index_py.csv"
+        if not py_path.exists():
+            raise FileNotFoundError(
+                "Exp1 results not found.  Run run_exp1() first or pass designs_df."
+            )
+        designs_df = pd.read_csv(py_path)
+
+    n = len(designs_df)
+    n_conditions = 1 + len(EXP4C_MODULES)
+    tune_evals_per_cond = 16 if ctype == "PD" else 20   # PID: 16 PD + 4 Ki stage
+    n_tune  = n * n_conditions * tune_evals_per_cond
+    n_eval  = n * (1 + 2 * len(EXP4C_MODULES)) * EXP4C_N_SEEDS
+    n_total = n_tune + n_eval
+
+    print(f"=== EXP4C  TUNE-IN-ABLATED, TEST-IN-REALITY  n={n} designs ===")
+    print(f"    Controller type          : {ctype}")
+    print(f"    Modules ({len(EXP4C_MODULES)}): {EXP4C_MODULES}")
+    print(f"    Seeds per eval condition : {EXP4C_N_SEEDS}")
+    print(f"    Reality config           : 10-module full physics (thrust_var=False)")
+    print(f"    Motor                    : F15 for all designs; constant 14.4N when thrust_curve=OFF")
+    print(f"    Output format            : long (one row per design x module)")
+    print(f"    Approx simulations       : {n_total:,}  (tune={n_tune:,}  eval={n_eval:,})")
+    rows = designs_df.to_dict("records")
+
+    all_lists = Parallel(n_jobs=n_jobs, verbose=5)(
+        delayed(_eval_design_exp4c)(row, controller_type=ctype) for row in rows
+    )
+
+    flat_rows = [r for per_design in all_lists for r in per_design]
+    df = pd.DataFrame(flat_rows)
+
+    # ── Summary printout ──────────────────────────────────────────────────
+    abl = df[df["module_ablated"] != "reference"]
+
+    header = f"  {'':14}" + "".join(f"{m[:10]:>11}" for m in EXP4C_MODULES)
+
+    print(f"\n  Mean RMS prediction error (deg) by module x regime:")
+    print(header)
+    for regime in ["EASY", "MARGINAL", "FRAGILE", "INFEASIBLE"]:
+        sub = abl[abl["regime_label"] == regime]
+        if sub.empty:
+            continue
+        vals = [f"{sub[sub['module_ablated']==m]['rms_prediction_error'].mean():10.2f}"
+                for m in EXP4C_MODULES]
+        print(f"  {regime:<14}" + "".join(vals))
+
+    print(f"\n  Decision error rate (%) by module x regime:")
+    print(header)
+    for regime in ["EASY", "MARGINAL", "FRAGILE", "INFEASIBLE"]:
+        sub = abl[abl["regime_label"] == regime]
+        if sub.empty:
+            continue
+        vals = [f"{sub[sub['module_ablated']==m]['decision_error'].mean()*100:10.1f}%"
+                for m in EXP4C_MODULES]
+        print(f"  {regime:<14}" + "".join(vals))
+
+    print(f"\n  Optimism rate (% where sim predicts better than reality):")
+    print(header)
+    for regime in ["EASY", "MARGINAL", "FRAGILE", "INFEASIBLE"]:
+        sub = abl[abl["regime_label"] == regime]
+        if sub.empty:
+            continue
+        vals = [f"{sub[sub['module_ablated']==m]['optimistic'].mean()*100:10.1f}%"
+                for m in EXP4C_MODULES]
+        print(f"  {regime:<14}" + "".join(vals))
+
+    print(f"\n  Mean signed RMS bias (deg; positive = sim too optimistic):")
+    print(header)
+    for regime in ["EASY", "MARGINAL", "FRAGILE", "INFEASIBLE"]:
+        sub = abl[abl["regime_label"] == regime]
+        if sub.empty:
+            continue
+        vals = [f"{sub[sub['module_ablated']==m]['rms_bias'].mean():+10.2f}"
+                for m in EXP4C_MODULES]
+        print(f"  {regime:<14}" + "".join(vals))
+
+    # Reference-condition oracle summary
+    ref = df[df["module_ablated"] == "reference"]
+    print(f"\n  Reference (oracle, tuned+evaluated at full reality):")
+    for regime in ["EASY", "MARGINAL", "FRAGILE", "INFEASIBLE"]:
+        sub = ref[ref["regime_label"] == regime]
+        if sub.empty:
+            continue
+        print(f"  {regime:<10}  mean_rms={sub['rms_reality'].mean():.2f} deg  "
+              f"go_rate={sub['go_reality'].mean()*100:.1f}%")
+
+    # ── Save ──────────────────────────────────────────────────────────────
+    ctype_tag = ctype.lower()
+    out_csv  = out_dir / f"exp4c_prediction_error_{ctype_tag}_py.csv"
+    out_meta = out_dir / f"exp4c_prediction_error_{ctype_tag}_meta.txt"
+    df.to_csv(out_csv, index=False)
+
+    meta_lines = [
+        f"Exp4C Prediction Error Study ({ctype}) — Metadata",
+        "=" * 40,
+        f"n_designs         : {n}",
+        f"controller_type   : {ctype}",
+        f"n_modules         : {len(EXP4C_MODULES)}",
+        f"modules           : {EXP4C_MODULES}",
+        f"n_seeds           : {EXP4C_N_SEEDS}",
+        f"reality_config    : _exp4a_baseline_cfg() — 10 modules ON, thrust_var=OFF",
+        f"motor             : F15 for all designs; constant 14.4 N when thrust_curve=OFF",
+        f"gains             : tuned per module in ablated sim ({ctype} controller)",
+        f"go_threshold      : FRAGILE_SUCCESS_RATE = {FRAGILE_SUCCESS_RATE}",
+        f"output_format     : long — one row per (design x module), {len(flat_rows):,} rows",
+        f"primary_metric    : rms_prediction_error = |rms_predicted - rms_reality|",
+        f"secondary_metric  : decision_error = (go_predicted != go_reality)",
+        f"rms_bias          : rms_reality - rms_predicted  (+ve = sim too optimistic)",
+        f"reference_row     : module_ablated='reference'; tune+eval at full reality",
+        f"approx_sims       : {n_total:,}",
+        f"scientific_q      : Which modules cause prediction error when omitted from engineer's sim?",
+        "",
+        "Regime counts:",
+    ]
+    for regime in ["EASY", "MARGINAL", "FRAGILE", "INFEASIBLE"]:
+        cnt = (designs_df.get("regime_label", pd.Series(dtype=str)) == regime).sum()
+        meta_lines.append(f"  {regime:10s}: {cnt}")
+    out_meta.write_text("\n".join(meta_lines))
+
+    print(f"\nSaved: {out_csv}  ({len(df):,} rows)")
+    print(f"Saved: {out_meta}")
+    return df
+
+
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -1266,6 +2287,14 @@ if __name__ == "__main__":
         run_exp4()
     elif cmd == "exp4abl":
         run_exp4_ablation()
+    elif cmd == "exp4a":
+        run_exp4a_ablation()
+    elif cmd == "exp4b":
+        run_exp4b_ablation()
+    elif cmd == "exp4c":
+        run_exp4c(controller_type="PD")
+    elif cmd == "exp4c_pid":
+        run_exp4c(controller_type="PID")
     elif cmd == "exp4simple":
         run_exp4simple()
     elif cmd == "exp5":
@@ -1281,4 +2310,5 @@ if __name__ == "__main__":
         run_exp4_ablation(df)
         run_exp5_landscape(df)
     else:
-        print("Usage: python experiment_runner.py [exp1|exp4|exp4abl|exp4simple|exp5|exp5slew|both|all] [n_designs]")
+        print("Usage: python experiment_runner.py "
+              "[exp1|exp4|exp4abl|exp4a|exp4b|exp4c|exp4simple|exp5|exp5slew|both|all] [n_designs]")

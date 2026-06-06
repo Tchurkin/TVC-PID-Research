@@ -37,15 +37,21 @@ ACTUATOR COMMAND CONVENTION
   At reference conditions, keff = 8.0 rad/s² / code unit.
 
   Slew rate conversion (physical deg/s → code units/s):
-      slew_code = slew_deg_s × (π/180) × (12 / max_gimbal_deg)
-  NOTE: This formula preserves consistency with the MATLAB reference
-  implementation.  The (π/180) factor makes the slew_max numerically small
-  (~1–2 code units/s for typical hobby servos) — intentional; it encodes
-  the fact that one radian of gimbal travel corresponds to 12/max_gimbal code
-  units, not one degree.  A servo at 75 deg/s over a ±15 deg range gives
-  slew_max ≈ 1.05 code units/s; per-step limit = 0.005 s × 1.05 ≈ 0.005
-  code units.  The first-order lag (τ=0.05 s) is typically the binding
-  constraint for small angle errors.
+      slew_code = slew_deg_s × (REF_U_MAX / REF_MAX_GIMBAL_DEG)
+               = slew_deg_s × (12 / 15)
+
+  Derivation: physical angle per code unit is constant regardless of max_gimbal.
+      θ_deg = u × max_gimbal_rad / u_max × (180/π)
+            = u × (max_gimbal × π/180) / (12 × max_gimbal/15) × (180/π)
+            = u × 15/12    ← independent of max_gimbal
+
+  So: 1 CU = 15/12 = 1.25 degrees (fixed, for all designs).
+      slew_code [CU/s] = slew_deg_s [deg/s] / 1.25 [deg/CU]
+                       = slew_deg_s × 12/15 = slew_deg_s × 0.8
+
+  A servo at 75 deg/s gives slew_max = 75 × 0.8 = 60 CU/s.
+  The previous formula (with π/180) was a unit error that made slew_max
+  57.3× too small. All slew-related results prior to this fix are invalid.
 
 ════════════════════════════════════════════════════════════════
 SUCCESS GATES (all four must be satisfied simultaneously)
@@ -100,3 +106,18 @@ EASY_SETTLING_S        = 3.0    # max settling time for EASY
 EASY_OSC_SCORE         = 3.0    # max zero-crossing count for EASY
 FRAGILE_SUCCESS_RATE   = 0.35   # minimum success rate to avoid INFEASIBLE
 FRAGILE_RMS_DEG        = 16.0   # max RMS error for FRAGILE
+
+# ── Divergence and progressive tracking bands (degrees) ─────────────────────
+# Primary binary: did the rocket diverge? (theta >= DIVERGE_THETA_DEG)
+# Progressive bands: how tight was the attitude control?
+# Used to stratify designs and draw "separation lines" in visualisations.
+DIVERGE_THETA_DEG  = 90.0   # absolute divergence — rocket out of control
+BAND_30_THETA_DEG  = 30.0   # loose band — barely maintained attitude
+BAND_20_THETA_DEG  = 20.0   # moderate tracking
+BAND_10_THETA_DEG  = 10.0   # tight tracking — good TVC performance
+
+# ── F15 motor reference values ───────────────────────────────────────────────
+# Used as the constant-thrust fallback when thrust_curve=OFF.
+# All designs share the same physical motor; the design-space "thrust" parameter
+# is a proxy for control effectiveness, not actual motor output.
+F15_AVG_THRUST_N = 14.4  # average thrust of F15 APCP motor (N), matches MotorParams.F15().T_avg
