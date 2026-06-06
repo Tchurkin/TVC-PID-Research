@@ -71,7 +71,7 @@ REF = dict(
     Cm_alpha=-52.0,
     control_effectiveness=REF_KEFF,
     motor_scale=1.0,           # replaces thrust; scale=1 → standard F15 (14.4 N avg)
-    servo_slew_deg_s=75.0,
+    servo_slew_deg_s=120.0,
     max_gimbal_deg=REF_MAX_GIMBAL_DEG,
     deadband=0.05,
     backlash=0.10,
@@ -92,7 +92,7 @@ DESIGN_NAMES = [
 #   1.0 → standard F15 (14.4 N avg, wet 100 g)
 #   3.0 → triple-F15 (43.2 N avg, wet 300 g) — approaching G-class territory
 # max_gimbal_deg floor lowered to 2 deg to create genuinely authority-limited designs
-# servo_slew_deg_s floor lowered to 5 deg/s — extreme slew limit for "how cheap is too cheap?"
+# servo_slew_deg_s: [60, 200] deg/s — realistic hobby servo range (40 deg/s is the reliable floor)
 # static_margin extended to [0.02, 0.30] — approach neutral stability on the low end
 # Cm_alpha extended to [-90, -15] — wider aerodynamic instability range
 # static_margin is now SIGNED:
@@ -102,10 +102,10 @@ DESIGN_NAMES = [
 # Range [-0.30, +0.30] calibers: covers stable finned rockets to very unstable finless.
 # Convention matches Barrowman theory (positive stability margin → CP aft → stable).
 DESIGN_LO = np.array([
-    0.90, 0.010, -0.30, -90.0,  5.0, 0.50,   5.0,  2.0, 1.0, 0.00, 0.00, 0.05
+    0.90, 0.010, -0.30, -90.0,  5.0, 0.50,  60.0,  2.0, 1.0, 0.00, 0.00, 0.05
 ])
 DESIGN_HI = np.array([
-    2.10, 0.040,  0.30, -15.0, 14.0, 3.00, 120.0, 15.0, 6.0, 0.15, 0.25, 0.45
+    2.10, 0.040,  0.30, -15.0, 14.0, 3.00, 200.0, 15.0, 6.0, 0.15, 0.25, 0.45
 ])
 
 

@@ -16,5 +16,13 @@ Thumbs.db
 .vscode/
 *.swp
 
-# MATLAB Drive sync markers (keep tracked-existing ones, ignore new ones outside synced trees)
-# (leave .MATLABDriveTag tracked where already present)
+# Generated outputs (figures, logs)
+outputs/
+*.log
+*.exe
+
+# One-time patch scripts
+sim/_patch_atlas.py
+
+# MATLAB Drive sync markers
+.MATLABDriveTag

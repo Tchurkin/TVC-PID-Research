@@ -84,7 +84,7 @@ Methodology (current):
 * Under/over robustness: single seed=1 (binary pass/fail sufficient)
 
 Design space (current):
-* servo_slew_deg_s: [5, 120], static_margin: [-0.30, 0.30], Cm_alpha: [-90, -15]
+* servo_slew_deg_s: [60, 200], static_margin: [-0.30, 0.30], Cm_alpha: [-90, -15]
 * motor_scale: [0.5, 3.0], max_gimbal_deg: [2, 15]
 
 ⚠️ ALL COUNTS BELOW ARE SUPERSEDED. See thesis update above.
