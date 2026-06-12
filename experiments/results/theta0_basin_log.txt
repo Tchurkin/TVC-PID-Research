@@ -1,0 +1,16 @@
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 20 concurrent workers.
+[Parallel(n_jobs=-1)]: Done  32 tasks      | elapsed:  1.6min
+[Parallel(n_jobs=-1)]: Done 122 tasks      | elapsed:  2.0min
+[Parallel(n_jobs=-1)]: Done 248 tasks      | elapsed:  2.4min
+[Parallel(n_jobs=-1)]: Done 420 out of 420 | elapsed:  2.8min finished
+Q-C: Basin of Attraction (theta0 sweep) vs Authority/Iyy Ratio
+  Selected 35 designs: 25 FRAGILE, 10 EASY
+  Authority/Iyy ratio range: [63, 3708]
+  Tasks: 420 (35 designs x 12 theta0 values)
+  Sims:  2,100 (5 seeds each)
+
+Saved: experiments/results/theta0_basin_py.csv  (420 rows)
+
+Quick recovery basin summary:
+  EASY: median critical theta0 = 7.0 deg, range = [3, 17] deg, n=10
+  FRAGILE: median critical theta0 = 5.0 deg, range = [0, 17] deg, n=25

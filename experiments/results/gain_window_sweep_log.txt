@@ -1,0 +1,19 @@
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 20 concurrent workers.
+[Parallel(n_jobs=-1)]: Done  32 tasks      | elapsed:  1.4min
+[Parallel(n_jobs=-1)]: Done 122 tasks      | elapsed:  1.8min
+[Parallel(n_jobs=-1)]: Done 248 tasks      | elapsed:  2.1min
+[Parallel(n_jobs=-1)]: Done 410 tasks      | elapsed:  2.6min
+[Parallel(n_jobs=-1)]: Done 608 tasks      | elapsed:  3.0min
+[Parallel(n_jobs=-1)]: Done 750 out of 750 | elapsed:  3.2min finished
+Q-A: Gain Window Width vs Authority/Iyy Ratio
+  Selected 50 designs: 25 FRAGILE, 25 EASY
+  Authority/Iyy ratio range: [63, 3708]
+  Tasks: 750 (50 designs x 15 Kp values)
+  Sims:  3,750 (5 seeds each)
+
+Saved: experiments/results/gain_window_sweep_py.csv  (750 rows)
+  Columns: ['rocket_id', 'regime_label', 'Kp_sweep', 'Kd', 'best_Kp_exp1', 'sr', 'rms_deg', 'peak_deg', 'Iyy', 'authority_inertia_ratio', 'static_margin', 'motor_scale', 'max_gimbal_deg', 'wind_strength', 'servo_slew_deg_s']
+
+Quick window analysis:
+  EASY: median Kp window ratio=320.0x, n=25
+  FRAGILE: median Kp window ratio=80.0x, n=25

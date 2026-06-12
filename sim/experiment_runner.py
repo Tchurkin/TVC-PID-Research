@@ -243,6 +243,70 @@ def autotune_grid(
     return best_Kp, best_Kd
 
 
+def autotune_continuous(
+    plant,
+    act:     ActuatorParams,
+    sen:     SensorParams,
+    dis:     DisturbanceParams,
+    sc:      ScenarioParams,
+    kp_min:  float = 1.0,
+    kp_max:  float = 320.0,
+    n_coarse: int  = 10,
+    n_refine: int  = 6,
+) -> tuple[float, float]:
+    """
+    Two-phase continuous autotune: no hard Kp cap.
+
+    Phase 1 — find best Kd at a moderate probe Kp (Kp=40):
+      Tries Kd in [1, 4, 16, 64]; picks lowest RMS with SR primary.
+
+    Phase 2 — coarse log-spaced Kp sweep [kp_min, kp_max] with best Kd:
+      n_coarse points, 2-seed SR primary / RMS tiebreaker.
+
+    Phase 3 — refine in ±0.5 octave around coarse best:
+      n_refine points, same selection rule.
+
+    Total sims: 4×2 (Kd) + n_coarse×2 + n_refine×2 = ~8+20+12 = 40 per design.
+    Equivalent cost to the old 5×5 grid (50 sims) but covers Kp up to 320.
+    """
+    kd_candidates = [1.0, 4.0, 16.0, 64.0]
+    probe_kp = 40.0
+    best_kd, best_kd_sr, best_kd_rms = kd_candidates[0], -1.0, float("inf")
+    for Kd in kd_candidates:
+        pid = PIDParams(Kp=probe_kp, Kd=Kd, Ki=0.0, u_max=act.u_max, i_lim=act.u_max)
+        r1 = _run_one(pid, plant, act, sen, dis, sc, seed=1)
+        r2 = _run_one(pid, plant, act, sen, dis, sc, seed=2)
+        sr  = 0.5 * (float(r1["success"]) + float(r2["success"]))
+        rms = 0.5 * (float(r1["rms_error_deg"]) + float(r2["rms_error_deg"]))
+        if sr > best_kd_sr or (sr == best_kd_sr and rms < best_kd_rms):
+            best_kd_sr, best_kd_rms, best_kd = sr, rms, Kd
+
+    best_kp, best_sr, best_rms = kp_min, -1.0, float("inf")
+    for Kp in np.geomspace(kp_min, kp_max, n_coarse):
+        pid = PIDParams(Kp=float(Kp), Kd=best_kd, Ki=0.0, u_max=act.u_max, i_lim=act.u_max)
+        r1 = _run_one(pid, plant, act, sen, dis, sc, seed=1)
+        r2 = _run_one(pid, plant, act, sen, dis, sc, seed=2)
+        sr  = 0.5 * (float(r1["success"]) + float(r2["success"]))
+        rms = 0.5 * (float(r1["rms_error_deg"]) + float(r2["rms_error_deg"]))
+        if sr > best_sr or (sr == best_sr and rms < best_rms):
+            best_sr, best_rms, best_kp = sr, rms, float(Kp)
+
+    refine_low = max(kp_min, best_kp / 1.5)
+    refine_hi  = min(kp_max, best_kp * 1.5)
+    for Kp in np.geomspace(refine_low, refine_hi, n_refine):
+        if abs(Kp - best_kp) < 0.5:
+            continue  # skip near-duplicates of the coarse winner
+        pid = PIDParams(Kp=float(Kp), Kd=best_kd, Ki=0.0, u_max=act.u_max, i_lim=act.u_max)
+        r1 = _run_one(pid, plant, act, sen, dis, sc, seed=1)
+        r2 = _run_one(pid, plant, act, sen, dis, sc, seed=2)
+        sr  = 0.5 * (float(r1["success"]) + float(r2["success"]))
+        rms = 0.5 * (float(r1["rms_error_deg"]) + float(r2["rms_error_deg"]))
+        if sr > best_sr or (sr == best_sr and rms < best_rms):
+            best_sr, best_rms, best_kp = sr, rms, float(Kp)
+
+    return round(best_kp, 2), best_kd
+
+
 KI_GRID_PID: list[float] = [0.5, 2.0, 8.0, 20.0]
 
 
@@ -311,7 +375,7 @@ def _eval_design_exp1(row: dict) -> dict:
     )
     act, sen, dis, sc = apply_fidelity_config(act, sen, dis, sc, physics_cfg)
 
-    best_Kp, best_Kd = autotune_grid(plant, act, sen, dis, sc)
+    best_Kp, best_Kd = autotune_continuous(plant, act, sen, dis, sc)
 
     def eval_nominal(Kp, Kd):
         pid = PIDParams(Kp=Kp, Kd=Kd, Ki=0.0, u_max=act.u_max, i_lim=act.u_max)
@@ -930,6 +994,448 @@ def run_exp4simple(
     out = out_dir / "exp4_simple_vs_full_py.csv"
     df.to_csv(out, index=False)
     print(f"Saved: {out}")
+    return df
+
+
+# ── Exp4 S2R gain transfer study ──────────────────────────────────────────────
+#
+# The builder scenario: tune gains in a SIMPLE simulator (all physics off),
+# then deploy those gains on the REAL rocket (full physics).
+#
+# This answers the CORRECT S2R question:
+#   "If a builder tunes gains in a clean simulator and flies in the real world,
+#    how much performance do they lose versus using properly-tuned gains?"
+#
+# Two metrics per design:
+#   SR(simple_gains_in_full):  success rate when simple-tuned Kp/Kd is deployed in full physics
+#   SR(full_gains_in_full):    success rate when Exp1 full-physics Kp/Kd is used (Exp1 nominal)
+#   gap = SR(full_gains_in_full) - SR(simple_gains_in_full)
+#
+# A positive gap means the builder is losing performance by using a simple simulator.
+# A negative gap means the simple model accidentally gave better gains (MARGINAL slow-servo case).
+
+
+def _eval_design_s2r_gains(row: dict) -> dict:
+    """
+    S2R gain transfer: tune in simple, evaluate in full physics.
+
+    1. Tune Kp/Kd in FidelityConfig.simple() (no wind, no noise, no slew limit)
+    2. Evaluate those gains in FidelityConfig.full()
+    3. Evaluate Exp1 full-physics gains in full physics (reference)
+    4. Compute gap = reference SR - simple-tuned SR
+    """
+    plant    = build_plant(row)
+    base_act = build_actuator(row)
+    base_sen = build_sensor(row)
+    base_dis = build_disturbance(row)
+    seeds    = (1, 2, 3)
+
+    # Tune in simple model — start at 10° so autotune has a real signal to respond to
+    simple_sc  = build_scenario(theta0_fixed_deg=10.0)
+    simple_cfg = FidelityConfig.simple()
+    act_s, sen_s, dis_s, sc_s = apply_fidelity_config(
+        base_act, base_sen, base_dis, simple_sc, simple_cfg
+    )
+    kp_simple, kd_simple = autotune_continuous(plant, act_s, sen_s, dis_s, sc_s)
+    pid_simple = PIDParams(Kp=kp_simple, Kd=kd_simple, Ki=0.0,
+                           u_max=base_act.u_max, i_lim=base_act.u_max)
+
+    # Evaluate simple-tuned gains in full physics
+    full_sc  = build_scenario(theta0_bias_std=0.0)
+    full_cfg = FidelityConfig.full()
+    m_simple_in_full = _eval_one_fidelity(
+        plant, base_act, base_sen, base_dis, full_sc, pid_simple, full_cfg, seeds
+    )
+
+    # Evaluate Exp1 full-physics gains in full physics (reference)
+    kp_full = float(row.get("best_Kp", kp_simple))
+    kd_full = float(row.get("best_Kd", kd_simple))
+    pid_full = PIDParams(Kp=kp_full, Kd=kd_full, Ki=0.0,
+                         u_max=base_act.u_max, i_lim=base_act.u_max)
+    full_sc2 = build_scenario(theta0_bias_std=0.0)
+    m_full_in_full = _eval_one_fidelity(
+        plant, base_act, base_sen, base_dis, full_sc2, pid_full, full_cfg, seeds
+    )
+
+    sr_simple = m_simple_in_full["success_rate"]
+    sr_full   = m_full_in_full["success_rate"]
+    gap       = sr_full - sr_simple
+
+    simple_go = int(sr_simple >= FRAGILE_SUCCESS_RATE)
+    full_go   = int(sr_full   >= FRAGILE_SUCCESS_RATE)
+
+    out = dict(
+        rocket_id          = row["rocket_id"],
+        design_id          = row.get("design_id"),
+        regime_label       = row.get("regime_label", "UNKNOWN"),
+        # Simple-model gains
+        kp_simple          = kp_simple,
+        kd_simple          = kd_simple,
+        # Full-physics gains (from Exp1)
+        kp_full            = kp_full,
+        kd_full            = kd_full,
+        # Success rates
+        sr_simple_in_full  = sr_simple,
+        sr_full_in_full    = sr_full,
+        sr_gap             = gap,               # positive = simple model cost you SR
+        sr_simple_go       = simple_go,
+        sr_full_go         = full_go,
+        decision_agrees    = int(simple_go == full_go),
+        false_approval     = int(simple_go == 1 and full_go == 0),
+        false_rejection    = int(simple_go == 0 and full_go == 1),
+        # RMS for secondary analysis
+        rms_simple_in_full = m_simple_in_full["rms_error_deg"],
+        rms_full_in_full   = m_full_in_full["rms_error_deg"],
+        rms_gap            = m_full_in_full["rms_error_deg"] - m_simple_in_full["rms_error_deg"],
+    )
+    for k in ["p_unstable", "mass", "Iyy", "static_margin", "Cm_alpha",
+              "control_effectiveness", "motor_scale", "servo_slew_deg_s",
+              "max_gimbal_deg", "latency_steps", "deadband", "backlash", "wind_strength"]:
+        out[k] = row.get(k)
+    return out
+
+
+def run_exp4_s2r_gains(
+    designs_df: Optional[pd.DataFrame] = None,
+    n_jobs:     int = -1,
+    out_dir:    Path = RESULT_DIR,
+) -> pd.DataFrame:
+    """
+    S2R gain transfer study: tune in simple simulator, evaluate in full physics.
+
+    Answers: "If a builder uses a simple simulator to tune gains and then flies
+    in real conditions (modeled by full physics), how much performance do they
+    lose compared to a builder who tuned in a realistic simulator?"
+
+    For EASY designs: small gap expected (wide gain tolerance)
+    For FRAGILE designs: large gap expected (need high Kp for disturbance rejection;
+                         simple model picks Kp=2 which is too gentle)
+    For MARGINAL designs: negative gap may appear (slow servo prefers gentle Kp=2
+                          which is what the simple model picks)
+
+    Saves: exp4_s2r_gains_py.csv
+    """
+    if designs_df is None:
+        py_path = out_dir / "exp1_regime_index_py.csv"
+        if not py_path.exists():
+            raise FileNotFoundError("Exp1 results not found. Run run_exp1() first.")
+        designs_df = pd.read_csv(py_path)
+
+    print(f"=== EXP4 S2R GAINS (Python) n={len(designs_df)} designs ===")
+    print("    Protocol: tune in simple model -> evaluate in full physics")
+    print("    Reference: Exp1 full-physics gains in full physics")
+    rows = designs_df.to_dict("records")
+
+    results = Parallel(n_jobs=n_jobs, verbose=5)(
+        delayed(_eval_design_s2r_gains)(row) for row in rows
+    )
+
+    df = pd.DataFrame(results)
+
+    out = out_dir / "exp4_s2r_gains_py.csv"
+    df.to_csv(out, index=False)
+    print(f"Saved: {out}")
+
+    print("\n  S2R gain transfer results by regime:")
+    for regime in ["EASY", "MARGINAL", "FRAGILE"]:
+        sub = df[df["regime_label"] == regime]
+        if len(sub) == 0:
+            continue
+        print(f"  [{regime:8s}] n={len(sub):4d} | "
+              f"SR(simple->full)={sub['sr_simple_in_full'].mean():.3f} | "
+              f"SR(full->full)={sub['sr_full_in_full'].mean():.3f} | "
+              f"gap={sub['sr_gap'].mean():.3f} | "
+              f"false_approval={sub['false_approval'].mean():.3f} | "
+              f"false_rejection={sub['false_rejection'].mean():.3f}")
+
+    print(f"\n  Kp comparison:")
+    for regime in ["EASY", "MARGINAL", "FRAGILE"]:
+        sub = df[df["regime_label"] == regime]
+        if len(sub) == 0:
+            continue
+        print(f"  [{regime:8s}] median Kp_simple={sub['kp_simple'].median():.1f}  "
+              f"Kp_full={sub['kp_full'].median():.1f}")
+
+    return df
+
+
+# ── Exp4 Gain Mechanism Study ─────────────────────────────────────────────────
+#
+# Scientific question: WHICH fidelity modules drive the 20-40x Kp selection gap
+# between simple-model tuning (always Kp=2) and full-physics tuning (Kp=40-80)?
+#
+# The S2R study showed the gap EXISTS.  This study shows WHERE it comes from.
+#
+# Protocol (per design × per module condition):
+#   1. Tune Kp/Kd in (full_physics - module) config using extended Kp grid
+#   2. Evaluate those gains in full physics (3 seeds)
+#   3. Compare selected Kp and resulting SR to Exp1 reference (loaded from S2R CSV)
+#
+# Expected result: removing "wind" drops Kp to 2 for ~95% of designs.
+# Removing other modules (noise, slew, latency) should have small or no effect.
+#
+# Module list: ALL 10 physics modules including wind and sensor_noise.
+# (Existing Exp4C deliberately excludes them — that is insufficient for the
+# gain co-design mechanism question.)
+#
+# Pairs tested: (wind + sensor_noise) — reproduces simple-model tuning condition;
+#               (wind + slew) — tests whether slew + wind interaction matters.
+#
+# Kp grid extended to 160 to avoid hitting the ceiling observed in Exp1 FRAGILE.
+#
+# Output: exp4_gain_mechanism_py.csv — long format, one row per (design × condition).
+
+GAIN_MECH_MODULES: list[str] = [
+    "wind",          # primary environment driver (predicted to cause Kp -> 2)
+    "sensor_noise",  # secondary environment driver (predicted to raise Kp ceiling)
+    "slew",          # actuator bandwidth limit (predicted: small Kp effect within [60,200])
+    "latency",       # transport delay (predicted: small Kp effect)
+    "deadband",      # nonlinear actuator threshold
+    "backlash",      # mechanical backlash
+    "nonlinear_aero",# nonlinear aerodynamics
+    "dyn_aero",      # dynamic pressure dependence
+    "thrust_curve",  # F15 thrust profile vs constant average
+    "cg_shift",      # center-of-gravity migration
+]
+
+GAIN_MECH_PAIRS: list[tuple[str, ...]] = [
+    ("wind", "sensor_noise"),  # reproduces simple-model condition; should give Kp=2
+    ("wind", "slew"),          # tests wind x actuator bandwidth interaction
+]
+
+# Extended grid to resolve gain selection beyond the Exp1 Kp=80 ceiling.
+GAIN_MECH_KP_GRID: list[float] = [2.0, 5.0, 15.0, 40.0, 80.0, 160.0]
+GAIN_MECH_KD_GRID: list[float] = [1.0, 8.0, 32.0]
+
+GAIN_MECH_N_EVAL_SEEDS: int = 3   # seeds for full-physics evaluation
+GAIN_MECH_N_TUNE_SEEDS: int = 2   # 2-seed tuning: reduces single-seed noise artifacts
+GAIN_MECH_TUNE_THETA0_STD: float = 3.0 * np.pi / 180  # 3 degrees in radians (was 3.0 rad = 171.9°)
+
+
+def _eval_design_gain_mechanism(
+    row: dict,
+    ablate_modules: tuple[str, ...],
+) -> dict:
+    """
+    Gain mechanism worker: tune Kp/Kd in ablated config, evaluate in full physics.
+
+    Uses pre-computed full reference (sr_full_in_full, rms_full_in_full) from the
+    row dict (merged from exp4_s2r_gains_py.csv) to avoid redundant evaluation.
+    If reference fields are missing, falls back to Exp1 best_Kp / best_Kd with
+    a fresh 3-seed evaluation.
+
+    Note on thrust_var: S2R reference was evaluated with FidelityConfig.full()
+    (thrust_var=True, fault at t=1.5s).  This function evaluates ablated gains with
+    _exp4a_baseline_cfg() (thrust_var=False, no fault).  This introduces a <0.05 SR
+    bias in sr_gap for FRAGILE designs; negligible for EASY.  kp_delta is unaffected.
+    """
+    plant    = build_plant(row)
+    base_act = build_actuator(row)
+    base_sen = build_sensor(row)
+    base_dis = build_disturbance(row)
+
+    # Build ablated config
+    ablated_cfg = _exp4a_baseline_cfg()
+    for m in ablate_modules:
+        ablated_cfg = ablated_cfg.ablate(m)
+
+    # Tune in ablated config with 3-deg initial perturbation so gain landscape is
+    # non-degenerate even when both wind and sensor_noise are ablated.
+    # theta0=0 with no disturbances gives RMS=0 for all Kp — autotune picks first
+    # grid entry by tie-breaking (artifact). theta0_bias_std=3.0 breaks this degeneracy.
+    tune_sc = build_scenario(theta0_bias_std=GAIN_MECH_TUNE_THETA0_STD)
+    act_a, sen_a, dis_a, sc_a = apply_fidelity_config(
+        base_act, base_sen, base_dis, tune_sc, ablated_cfg
+    )
+    # Extended grid autotune: 2-seed SR primary, RMS tiebreaker
+    best_Kp, best_Kd = GAIN_MECH_KP_GRID[0], GAIN_MECH_KD_GRID[0]
+    best_sr  = -1.0
+    best_rms = float("inf")
+    for Kp in GAIN_MECH_KP_GRID:
+        for Kd in GAIN_MECH_KD_GRID:
+            pid = PIDParams(Kp=Kp, Kd=Kd, Ki=0.0, u_max=base_act.u_max, i_lim=base_act.u_max)
+            r1 = _run_one(pid, plant, act_a, sen_a, dis_a, sc_a, seed=1)
+            if GAIN_MECH_N_TUNE_SEEDS >= 2:
+                r2 = _run_one(pid, plant, act_a, sen_a, dis_a, sc_a, seed=2)
+                sr  = 0.5 * (float(r1["success"]) + float(r2["success"]))
+                rms = 0.5 * (float(r1["rms_error_deg"]) + float(r2["rms_error_deg"]))
+            else:
+                sr  = float(r1["success"])
+                rms = float(r1["rms_error_deg"])
+            if sr > best_sr or (sr == best_sr and rms < best_rms):
+                best_sr  = sr
+                best_rms = rms
+                best_Kp, best_Kd = Kp, Kd
+
+    kp_ablated = best_Kp
+    kd_ablated = best_Kd
+
+    # Evaluate ablated-tuned gains in full physics
+    pid_ablated = PIDParams(Kp=kp_ablated, Kd=kd_ablated, Ki=0.0,
+                            u_max=base_act.u_max, i_lim=base_act.u_max)
+    eval_seeds = tuple(range(1, GAIN_MECH_N_EVAL_SEEDS + 1))
+    full_cfg = _exp4a_baseline_cfg()
+    eval_sc  = build_scenario(theta0_bias_std=0.0)
+    m_ablated = _eval_one_fidelity(
+        plant, base_act, base_sen, base_dis, eval_sc, pid_ablated, full_cfg, eval_seeds
+    )
+    sr_ablated = m_ablated["success_rate"]
+    rms_ablated = m_ablated["rms_error_deg"]
+
+    # Full-physics reference (from pre-merged S2R data or fallback)
+    kp_full  = float(row.get("best_Kp", kp_ablated))
+    kd_full  = float(row.get("best_Kd", kd_ablated))
+    sr_full  = row.get("sr_full_in_full")
+    rms_full = row.get("rms_full_in_full")
+    if sr_full is None or rms_full is None:
+        # Fallback: re-evaluate Exp1 gains in full physics
+        pid_full = PIDParams(Kp=kp_full, Kd=kd_full, Ki=0.0,
+                             u_max=base_act.u_max, i_lim=base_act.u_max)
+        ref_sc = build_scenario(theta0_bias_std=0.0)
+        m_full = _eval_one_fidelity(
+            plant, base_act, base_sen, base_dis, ref_sc, pid_full, full_cfg, eval_seeds
+        )
+        sr_full  = m_full["success_rate"]
+        rms_full = m_full["rms_error_deg"]
+
+    sr_full  = float(sr_full)
+    rms_full = float(rms_full)
+
+    go_ablated = int(sr_ablated >= FRAGILE_SUCCESS_RATE)
+    go_full    = int(sr_full    >= FRAGILE_SUCCESS_RATE)
+
+    module_key = "+".join(sorted(ablate_modules)) if ablate_modules else "reference"
+
+    out = dict(
+        rocket_id           = row["rocket_id"],
+        regime_label        = row.get("regime_label", "UNKNOWN"),
+        ablated_modules     = module_key,
+        # Gain selection
+        kp_ablated          = kp_ablated,
+        kd_ablated          = kd_ablated,
+        kp_full             = kp_full,
+        kd_full             = kd_full,
+        kp_delta            = kp_full - kp_ablated,      # positive = ablation underestimates
+        kp_ratio            = kp_full / max(kp_ablated, 0.1),
+        kp_misselected      = int(kp_ablated != kp_full),
+        kp_underselected    = int(kp_ablated < kp_full),
+        # Performance
+        sr_ablated_in_full  = sr_ablated,
+        sr_full_in_full     = sr_full,
+        sr_gap              = sr_full - sr_ablated,       # positive = cost of ablated gains
+        rms_ablated_in_full = rms_ablated,
+        rms_full_in_full    = rms_full,
+        rms_gap             = rms_ablated - rms_full,     # positive = worse RMS w/ ablated gains
+        # Decisions
+        go_ablated          = go_ablated,
+        go_full             = go_full,
+        decision_agrees     = int(go_ablated == go_full),
+        false_approval      = int(go_ablated == 1 and go_full == 0),
+        false_rejection     = int(go_ablated == 0 and go_full == 1),
+    )
+    for k in ["p_unstable", "mass", "Iyy", "static_margin", "Cm_alpha",
+              "control_effectiveness", "motor_scale", "servo_slew_deg_s",
+              "max_gimbal_deg", "latency_steps", "deadband", "backlash",
+              "wind_strength"]:
+        out[k] = row.get(k)
+    return out
+
+
+def run_exp4_gain_mechanism(
+    designs_df: Optional[pd.DataFrame] = None,
+    modules:    Optional[list[str]] = None,
+    pairs:      Optional[list[tuple[str, ...]]] = None,
+    n_jobs:     int = -1,
+    out_dir:    Path = RESULT_DIR,
+) -> pd.DataFrame:
+    """
+    Exp4 Gain Mechanism Study: identify which fidelity modules drive the S2R gain gap.
+
+    For each module (and specified pairs), tunes Kp/Kd in (full_physics - module),
+    evaluates in full physics, and measures the Kp selection change and SR impact.
+
+    This answers: "Why does the simple model always pick Kp=2 while full physics
+    needs Kp=40-80?  Which specific physics module is responsible?"
+
+    Expected finding: removing 'wind' drops selected Kp to 2 for ~95% of designs.
+    All other modules should produce near-zero Kp shift.
+
+    Args:
+        designs_df: Exp1 regime index CSV.  If None, loads from results directory.
+                    MUST have been merged with exp4_s2r_gains_py.csv (sr_full_in_full
+                    and rms_full_in_full columns) for efficiency.  If those columns
+                    are absent the worker falls back to re-evaluating.
+        modules:    Override the default GAIN_MECH_MODULES list.  Pass a short list
+                    for a quick priority run, e.g. ["wind", "sensor_noise", "slew"].
+        pairs:      Override the default GAIN_MECH_PAIRS list.  Pass [] to skip pairs.
+
+    Saves: exp4_gain_mechanism_py.csv (long format, one row per design x condition)
+    """
+    if designs_df is None:
+        py_path = out_dir / "exp1_regime_index_py.csv"
+        if not py_path.exists():
+            raise FileNotFoundError("Exp1 results not found.  Run run_exp1() first.")
+        designs_df = pd.read_csv(py_path)
+
+    # Merge S2R reference data if available (avoids re-evaluating reference per module)
+    s2r_path = out_dir / "exp4_s2r_gains_py.csv"
+    if s2r_path.exists():
+        s2r = pd.read_csv(s2r_path)[["rocket_id", "sr_full_in_full", "rms_full_in_full"]]
+        designs_df = designs_df.merge(s2r, on="rocket_id", how="left")
+
+    mods  = list(modules) if modules is not None else GAIN_MECH_MODULES
+    pairs = list(pairs)   if pairs   is not None else GAIN_MECH_PAIRS
+
+    # Build full condition list: single-module + pairs
+    conditions: list[tuple[str, ...]] = [tuple([m]) for m in mods] + \
+                                        [tuple(p) for p in pairs]
+    n_conditions = len(conditions)
+    n = len(designs_df)
+    n_tune_per_cond = GAIN_MECH_N_TUNE_SEEDS * len(GAIN_MECH_KP_GRID) * len(GAIN_MECH_KD_GRID)
+    n_eval_per_cond = GAIN_MECH_N_EVAL_SEEDS
+    n_total = n * n_conditions * (n_tune_per_cond + n_eval_per_cond)
+
+    print(f"=== EXP4 GAIN MECHANISM  n={n} designs x {n_conditions} conditions ===")
+    print(f"    Modules ({len(mods)}): {mods}")
+    print(f"    Pairs ({len(pairs)}):  {['+'.join(p) for p in pairs]}")
+    print(f"    Kp grid: {GAIN_MECH_KP_GRID}  ({len(GAIN_MECH_KP_GRID)*len(GAIN_MECH_KD_GRID)} combos)")
+    print(f"    Tune seeds: {GAIN_MECH_N_TUNE_SEEDS}   Eval seeds: {GAIN_MECH_N_EVAL_SEEDS}")
+    print(f"    S2R reference merged: {'sr_full_in_full' in designs_df.columns}")
+    print(f"    Approx simulations: {n_total:,}  (~{n_total//(20*3600)+1}h on 20 cores)")
+
+    rows = designs_df.to_dict("records")
+
+    # Flatten: one task per (design, condition)
+    tasks = [(row, cond) for row in rows for cond in conditions]
+
+    results = Parallel(n_jobs=n_jobs, verbose=5)(
+        delayed(_eval_design_gain_mechanism)(row, cond)
+        for row, cond in tasks
+    )
+
+    df = pd.DataFrame(results)
+
+    out = out_dir / "exp4_gain_mechanism_py.csv"
+    df.to_csv(out, index=False)
+    print(f"Saved: {out}")
+
+    # Summary table
+    print("\n  Gain mechanism summary (mean Kp selected and SR gap by module):")
+    print(f"  {'Module':<22}  {'Mean Kp':>8}  {'%Kp=2':>6}  {'%Kp>=80':>8}  "
+          f"{'SR gap':>7}  {'False rej.':>10}")
+    for cond in conditions:
+        key = "+".join(sorted(cond))
+        sub = df[df["ablated_modules"] == key]
+        if len(sub) == 0:
+            continue
+        mean_kp   = sub["kp_ablated"].mean()
+        pct_kp2   = (sub["kp_ablated"] == 2).mean() * 100
+        pct_kp80  = (sub["kp_ablated"] >= 80).mean() * 100
+        sr_gap    = sub["sr_gap"].mean()
+        false_rej = sub["false_rejection"].mean() * 100
+        print(f"  {key:<22}  {mean_kp:>8.1f}  {pct_kp2:>5.1f}%  {pct_kp80:>7.1f}%  "
+              f"  {sr_gap:>6.3f}  {false_rej:>9.1f}%")
+
     return df
 
 

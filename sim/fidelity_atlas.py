@@ -1007,17 +1007,15 @@ class FidelityRequirementAtlas:
 
         PARAMS = [
             ("Iyy",                   "Iyy (kg·m²)"),
-            ("effective_wind",        "Eff. wind disturbance (rad/s²)"),
+            ("wind_strength",         "Wind strength (rad/s²)"),
+            ("static_margin",         "Static margin (calibers)"),
+            ("motor_scale",           "Motor scale"),
+            ("max_gimbal_deg",        "Max gimbal (deg)"),
             ("servo_slew_deg_s",      "Servo slew (deg/s)"),
             ("authority_ratio",       "Authority ratio (ctrl/wind)"),
-            ("wind_strength",         "Wind strength raw (rad/s²)"),
-            ("motor_scale",           "Motor scale"),
-            ("mass",                  "Mass (kg)"),
-            ("static_margin",         "Static margin (calibers)"),
             ("control_effectiveness", "Control effectiveness (rad/s²/CU)"),
-            ("max_gimbal_deg",        "Max gimbal (deg)"),
-            ("slew_bandwidth_hz",     "Slew bandwidth (Hz)"),
-            ("p_unstable",            "p_unstable (1/s)"),
+            ("mass",                  "Mass (kg)"),
+            ("effective_wind",        "Eff. wind disturbance (rad/s²)"),
         ]
 
         # ── Step 1: Build unified 1200-row dataset ────────────────────────────
@@ -1106,8 +1104,8 @@ class FidelityRequirementAtlas:
 
         trace = go.Scatter3d(
             x=udf["Iyy"].tolist(),
-            y=udf["effective_wind"].tolist(),
-            z=udf["servo_slew_deg_s"].tolist(),
+            y=udf["wind_strength"].tolist(),
+            z=udf["static_margin"].tolist(),
             mode="markers", name="designs", showlegend=False,
             marker=dict(
                 size=sizes, symbol=sym_map,
@@ -1163,18 +1161,18 @@ class FidelityRequirementAtlas:
             ),
             scene=dict(
                 domain=dict(x=[0.0, 1.0], y=[0.0, 0.80]),
-                xaxis=dict(title="Iyy (kg.m2)", tickformat=".3f",
+                xaxis=dict(title="Iyy (kg·m²)", tickformat=".3f",
                            backgroundcolor="rgb(245,245,250)", gridcolor="#dde",
                            showbackground=True),
                 yaxis=dict(
-                    title="Eff. wind disturbance (rad/s2)",
-                    tickvals=[0.10, 0.20, 0.30, 0.40, 0.50],
-                    ticktext=["0.10 calm", "0.20 light", "0.30 mod.",
-                              "0.40 gusty", "0.50 severe"],
+                    title="Wind strength (rad/s²)",
+                    tickvals=[0.05, 0.15, 0.25, 0.35, 0.45],
+                    ticktext=["0.05 calm", "0.15 light", "0.25 mod.",
+                              "0.35 gusty", "0.45 severe"],
                     backgroundcolor="rgb(245,250,245)", gridcolor="#dde",
                     showbackground=True,
                 ),
-                zaxis=dict(title="Servo slew (deg/s)",
+                zaxis=dict(title="Static margin (calibers)",
                            backgroundcolor="rgb(250,245,245)", gridcolor="#dde",
                            showbackground=True),
                 camera=dict(eye=dict(x=1.5, y=-1.5, z=0.9)),
@@ -1220,8 +1218,9 @@ class FidelityRequirementAtlas:
                      xref="paper", yref="paper", showarrow=False,
                      font=dict(size=10, color="#444"), xanchor="left"),
                 dict(
-                    text=("large = Exp4C measured (n=151)  .  small = atlas-predicted (n=1049)"
-                          "  |  circle=EASY  sq=MARGINAL  diamond=FRAGILE  x=INFEASIBLE"),
+                    text=("large = Exp4C measured  .  small = atlas-predicted"
+                          "  |  circle=EASY  sq=MARGINAL  diamond=FRAGILE"
+                          "  |  NOTE: Exp4C data from prior design space — re-run pending"),
                     x=0.5, y=0.820, xref="paper", yref="paper",
                     showarrow=False, font=dict(size=9, color="#777"), xanchor="center",
                 ),

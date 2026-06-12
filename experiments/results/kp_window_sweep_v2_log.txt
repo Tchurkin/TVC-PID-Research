@@ -1,0 +1,353 @@
+Kp window sweep v2: 12 designs × 23 Kp × 7 seeds
+Using best_Kd from exp1 (per-design). SR gate = 0.7.
+Kp grid: [1, 2, 3, 4, 5, 6, 8, 10, 13, 16, 20, 25, 32, 40, 51, 64, 80, 101, 127, 160, 202, 254, 320]
+
+  #   rocket_id    regime       td   best_Kp   best_Kd
+  1       R0349      EASY      3.9        80         1
+  2       R0523   FRAGILE     12.1        80         1
+  3       R1041      EASY     27.3        80         1
+  4       R0847      EASY     50.0        80         1
+  5       R1155      EASY     51.0        80         1
+  6       R1120      EASY     62.1        80         1
+  7       R0203      EASY     72.9        40         1
+  8       R0961      EASY     99.5        80         1
+  9       R1165   FRAGILE    105.8         5         1
+ 10       R0504   FRAGILE    138.2        80         2
+ 11       R0759   FRAGILE    212.6        80         1
+ 12       R0255      EASY    230.5        80         1
+
+
+[1/12] R0349  regime=EASY  td=3.9  best_Kd=1
+  Kp=   1  SR=0.71  RMS=7.5°
+  Kp=   2  SR=0.86  RMS=5.9°
+  Kp=   3  SR=1.00  RMS=4.9°
+  Kp=   4  SR=1.00  RMS=4.0°
+  Kp=   5  SR=1.00  RMS=3.6°
+  Kp=   6  SR=1.00  RMS=3.3°
+  Kp=   8  SR=1.00  RMS=2.9°
+  Kp=  10  SR=1.00  RMS=2.7°
+  Kp=  13  SR=1.00  RMS=2.4°
+  Kp=  16  SR=1.00  RMS=2.2°
+  Kp=  20  SR=1.00  RMS=1.9°
+  Kp=  25  SR=1.00  RMS=1.7°
+  Kp=  32  SR=1.00  RMS=1.3°
+  Kp=  40  SR=1.00  RMS=1.2°
+  Kp=  51  SR=1.00  RMS=1.0°
+  Kp=  64  SR=1.00  RMS=0.9°
+  Kp=  80  SR=1.00  RMS=0.9°
+  Kp= 101  SR=1.00  RMS=1.1°
+  Kp= 127  SR=1.00  RMS=1.4°
+  Kp= 160  SR=1.00  RMS=1.8°
+  Kp= 202  SR=1.00  RMS=1.7°
+  Kp= 254  SR=1.00  RMS=3.1°
+  Kp= 320  SR=1.00  RMS=3.3°
+  → floor=1.0  ceiling=320.0  window=320.0x  peak_SR=1.00 @ Kp=3
+
+[2/12] R0523  regime=FRAGILE  td=12.1  best_Kd=1
+  Kp=   1  SR=0.86  RMS=4.4°
+  Kp=   2  SR=1.00  RMS=3.5°
+  Kp=   3  SR=1.00  RMS=3.1°
+  Kp=   4  SR=1.00  RMS=2.8°
+  Kp=   5  SR=1.00  RMS=2.4°
+  Kp=   6  SR=1.00  RMS=2.3°
+  Kp=   8  SR=1.00  RMS=1.9°
+  Kp=  10  SR=1.00  RMS=1.6°
+  Kp=  13  SR=1.00  RMS=1.5°
+  Kp=  16  SR=1.00  RMS=1.4°
+  Kp=  20  SR=1.00  RMS=1.3°
+  Kp=  25  SR=1.00  RMS=1.4°
+  Kp=  32  SR=1.00  RMS=1.3°
+  Kp=  40  SR=1.00  RMS=1.3°
+  Kp=  51  SR=1.00  RMS=1.2°
+  Kp=  64  SR=1.00  RMS=1.1°
+  Kp=  80  SR=1.00  RMS=1.2°
+  Kp= 101  SR=1.00  RMS=2.1°
+  Kp= 127  SR=0.71  RMS=3.1°
+  Kp= 160  SR=0.57  RMS=5.7°
+  Kp= 202  SR=0.14  RMS=12.2°
+  Kp= 254  SR=0.29  RMS=15.5°
+  Kp= 320  SR=0.00  RMS=22.9°
+  → floor=1.0  ceiling=127.0  window=127.0x  peak_SR=1.00 @ Kp=2
+
+[3/12] R1041  regime=EASY  td=27.3  best_Kd=1
+  Kp=   1  SR=1.00  RMS=2.2°
+  Kp=   2  SR=1.00  RMS=1.8°
+  Kp=   3  SR=1.00  RMS=1.4°
+  Kp=   4  SR=1.00  RMS=1.2°
+  Kp=   5  SR=1.00  RMS=1.1°
+  Kp=   6  SR=1.00  RMS=1.1°
+  Kp=   8  SR=1.00  RMS=1.0°
+  Kp=  10  SR=1.00  RMS=0.9°
+  Kp=  13  SR=1.00  RMS=0.8°
+  Kp=  16  SR=1.00  RMS=0.7°
+  Kp=  20  SR=1.00  RMS=0.6°
+  Kp=  25  SR=1.00  RMS=0.7°
+  Kp=  32  SR=1.00  RMS=0.7°
+  Kp=  40  SR=1.00  RMS=0.7°
+  Kp=  51  SR=1.00  RMS=0.6°
+  Kp=  64  SR=1.00  RMS=0.6°
+  Kp=  80  SR=1.00  RMS=0.5°
+  Kp= 101  SR=1.00  RMS=0.5°
+  Kp= 127  SR=1.00  RMS=0.5°
+  Kp= 160  SR=1.00  RMS=0.6°
+  Kp= 202  SR=1.00  RMS=0.6°
+  Kp= 254  SR=1.00  RMS=0.6°
+  Kp= 320  SR=1.00  RMS=0.7°
+  → floor=1.0  ceiling=320.0  window=320.0x  peak_SR=1.00 @ Kp=1
+
+[4/12] R0847  regime=EASY  td=50.0  best_Kd=1
+  Kp=   1  SR=1.00  RMS=4.1°
+  Kp=   2  SR=1.00  RMS=3.2°
+  Kp=   3  SR=1.00  RMS=2.9°
+  Kp=   4  SR=1.00  RMS=2.4°
+  Kp=   5  SR=1.00  RMS=2.4°
+  Kp=   6  SR=1.00  RMS=2.2°
+  Kp=   8  SR=1.00  RMS=1.9°
+  Kp=  10  SR=1.00  RMS=1.8°
+  Kp=  13  SR=1.00  RMS=1.6°
+  Kp=  16  SR=1.00  RMS=1.5°
+  Kp=  20  SR=1.00  RMS=1.4°
+  Kp=  25  SR=1.00  RMS=1.2°
+  Kp=  32  SR=1.00  RMS=1.1°
+  Kp=  40  SR=1.00  RMS=1.0°
+  Kp=  51  SR=1.00  RMS=0.9°
+  Kp=  64  SR=1.00  RMS=0.8°
+  Kp=  80  SR=1.00  RMS=0.7°
+  Kp= 101  SR=1.00  RMS=0.7°
+  Kp= 127  SR=1.00  RMS=0.8°
+  Kp= 160  SR=1.00  RMS=0.7°
+  Kp= 202  SR=1.00  RMS=0.8°
+  Kp= 254  SR=1.00  RMS=0.7°
+  Kp= 320  SR=1.00  RMS=1.2°
+  → floor=1.0  ceiling=320.0  window=320.0x  peak_SR=1.00 @ Kp=1
+
+[5/12] R1155  regime=EASY  td=51.0  best_Kd=1
+  Kp=   1  SR=1.00  RMS=1.6°
+  Kp=   2  SR=1.00  RMS=1.1°
+  Kp=   3  SR=1.00  RMS=1.0°
+  Kp=   4  SR=1.00  RMS=0.9°
+  Kp=   5  SR=1.00  RMS=0.9°
+  Kp=   6  SR=1.00  RMS=0.9°
+  Kp=   8  SR=1.00  RMS=0.8°
+  Kp=  10  SR=1.00  RMS=0.8°
+  Kp=  13  SR=1.00  RMS=0.7°
+  Kp=  16  SR=1.00  RMS=0.6°
+  Kp=  20  SR=1.00  RMS=0.5°
+  Kp=  25  SR=1.00  RMS=0.5°
+  Kp=  32  SR=1.00  RMS=0.6°
+  Kp=  40  SR=1.00  RMS=0.5°
+  Kp=  51  SR=1.00  RMS=0.5°
+  Kp=  64  SR=1.00  RMS=0.5°
+  Kp=  80  SR=1.00  RMS=0.5°
+  Kp= 101  SR=1.00  RMS=0.4°
+  Kp= 127  SR=1.00  RMS=0.5°
+  Kp= 160  SR=1.00  RMS=0.6°
+  Kp= 202  SR=1.00  RMS=0.6°
+  Kp= 254  SR=1.00  RMS=0.7°
+  Kp= 320  SR=1.00  RMS=0.8°
+  → floor=1.0  ceiling=320.0  window=320.0x  peak_SR=1.00 @ Kp=1
+
+[6/12] R1120  regime=EASY  td=62.1  best_Kd=1
+  Kp=   1  SR=0.86  RMS=6.9°
+  Kp=   2  SR=1.00  RMS=5.0°
+  Kp=   3  SR=1.00  RMS=4.1°
+  Kp=   4  SR=1.00  RMS=3.8°
+  Kp=   5  SR=1.00  RMS=3.6°
+  Kp=   6  SR=1.00  RMS=3.5°
+  Kp=   8  SR=1.00  RMS=2.7°
+  Kp=  10  SR=1.00  RMS=2.3°
+  Kp=  13  SR=1.00  RMS=2.0°
+  Kp=  16  SR=1.00  RMS=1.8°
+  Kp=  20  SR=1.00  RMS=1.5°
+  Kp=  25  SR=1.00  RMS=1.4°
+  Kp=  32  SR=1.00  RMS=1.5°
+  Kp=  40  SR=1.00  RMS=1.4°
+  Kp=  51  SR=1.00  RMS=1.2°
+  Kp=  64  SR=1.00  RMS=1.1°
+  Kp=  80  SR=1.00  RMS=1.0°
+  Kp= 101  SR=1.00  RMS=1.1°
+  Kp= 127  SR=1.00  RMS=1.5°
+  Kp= 160  SR=1.00  RMS=1.5°
+  Kp= 202  SR=0.86  RMS=2.1°
+  Kp= 254  SR=0.43  RMS=5.1°
+  Kp= 320  SR=0.43  RMS=11.0°
+  → floor=1.0  ceiling=202.0  window=202.0x  peak_SR=1.00 @ Kp=2
+
+[7/12] R0203  regime=EASY  td=72.9  best_Kd=1
+  Kp=   1  SR=0.43  RMS=8.9°
+  Kp=   2  SR=0.71  RMS=7.1°
+  Kp=   3  SR=0.86  RMS=7.3°
+  Kp=   4  SR=0.86  RMS=6.5°
+  Kp=   5  SR=0.86  RMS=5.3°
+  Kp=   6  SR=0.86  RMS=5.0°
+  Kp=   8  SR=1.00  RMS=4.4°
+  Kp=  10  SR=1.00  RMS=4.1°
+  Kp=  13  SR=1.00  RMS=3.8°
+  Kp=  16  SR=1.00  RMS=3.1°
+  Kp=  20  SR=1.00  RMS=2.4°
+  Kp=  25  SR=1.00  RMS=2.4°
+  Kp=  32  SR=1.00  RMS=2.4°
+  Kp=  40  SR=1.00  RMS=2.1°
+  Kp=  51  SR=1.00  RMS=2.3°
+  Kp=  64  SR=1.00  RMS=2.2°
+  Kp=  80  SR=1.00  RMS=1.8°
+  Kp= 101  SR=0.86  RMS=2.7°
+  Kp= 127  SR=0.71  RMS=3.1°
+  Kp= 160  SR=0.71  RMS=4.2°
+  Kp= 202  SR=0.43  RMS=7.5°
+  Kp= 254  SR=0.00  RMS=13.1°
+  Kp= 320  SR=0.00  RMS=45.8°
+  → floor=2.0  ceiling=160.0  window=80.0x  peak_SR=1.00 @ Kp=8
+
+[8/12] R0961  regime=EASY  td=99.5  best_Kd=1
+  Kp=   1  SR=0.57  RMS=10.9°
+  Kp=   2  SR=0.71  RMS=10.2°
+  Kp=   3  SR=0.71  RMS=8.0°
+  Kp=   4  SR=0.57  RMS=7.6°
+  Kp=   5  SR=0.86  RMS=6.1°
+  Kp=   6  SR=0.71  RMS=6.0°
+  Kp=   8  SR=1.00  RMS=4.5°
+  Kp=  10  SR=1.00  RMS=4.6°
+  Kp=  13  SR=1.00  RMS=3.4°
+  Kp=  16  SR=1.00  RMS=3.1°
+  Kp=  20  SR=1.00  RMS=2.5°
+  Kp=  25  SR=1.00  RMS=2.2°
+  Kp=  32  SR=1.00  RMS=2.8°
+  Kp=  40  SR=1.00  RMS=2.6°
+  Kp=  51  SR=1.00  RMS=2.7°
+  Kp=  64  SR=1.00  RMS=2.3°
+  Kp=  80  SR=0.71  RMS=3.4°
+  Kp= 101  SR=1.00  RMS=3.5°
+  Kp= 127  SR=0.86  RMS=4.7°
+  Kp= 160  SR=0.43  RMS=6.9°
+  Kp= 202  SR=0.43  RMS=10.7°
+  Kp= 254  SR=0.14  RMS=15.1°
+  Kp= 320  SR=0.00  RMS=62.2°
+  → floor=2.0  ceiling=127.0  window=63.5x  peak_SR=1.00 @ Kp=8
+
+[9/12] R1165  regime=FRAGILE  td=105.8  best_Kd=1
+  Kp=   1  SR=0.43  RMS=8.6°
+  Kp=   2  SR=0.71  RMS=7.4°
+  Kp=   3  SR=0.86  RMS=6.7°
+  Kp=   4  SR=1.00  RMS=6.0°
+  Kp=   5  SR=0.71  RMS=6.2°
+  Kp=   6  SR=0.71  RMS=5.4°
+  Kp=   8  SR=1.00  RMS=5.1°
+  Kp=  10  SR=0.71  RMS=4.8°
+  Kp=  13  SR=1.00  RMS=4.2°
+  Kp=  16  SR=1.00  RMS=3.6°
+  Kp=  20  SR=1.00  RMS=3.4°
+  Kp=  25  SR=1.00  RMS=2.7°
+  Kp=  32  SR=1.00  RMS=2.5°
+  Kp=  40  SR=1.00  RMS=2.9°
+  Kp=  51  SR=1.00  RMS=2.8°
+  Kp=  64  SR=1.00  RMS=2.9°
+  Kp=  80  SR=1.00  RMS=3.1°
+  Kp= 101  SR=1.00  RMS=2.6°
+  Kp= 127  SR=0.71  RMS=3.0°
+  Kp= 160  SR=0.43  RMS=5.1°
+  Kp= 202  SR=0.14  RMS=11.2°
+  Kp= 254  SR=0.00  RMS=26.8°
+  Kp= 320  SR=0.00  RMS=87.2°
+  → floor=2.0  ceiling=127.0  window=63.5x  peak_SR=1.00 @ Kp=4
+
+[10/12] R0504  regime=FRAGILE  td=138.2  best_Kd=2
+  Kp=   1  SR=0.00  RMS=39.6°
+  Kp=   2  SR=0.14  RMS=23.6°
+  Kp=   3  SR=0.29  RMS=19.4°
+  Kp=   4  SR=0.57  RMS=15.1°
+  Kp=   5  SR=0.43  RMS=11.0°
+  Kp=   6  SR=0.43  RMS=13.7°
+  Kp=   8  SR=0.71  RMS=8.5°
+  Kp=  10  SR=0.57  RMS=11.2°
+  Kp=  13  SR=0.86  RMS=10.6°
+  Kp=  16  SR=0.86  RMS=8.3°
+  Kp=  20  SR=0.57  RMS=9.6°
+  Kp=  25  SR=0.86  RMS=7.9°
+  Kp=  32  SR=0.57  RMS=7.5°
+  Kp=  40  SR=0.71  RMS=8.4°
+  Kp=  51  SR=0.71  RMS=6.2°
+  Kp=  64  SR=0.71  RMS=7.3°
+  Kp=  80  SR=0.43  RMS=8.4°
+  Kp= 101  SR=0.14  RMS=8.4°
+  Kp= 127  SR=0.71  RMS=7.9°
+  Kp= 160  SR=0.14  RMS=10.0°
+  Kp= 202  SR=0.29  RMS=9.9°
+  Kp= 254  SR=0.00  RMS=18.8°
+  Kp= 320  SR=0.00  RMS=74.2°
+  → floor=8.0  ceiling=127.0  window=15.9x  peak_SR=0.86 @ Kp=13
+
+[11/12] R0759  regime=FRAGILE  td=212.6  best_Kd=1
+  Kp=   1  SR=0.29  RMS=18.3°
+  Kp=   2  SR=0.14  RMS=15.9°
+  Kp=   3  SR=0.43  RMS=13.0°
+  Kp=   4  SR=0.14  RMS=13.6°
+  Kp=   5  SR=0.71  RMS=9.4°
+  Kp=   6  SR=0.71  RMS=9.0°
+  Kp=   8  SR=0.71  RMS=6.8°
+  Kp=  10  SR=0.71  RMS=7.0°
+  Kp=  13  SR=1.00  RMS=5.5°
+  Kp=  16  SR=1.00  RMS=5.3°
+  Kp=  20  SR=0.86  RMS=5.3°
+  Kp=  25  SR=1.00  RMS=3.3°
+  Kp=  32  SR=1.00  RMS=4.1°
+  Kp=  40  SR=1.00  RMS=3.7°
+  Kp=  51  SR=1.00  RMS=3.8°
+  Kp=  64  SR=1.00  RMS=4.1°
+  Kp=  80  SR=0.86  RMS=4.4°
+  Kp= 101  SR=0.71  RMS=5.2°
+  Kp= 127  SR=0.43  RMS=5.7°
+  Kp= 160  SR=0.71  RMS=6.9°
+  Kp= 202  SR=0.71  RMS=6.5°
+  Kp= 254  SR=0.43  RMS=10.6°
+  Kp= 320  SR=0.00  RMS=62.1°
+  → floor=5.0  ceiling=202.0  window=40.4x  peak_SR=1.00 @ Kp=13
+
+[12/12] R0255  regime=EASY  td=230.5  best_Kd=1
+  Kp=   1  SR=0.86  RMS=6.2°
+  Kp=   2  SR=1.00  RMS=3.7°
+  Kp=   3  SR=1.00  RMS=3.2°
+  Kp=   4  SR=1.00  RMS=2.9°
+  Kp=   5  SR=1.00  RMS=3.0°
+  Kp=   6  SR=1.00  RMS=2.8°
+  Kp=   8  SR=1.00  RMS=2.6°
+  Kp=  10  SR=1.00  RMS=2.3°
+  Kp=  13  SR=1.00  RMS=2.3°
+  Kp=  16  SR=1.00  RMS=2.2°
+  Kp=  20  SR=1.00  RMS=2.1°
+  Kp=  25  SR=1.00  RMS=1.8°
+  Kp=  32  SR=1.00  RMS=1.5°
+  Kp=  40  SR=1.00  RMS=1.2°
+  Kp=  51  SR=1.00  RMS=1.1°
+  Kp=  64  SR=1.00  RMS=1.0°
+  Kp=  80  SR=1.00  RMS=0.8°
+  Kp= 101  SR=1.00  RMS=0.8°
+  Kp= 127  SR=1.00  RMS=0.8°
+  Kp= 160  SR=1.00  RMS=0.8°
+  Kp= 202  SR=1.00  RMS=0.7°
+  Kp= 254  SR=1.00  RMS=0.7°
+  Kp= 320  SR=1.00  RMS=0.6°
+  → floor=1.0  ceiling=320.0  window=320.0x  peak_SR=1.00 @ Kp=2
+
+======================================================================
+GAIN WINDOW TABLE (governing equation: window ∝ theta_ddot^B)
+======================================================================
+      Design    regime       td    Kd    floor    ceiling    window   peak_SR
+----------------------------------------------------------------------
+       R0349      EASY      3.9     1        1        320     320.0x      1.00
+       R0523   FRAGILE     12.1     1        1        127     127.0x      1.00
+       R1041      EASY     27.3     1        1        320     320.0x      1.00
+       R0847      EASY     50.0     1        1        320     320.0x      1.00
+       R1155      EASY     51.0     1        1        320     320.0x      1.00
+       R1120      EASY     62.1     1        1        202     202.0x      1.00
+       R0203      EASY     72.9     1        2        160      80.0x      1.00
+       R0961      EASY     99.5     1        2        127      63.5x      1.00
+       R1165   FRAGILE    105.8     1        2        127      63.5x      1.00
+       R0504   FRAGILE    138.2     2        8        127      15.9x      0.86
+       R0759   FRAGILE    212.6     1        5        202      40.4x      1.00
+       R0255      EASY    230.5     1        1        320     320.0x      1.00
+
+Power law fit: window ≈ 670 × theta_ddot^-0.41  (r=-0.480)
+Floor fit:     floor  ≈ 0.44 × theta_ddot^0.33
+
+Saved to C:\Users\braxt\MATLAB Drive\TVC PID Research\tools\..\experiments\results\kp_window_sweep_v2_py.csv

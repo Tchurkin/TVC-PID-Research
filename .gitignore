@@ -17,9 +17,20 @@ Thumbs.db
 *.swp
 
 # Generated outputs (figures, logs)
-outputs/
+outputs/**
 *.log
 *.exe
+
+# STS-gold interactive visualizations — track in git despite outputs/ ignore
+!outputs/sts_gold_*.html
+!outputs/sts_gold_index.html
+
+# Claude AI workspace (local only)
+.claude/
+
+# Temp visualization data
+data_for_viz.json
+stress_data.json
 
 # One-time patch scripts
 sim/_patch_atlas.py

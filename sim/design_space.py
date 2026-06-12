@@ -37,8 +37,10 @@ p_unstable derivation (and known limitations)
 Command unit convention
 ───────────────────────
   u_max = 12 code units = max_gimbal_deg physical deflection (reference: 15 deg).
-  slew_max [code units/s] = slew_deg_s · (π/180) · (12 / max_gimbal_deg)
-  See units.py for full explanation and the known (π/180) factor discussion.
+  slew_max [code units/s] = slew_deg_s × (REF_U_MAX / REF_MAX_GIMBAL_DEG) = slew_deg_s × 0.8
+  This is independent of max_gimbal_deg (1 code unit = 1.25 physical degrees, fixed).
+  See units.py for the full derivation. Note: the old formula included a π/180 factor
+  (WRONG — was fixed 2026-06-05; made servos 57.3× too slow).
 """
 
 from __future__ import annotations
@@ -93,7 +95,7 @@ DESIGN_NAMES = [
 #   3.0 → triple-F15 (43.2 N avg, wet 300 g) — approaching G-class territory
 # max_gimbal_deg floor lowered to 2 deg to create genuinely authority-limited designs
 # servo_slew_deg_s: [60, 200] deg/s — realistic hobby servo range (40 deg/s is the reliable floor)
-# static_margin extended to [0.02, 0.30] — approach neutral stability on the low end
+# static_margin: [-0.30, +0.30] — signed; negative = stable (fins, CP aft), positive = unstable
 # Cm_alpha extended to [-90, -15] — wider aerodynamic instability range
 # static_margin is now SIGNED:
 #   > 0: CP forward of CG → aerodynamically UNSTABLE (TVC must actively stabilise)
@@ -289,11 +291,15 @@ def build_disturbance(design: dict) -> DisturbanceParams:
     )
 
 
-def build_scenario(theta0_bias_std: float = 0.0) -> ScenarioParams:
+def build_scenario(
+    theta0_bias_std: float = 0.0,
+    theta0_fixed_deg: float = 0.0,
+) -> ScenarioParams:
     return ScenarioParams(
         t_end             = 3.0,
         theta_ref         = 0.0,
         theta0_bias_std   = theta0_bias_std,
+        theta0_fixed_deg  = theta0_fixed_deg,
         fault_time_s      = float("inf"),
     )
 

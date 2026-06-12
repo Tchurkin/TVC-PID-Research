@@ -1,0 +1,36 @@
+Rocket_ID,max_gimbal_deg,motor_scale,Iyy_kgm2,authority_ratio,theta_ddot_max,P_FRAGILE,Predicted_regime,Expected_RMS_at_Kp2,Expected_best_Kp,Action,Note
+R0804,6.1,2.83,0.03047,569,35.7,0.004,EASY (confident),7.3,61.0,Test at Kp=2. Expect RMS < 7.6°. If RMS > 7.6° → re-classify.,FRAGILE in sim | best_Kp=96.3 | wind=0.24
+R0047,5.8,2.53,0.02269,643,40.4,0.006,EASY (borderline),7.8,71.0,Test at Kp=2. Expect RMS < 7.6°. If RMS > 7.6° → re-classify.,FRAGILE in sim | best_Kp=50.7 | wind=0.33
+R0680,11.9,2.22,0.02658,992,62.3,0.014,EASY (borderline),10.0,55.0,Test at Kp=2. Expect RMS < 7.6°. If RMS > 7.6° → re-classify.,FRAGILE in sim | best_Kp=88.8 | wind=0.10
+R0452,6.2,2.15,0.01329,1003,63.0,0.014,EASY (borderline),10.1,97.0,Test at Kp=2. Expect RMS < 7.6°. If RMS > 7.6° → re-classify.,FRAGILE in sim | best_Kp=182.8 | wind=0.18
+R0115,14.2,2.33,0.02662,1243,78.1,0.023,FRAGILE-suspect,11.4,58.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,FRAGILE in sim | best_Kp=252.9 | wind=0.11
+R0772,9.7,1.8,0.01379,1270,79.8,0.024,FRAGILE-suspect,11.5,81.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,FRAGILE in sim | best_Kp=182.8 | wind=0.32
+R0336,6.4,2.75,0.01347,1310,82.3,0.025,FRAGILE-suspect,11.7,119.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,FRAGILE in sim | best_Kp=69.6 | wind=0.07
+R0439,10.4,2.03,0.01371,1533,96.3,0.035,FRAGILE-suspect,12.8,90.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,FRAGILE in sim | best_Kp=320.0 | wind=0.27
+R1178,13.0,2.81,0.02138,1711,107.5,0.044,FRAGILE-suspect,13.7,81.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,FRAGILE in sim | best_Kp=3.6 | wind=0.38
+R1094,9.3,1.89,0.01009,1743,109.5,0.046,FRAGILE-suspect,13.8,110.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,FRAGILE in sim | best_Kp=88.8 | wind=0.32
+R0405,13.1,2.4,0.01738,1807,113.5,0.049,FRAGILE-suspect,14.1,85.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,FRAGILE in sim | best_Kp=31.4 | wind=0.42
+R0748,12.0,2.13,0.01019,2510,157.7,0.095,FRAGILE (likely),17.0,121.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,FRAGILE in sim | best_Kp=13.0 | wind=0.07
+R0084,14.6,2.99,0.01676,2597,163.2,0.101,FRAGILE (likely),17.3,106.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,FRAGILE in sim | best_Kp=24.6 | wind=0.12
+R0958,11.0,2.83,0.01034,3019,189.7,0.134,FRAGILE (likely),18.9,152.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,FRAGILE in sim | best_Kp=31.2 | wind=0.39
+R0692,11.3,2.98,0.01109,3029,190.3,0.135,FRAGILE (likely),18.9,149.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,FRAGILE in sim | best_Kp=16.4 | wind=0.44
+R0373,14.8,2.93,0.01345,3211,201.7,0.15,FRAGILE (likely),19.6,125.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,FRAGILE in sim | best_Kp=59.2 | wind=0.14
+R0252,6.5,2.79,0.02823,640,40.2,0.006,EASY (borderline),7.8,64.0,Test at Kp=2. Expect RMS < 7.6°. If RMS > 7.6° → re-classify.,MARGINAL in sim | best_Kp=1.0 | wind=0.28
+R0852,11.5,1.96,0.02046,1098,69.0,0.018,EASY (borderline),10.6,62.0,Test at Kp=2. Expect RMS < 7.6°. If RMS > 7.6° → re-classify.,MARGINAL in sim | best_Kp=133.2 | wind=0.39
+R0386,4.3,2.96,0.01165,1101,69.2,0.018,EASY (borderline),10.6,143.0,Test at Kp=2. Expect RMS < 7.6°. If RMS > 7.6° → re-classify.,MARGINAL in sim | best_Kp=112.4 | wind=0.13
+R0233,8.1,2.34,0.01396,1353,85.0,0.027,FRAGILE-suspect,12.0,100.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,MARGINAL in sim | best_Kp=113.3 | wind=0.34
+R1082,8.7,2.11,0.01225,1504,94.5,0.034,FRAGILE-suspect,12.7,102.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,MARGINAL in sim | best_Kp=96.3 | wind=0.40
+R0828,9.8,2.74,0.01507,1776,111.6,0.048,FRAGILE-suspect,14.0,107.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,MARGINAL in sim | best_Kp=59.7 | wind=0.41
+R0511,11.1,2.89,0.0166,1924,120.9,0.056,FRAGILE (likely),14.6,103.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,MARGINAL in sim | best_Kp=113.3 | wind=0.19
+R0504,14.7,2.59,0.01719,2225,139.8,0.075,FRAGILE (likely),15.9,92.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,MARGINAL in sim | best_Kp=320.0 | wind=0.19
+R0360,13.0,1.76,0.01009,2263,142.2,0.077,FRAGILE (likely),16.0,104.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,MARGINAL in sim | best_Kp=16.4 | wind=0.17
+R0471,14.5,2.44,0.01554,2273,142.8,0.078,FRAGILE (likely),16.1,95.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,MARGINAL in sim | best_Kp=26.7 | wind=0.21
+R0944,11.5,3.0,0.01499,2306,144.9,0.08,FRAGILE (likely),16.2,116.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,MARGINAL in sim | best_Kp=96.3 | wind=0.20
+R0255_EASY,14.7,2.59,0.01025,3708,233.0,0.194,FRAGILE (likely),21.2,142.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,EASY in sim (high boundary) | best_Kp=231.3
+R0759_EASY,13.8,2.9,0.01172,3417,214.7,0.168,FRAGILE (likely),20.3,139.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,EASY in sim (high boundary) | best_Kp=88.8
+R1021_EASY,14.5,2.27,0.01002,3294,206.9,0.158,FRAGILE (likely),19.8,129.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,EASY in sim (high boundary) | best_Kp=16.4
+R0287_EASY,13.9,2.42,0.01052,3198,200.9,0.149,FRAGILE (likely),19.5,131.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,EASY in sim (high boundary) | best_Kp=88.8
+R0076_EASY,12.7,2.59,0.01074,3067,192.7,0.138,FRAGILE (likely),19.1,137.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,EASY in sim (high boundary) | best_Kp=132.2
+HARDWARE-1 [edit me],8.0,1.0,0.02,400,25.1,0.002,EASY (confident),6.0,36.0,Test at Kp=2. Expect RMS < 7.6°. If RMS > 7.6° → re-classify.,REPLACE with actual hardware specs
+HARDWARE-2 [edit me],10.0,1.5,0.015,1000,62.8,0.014,EASY (borderline),10.1,65.0,Test at Kp=2. Expect RMS < 7.6°. If RMS > 7.6° → re-classify.,REPLACE with actual hardware specs
+HARDWARE-3 [edit me],12.0,2.0,0.012,2000,125.7,0.06,FRAGILE (likely),14.9,100.0,Tune Kp=40-120. RMS@Kp=2 will likely exceed 7.6°. Use full-physics sim.,REPLACE with actual hardware specs

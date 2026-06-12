@@ -49,15 +49,18 @@ from plant_dynamics import PlantParams, step_plant
 from actuator_model import ActuatorParams, ActuatorState, step_actuator
 from sensor_model import SensorParams, SensorState, init_sensor_state, step_sensor
 from disturbance_model import DisturbanceParams, GustState, init_gust_state, step_disturbance
-from controller import PIDParams, PIDState, step_pid
+from controller import PIDParams, PIDState, step_pid, ADRCParams, ADRCState, step_adrc
 
 
 @dataclass
 class ScenarioParams:
     t_end: float = 3.0                  # burn duration (s)
-    theta_ref: float = 0.0              # constant pitch reference (rad)
+    theta_ref: float = 0.0              # constant pitch reference (rad); ignored if theta_step_deg != 0
     theta0_bias_std: float = 0.0        # std of random initial angle offset (rad)
     theta0_fixed_deg: float = 0.0       # deterministic initial angle (deg); overrides bias when non-zero
+    # Optional step command (pitch tracking task)
+    theta_step_deg: float = 0.0         # commanded step magnitude (deg); 0 = attitude hold only
+    theta_step_time_s: float = float("inf")  # time at which step is commanded (s)
     # Optional midburn fault
     fault_time_s: float = float("inf")  # time at which fault activates (s)
     keff_fault_post: float = 1.0        # keff multiplier after fault
@@ -89,6 +92,11 @@ class SimResult:
     band_30_pass: bool   # max |theta| < 30 deg
     band_20_pass: bool   # max |theta| < 20 deg
     band_10_pass: bool   # max |theta| < 10 deg
+    # Step tracking metrics (0.0 when no step command given)
+    tracking_rms_deg: float = 0.0   # RMS error during post-step tracking phase
+    rise_time_s: float = 0.0        # time from step to first crossing 90% of command
+    overshoot_deg: float = 0.0      # max exceedance above command magnitude
+    step_ref_arr: np.ndarray = None  # time-varying reference (None if constant)
 
 
 def simulate(
@@ -99,6 +107,7 @@ def simulate(
     disturbance: DisturbanceParams,
     scenario: ScenarioParams,
     seed: int = 1,
+    adrc: "ADRCParams | None" = None,
 ) -> SimResult:
     """
     Run one complete simulation from t=0 to t=t_end.
@@ -161,6 +170,8 @@ def simulate(
     # Stationary gust initialisation — draws from N(0, gust_std) at t=0
     gust_state  = init_gust_state(disturbance, rng)
     pid_state   = PIDState(i_state=0.0, q_ctrl_prev=0.0)
+    # ADRC state: initialise z1=theta0 so observer starts at true initial angle
+    adrc_state  = ADRCState(z1=theta0, z2=0.0, z3=0.0, u_prev=0.0) if adrc is not None else None
 
     # Seed measurements at k=0 from initial condition
     theta_m_arr[0] = sens_state.theta_integrated
@@ -170,6 +181,14 @@ def simulate(
     # At k=1 the latency buffer holds the initial condition.
     theta_ctrl = theta_m_arr[0]
     q_ctrl     = q_m_arr[0]
+
+    # ── Build time-varying reference trajectory ───────────────────────────────
+    has_step = scenario.theta_step_deg != 0.0
+    if has_step:
+        step_rad = np.deg2rad(scenario.theta_step_deg)
+        ref_arr  = np.where(t >= scenario.theta_step_time_s, step_rad, scenario.theta_ref)
+    else:
+        ref_arr  = None  # use scalar scenario.theta_ref in loop (avoids per-step indexing cost)
 
     # ── Main loop ─────────────────────────────────────────────────────────────
     for k in range(1, N):
@@ -235,7 +254,11 @@ def simulate(
         d_eff = d_raw + bias_post * plant.inertia_scale / max(0.5, plant.mass_scale)
 
         # 2. Controller (uses previous step's delayed measurements)
-        u_cmd = step_pid(pid_state, pid, theta_ctrl, q_ctrl, scenario.theta_ref, dt)
+        theta_ref_k = ref_arr[k] if has_step else scenario.theta_ref
+        if adrc is not None and adrc_state is not None:
+            u_cmd = step_adrc(adrc_state, adrc, theta_ctrl, q_ctrl, theta_ref_k, dt)
+        else:
+            u_cmd = step_pid(pid_state, pid, theta_ctrl, q_ctrl, theta_ref_k, dt)
 
         # 3. Actuator
         u_act = step_actuator(act_state, actuator, u_cmd, dt)
@@ -264,9 +287,10 @@ def simulate(
         theta_m_arr[k] = theta_ctrl
 
     # ── Metrics ───────────────────────────────────────────────────────────────
-    theta_d    = np.degrees(theta_arr)
-    theta_ref_d = np.degrees(scenario.theta_ref)
-    err_d      = theta_d - theta_ref_d
+    theta_d     = np.degrees(theta_arr)
+    ref_arr_d   = np.degrees(ref_arr) if has_step else np.full(N, np.degrees(scenario.theta_ref))
+    theta_ref_d = ref_arr_d  # used for error computation
+    err_d       = theta_d - ref_arr_d
 
     rms_e  = float(np.sqrt(np.mean(err_d ** 2)))
     peak_e = float(np.max(np.abs(err_d)))
@@ -308,6 +332,33 @@ def simulate(
     nz = es[es != 0]
     osc_score = float(np.sum(np.abs(np.diff(nz)) > 0)) if len(nz) > 1 else 0.0
 
+    # ── Step tracking metrics ─────────────────────────────────────────────────
+    tracking_rms = 0.0
+    rise_time    = 0.0
+    overshoot    = 0.0
+    if has_step and scenario.theta_step_time_s < t[-1]:
+        step_idx = int(round(scenario.theta_step_time_s / dt))
+        post_mask = t >= scenario.theta_step_time_s + 0.3  # skip first 0.3s transient
+        if post_mask.any():
+            tracking_rms = float(np.sqrt(np.mean(err_d[post_mask] ** 2)))
+        # Rise time: first crossing of 90% of step command
+        target_90pct = 0.9 * scenario.theta_step_deg
+        crossed = np.where(
+            (np.degrees(theta_arr) - np.degrees(scenario.theta_ref)) * np.sign(scenario.theta_step_deg)
+            >= abs(target_90pct)
+        )[0]
+        if len(crossed) > 0:
+            first_cross = crossed[crossed >= step_idx]
+            rise_time = float(t[first_cross[0]] - scenario.theta_step_time_s) if len(first_cross) > 0 else float(t[-1])
+        else:
+            rise_time = float(t[-1])  # never reached
+        # Overshoot: max exceedance above command
+        step_d = scenario.theta_step_deg
+        if step_d > 0:
+            overshoot = max(0.0, float(np.max(theta_d[step_idx:])) - step_d)
+        else:
+            overshoot = max(0.0, step_d - float(np.min(theta_d[step_idx:])))
+
     return SimResult(
         t=t,
         theta_true=theta_arr,
@@ -328,4 +379,8 @@ def simulate(
         band_30_pass=band_30_pass,
         band_20_pass=band_20_pass,
         band_10_pass=band_10_pass,
+        tracking_rms_deg=tracking_rms,
+        rise_time_s=rise_time,
+        overshoot_deg=overshoot,
+        step_ref_arr=ref_arr_d if has_step else None,
     )

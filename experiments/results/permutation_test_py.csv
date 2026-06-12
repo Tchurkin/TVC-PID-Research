@@ -1,0 +1,2 @@
+n_permutations,observed_AUC,null_mean_AUC,null_std_AUC,p_value,z_score,null_99p9
+10000,0.8548,0.4998,0.0732,0.0,4.8,0.7128

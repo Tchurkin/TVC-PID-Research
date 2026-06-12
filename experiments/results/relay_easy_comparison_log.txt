@@ -1,0 +1,65 @@
+Running relay probe on 25 EASY + 25 FRAGILE designs
+Probe: Kp=2, 5 seeds, t_end=3.0s
+
+  EASY     R0349  td=   3.9  A=  7.6deg  K_u=   18.4  rms=4.9  slew=0.00
+  EASY     R1179  td=  10.0  A=  5.1deg  K_u=   45.1  rms=3.2  slew=0.00
+  EASY     R0951  td=  12.5  A=  7.0deg  K_u=   23.9  rms=4.3  slew=0.00
+  EASY     R0630  td=  15.3  A=  3.1deg  K_u=  118.8  rms=1.9  slew=0.03
+  EASY     R0193  td=  17.7  A=  3.5deg  K_u=  100.0  rms=2.0  slew=0.00
+  EASY     R0097  td=  20.0  A=  1.7deg  K_u=  335.8  rms=1.1  slew=0.09
+  EASY     R0614  td=  22.2  A=  7.4deg  K_u=   63.9  rms=4.2  slew=0.57
+  EASY     R0377  td=  24.9  A=  8.0deg  K_u=   28.8  rms=5.0  slew=0.00
+  EASY     R1041  td=  27.3  A=  3.0deg  K_u=  144.6  rms=1.9  slew=0.00
+  EASY     R0673  td=  30.2  A=  5.3deg  K_u=   98.2  rms=3.3  slew=0.45
+  EASY     R0394  td=  32.5  A=  5.2deg  K_u=  150.2  rms=3.1  slew=0.47
+  EASY     R0539  td=  35.2  A=  3.6deg  K_u=  120.2  rms=2.2  slew=0.00
+  EASY     R0764  td=  37.6  A=  4.3deg  K_u=  131.2  rms=2.6  slew=0.37
+  EASY     R1105  td=  41.3  A=  6.4deg  K_u=   74.3  rms=4.0  slew=0.43
+  EASY     R0774  td=  44.0  A=  6.8deg  K_u=  122.5  rms=4.2  slew=0.55
+  EASY     R1054  td=  47.3  A=  5.4deg  K_u=  112.7  rms=3.3  slew=0.30
+  EASY     R1155  td=  51.0  A=  1.9deg  K_u=  382.3  rms=1.2  slew=0.13
+  EASY     R0011  td=  57.4  A=  6.1deg  K_u=  120.2  rms=4.1  slew=0.45
+  EASY     R1043  td=  63.3  A=  8.1deg  K_u=   85.1  rms=5.0  slew=0.43
+  EASY     R0128  td=  68.0  A= 12.8deg  K_u=   38.0  rms=8.2  slew=0.37
+  EASY     R0469  td=  73.5  A=  5.6deg  K_u=  122.8  rms=3.3  slew=0.57
+  EASY     R0708  td=  82.0  A=  7.0deg  K_u=  107.1  rms=4.0  slew=0.55
+  EASY     R0756  td=  97.8  A= 12.2deg  K_u=   32.0  rms=7.6  slew=0.43
+  EASY     R0571  td= 117.5  A= 11.1deg  K_u=   54.8  rms=7.0  slew=0.56
+  EASY     R0255  td= 230.5  A=  5.7deg  K_u=  150.2  rms=3.5  slew=0.41
+  FRAGILE  R0091  td= 115.8  A= 14.4deg  K_u=   55.4  rms=8.5  slew=0.70
+  FRAGILE  R0146  td=  97.3  A= 13.9deg  K_u=   56.6  rms=7.5  slew=0.60
+  FRAGILE  R0267  td= 178.6  A= 25.0deg  K_u=   30.3  rms=13.3  slew=0.71
+  FRAGILE  R0373  td= 199.5  A= 18.1deg  K_u=   47.4  rms=10.6  slew=0.72
+  FRAGILE  R0430  td=  75.2  A= 13.1deg  K_u=   25.2  rms=7.9  slew=0.00
+  FRAGILE  R0491  td= 172.7  A= 23.9deg  K_u=   29.7  rms=14.6  slew=0.81
+  FRAGILE  R0503  td= 151.7  A= 18.2deg  K_u=   44.1  rms=11.5  slew=0.76
+  FRAGILE  R0504  td= 138.2  A= 19.0deg  K_u=   45.4  rms=11.1  slew=0.73
+  FRAGILE  R0523  td=  12.1  A=  5.8deg  K_u=   74.9  rms=3.5  slew=0.54
+  FRAGILE  R0641  td= 105.9  A= 16.1deg  K_u=   53.0  rms=9.9  slew=0.61
+  FRAGILE  R0671  td= 120.4  A= 16.2deg  K_u=   43.4  rms=10.2  slew=0.70
+  FRAGILE  R0680  td=  61.9  A= 10.5deg  K_u=   66.0  rms=5.8  slew=0.54
+  FRAGILE  R0688  td= 129.0  A= 32.9deg  K_u=   16.8  rms=20.8  slew=0.80
+  FRAGILE  R0748  td= 156.5  A= 18.0deg  K_u=   38.9  rms=9.7  slew=0.79
+  FRAGILE  R0759  td= 212.6  A= 27.8deg  K_u=   29.0  rms=15.4  slew=0.74
+  FRAGILE  R0866  td= 103.4  A= 23.8deg  K_u=   23.1  rms=14.9  slew=0.71
+  FRAGILE  R0954  td=  94.9  A= 15.5deg  K_u=   38.5  rms=9.5  slew=0.68
+  FRAGILE  R0958  td= 188.5  A= 24.1deg  K_u=   26.7  rms=15.9  slew=0.79
+  FRAGILE  R0982  td= 131.0  A= 12.6deg  K_u=   67.6  rms=7.3  slew=0.68
+  FRAGILE  R1021  td= 204.7  A= 25.7deg  K_u=   33.1  rms=16.3  slew=0.80
+  FRAGILE  R1070  td= 117.7  A= 19.4deg  K_u=   28.8  rms=12.6  slew=0.78
+  FRAGILE  R1082  td=  94.1  A= 20.1deg  K_u=   25.4  rms=11.7  slew=0.53
+  FRAGILE  R1094  td= 109.0  A= 22.8deg  K_u=   23.8  rms=13.9  slew=0.74
+  FRAGILE  R1165  td= 105.8  A= 16.5deg  K_u=   47.8  rms=8.7  slew=0.63
+  FRAGILE  R1171  td=  96.9  A= 22.2deg  K_u=   19.2  rms=12.9  slew=0.37
+
+=== SUMMARY ===
+  EASY    (n=25):  K_u=111.2±85.6  td=50.5  rms@Kp2=3.8°
+  FRAGILE (n=25):  K_u=39.6±16.0  td=126.9  rms@Kp2=11.4°
+
+  r(theta_ddot, K_u):       -0.338
+  rho(theta_ddot, K_u):     -0.358
+  r(log, log):              -0.279
+  Power law: K_u ≈ 142 × theta_ddot^-0.22
+  Theory expects: K_u ∝ slew/theta_ddot  (exponent ≈ -1)
+
+Saved to C:\Users\braxt\MATLAB Drive\TVC PID Research\tools\..\experiments\results\relay_easy_comparison_py.csv

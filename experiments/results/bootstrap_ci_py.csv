@@ -1,0 +1,5 @@
+Metric,Point_estimate,CI_lower_95,CI_upper_95,Note
+AUC (θ̈_max → FRAGILE),0.8548,0.7650,0.9306,± 0.0424
+Youden-J threshold (rad/s²),62.3,35.7,96.3,± 12.5
+EASY mean θ̈_max (rad/s²),47.2,45.2,49.1,n=1171
+FRAGILE mean θ̈_max (rad/s²),110.7,86.0,137.6,n=16
