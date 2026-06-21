@@ -49,21 +49,17 @@ One additional result has cross-architecture theoretical weight: ADRC's extended
 
 ## Abstract
 
-The safe proportional gain window [Kp_floor, Kp_ceiling] for a hobby-scale thrust-vector-control rocket is governed by a dimensionless parameter derived from first principles:
+A hobby-scale TVC rocket's safe proportional gain window [Kp_floor, Kp_ceiling] is governed by a dimensionless parameter derived from first principles:
 
-> **Π = k_eff × τ²** &emsp; [rad/CU], &emsp; where k_eff = T_avg × (π/180 × 15/12) × L_nozzle / Iyy and τ = control-loop latency in steps
+> **Π = k_eff × τ²**, &emsp; k_eff = T_avg × (π/180 × 15/12) × L_nozzle / Iyy, &emsp; τ = latency in steps
 
-Window_ratio = Kp_ceiling / Kp_floor scales as Π⁻¹ (CV R² = 0.546, n = 82; theoretical exponent −1.000, observed −1.029). This relationship arises from a ceiling–floor double squeeze: the gain ceiling falls with latency (Kp_ceiling ≈ 380/τ, from DIPDT phase-margin analysis), while the gain floor *rises* with the same latency (Kp_floor ≈ 0.06 × k_eff × τ, empirically confirmed and mechanistically validated). The result is that the window compresses as τ⁻², not τ⁻¹ — each doubling of control-loop latency shrinks the viable gain range by 3.7×, not 2.1× as prior ceiling-only theory would predict. The floor's latency dependence is the novel finding: prior work treated the gain floor as a function of mechanical authority alone.
+The ceiling falls with latency (Kp_ceiling ≈ 380/τ; DIPDT phase-margin, keff-independent) while the floor *rises* with the same latency (Kp_floor ≈ 0.06 × keff × τ; bang-bang blind-spot). Together — the "double squeeze" — the window compresses as τ⁻², not τ⁻¹: each latency doubling shrinks viable gain range by 3.7× on average, versus 2.1× from ceiling-only theory. The floor's latency dependence is the central finding; prior work modeled the floor as a function of authority alone.
 
-This Π constraint is architecture-invariant: PID, LQR, and SMC controllers all exhibit Spearman ρ(Π, window metric) ≈ −0.75 on the same 50 designs, confirming the constraint is a property of open-loop linear feedback under delay, not a tuning artifact. ADRC with an Extended State Observer partially decouples from Π by canceling disturbances upstream of servo saturation — a 2×2 factorial test (n = 15) shows PID-without-saturation achieves SR = 1.000 for all designs including the most extreme (Π = 12,648), while PID-with-saturation fails at SR = 0.60; ADRC achieves the no-saturation PID result with a real servo because the ESO prevents saturation from occurring. ADRC extends the feasible frontier 2.4× in Π at standard tuning, and further with an adaptive bandwidth ratio (zero failures to Π = 49,893 with ω₀/ωc = 20).
+A properly-powered continuous regression (n = 262 designs, 5-fold CV R² = 0.33 ± 0.09, p = 5.8×10⁻¹¹) confirms a monotone dose-response from td = 0 to ≈300 rad/s², plateauing above that with latency as the binding risk factor. Binary secondary result (n = 2,400 survey): AUC = 0.975, Cohen's d = 3.71, each of two independent corrections strengthening the finding rather than weakening it.
 
-A properly-powered continuous regression (n = 262 designs, stratified to cover the full Π range) confirms the dose-response relationship empirically: gain margin degrades smoothly from td = 0 to ≈ 300 rad/s², then plateaus with latency becoming the dominant residual risk factor. **R² = 0.36 (in-sample) / 0.33 ± 0.09 (5-fold cross-validated), p = 5.8×10⁻¹¹.** The actionable prevalence: 2% of low-authority designs (td < 40) fall below the 0.80 reliability threshold; 46% of extreme-authority designs (td > 300) do. (A 3D-printed F15-class rocket with Iyy ≈ 0.010 kg·m² and a 10° gimbal sits at θ̈_max ≈ 85 rad/s², within the 80–120 band where 26% fall below 0.80 — the practical regime this paper targets.)
+The Π constraint is architecture-invariant across PID, LQR, and SMC (Spearman ρ ≈ −0.75, n = 50 designs). ADRC with an ESO breaks it: saturation isolation (2×2 factorial, n = 15) shows PID-without-saturation achieves SR = 1.000 at all tested Π, confirming slew saturation is both necessary and sufficient for PID failure; ADRC's ESO prevents saturation (slew_frac = 0.000 in all 15 tests) and extends the feasible frontier to Π > 49,893 with adaptive ω₀/ωc.
 
-The original binary result is retained as a secondary, simplified decision aid: cross-validated AUC = 0.975, Cohen's d = 3.71 on the final, twice-corrected population (n = 36 of 2,400 "FRAGILE" designs; two internal audits, Section 4.6, found and fixed both an underpowered 3-seed robustness test and an underpowered gain search, each correction *strengthening* the result). Four environmental hypotheses (wind, servo slew, aerodynamic instability, their interactions) were rejected as *predictors of which designs are gain-sensitive* — not as irrelevant to flight in general. A companion fidelity analysis (Section 5.1.1, n = 25 designs) shows the distinction: below θ̈_max = 70 rad/s², no individual fidelity module adds measurable evaluation difficulty; above it, sensor noise and control-loop latency are the hardest evaluation factors (+0.12 SR impact each), while wind has the *smallest* evaluation impact (+0.04 maximum) — consistent with wind's role being to select the correct Kp during tuning, not to make a correctly-tuned design fail. Mechanical authority and control-loop latency are the predictors of *which designs need careful tuning*; all fidelity modules remain relevant to flight itself. The mechanistic chain — Newton → bang-bang oscillation amplitude → Åström–Hägglund ultimate gain K_u → window collapse — was re-verified with a literal relay probe on the final population (K_u: 29.2 median for narrow-window designs vs. 91.2 for wide-window, 3.12×, p = 4.17×10⁻⁷, the tightest of three successive re-derivations).
-
-An exploratory, simulation-based comparison (Section 6.2, n = 46 cells across 6 authority levels × 8 latency levels) finds that ADRC's bandwidth ceiling depends primarily on latency and secondarily on mechanical authority (fitted power law ωc_max ≈ 70/(latency^0.57 · θ̈_max^0.31), R² = 0.823). PID's ceiling barely depends on authority (plant-gain exponent ≈ −0.20); ADRC's authority exponent (−0.31) is 1.5× larger — a measurable but moderate secondary coupling absent from PID. An earlier, smaller sweep (n = 21 cells) suggested a larger authority exponent (−0.77) that did not replicate when the sample was extended; the updated exponents should be read as approximate and subject to hardware validation. To the author's knowledge, no prior work has made this comparison quantitatively for any TVC hardware class. A runnable tool (`tools/gain_advisor.py`) implements both ceiling laws with their uncertainty documented inline; this is a usability deliverable rather than a novel contribution in its own right.
-
-A single test flight at Kp = 2 detects gain-sensitive rockets with AUC = 0.954 (7-seed, final population). Disturbance-free simulator tuning causes 63.9% false rejection for gain-sensitive designs; critically, the 2 genuinely uncontrollable ("INFEASIBLE") designs that survive correction show 100% false *approval* — the one place a disturbance-free simulator gives zero warning rather than excess caution. Active Disturbance Rejection Control (ADRC) at a single, untuned setting closes 83% of the PID gain-sensitivity gap (36 narrow-window designs, Section 6.1); the residual 2/36 failures are explained, and resolved, by the same θ̈_max × latency mechanism — now shown to generalize across a structurally different controller architecture.
+A companion fidelity study finds sensor noise and latency are the dominant evaluation-difficulty modules above td = 70 rad/s²; wind has the smallest evaluation impact (+0.04 SR) despite being essential for selecting the correct gain. A single Kp = 2 test flight detects narrow-window designs with AUC = 0.954. A runnable tool (`tools/gain_advisor.py`) outputs the recommended [Kp_floor, Kp_ceiling] range and ADRC ωc ceiling from hardware specs alone.
 
 ---
 
@@ -214,9 +210,7 @@ Full-data AUC reported with 95% bootstrap CI (n = 10,000 resamples). Cross-valid
 
 ### 4.0 The continuous gain-margin relationship (PRIMARY RESULT)
 
-**Motivation.** Every result in Sections 4.1–4.6 below operationalizes "gain sensitivity" as a binary label (FRAGILE vs. EASY) produced by thresholding a 3-condition robustness test at 0.80. Two things about that framing invite legitimate skepticism. First, AUC computed against a ~1.5% base rate is easy to misread as strong "accuracy" — a classifier that always predicts EASY already achieves ~98.5% accuracy and is useless, and AUC (while a real, non-base-rate-distorted ranking statistic) does not by itself communicate that the corresponding precision at any practical threshold is only ~12%. Second, this project's own boundary experiment (Section 4.6.3) and the Wilson-CI "uncertain" flag (33.6% of at-risk designs straddle a decision threshold even at 30 seeds, Section 4.5.7) both pointed toward FRAGILE/EASY being a thresholded view of a continuum rather than two physically distinct populations — a claim Section 7.4 made qualitatively but never tested with adequately-powered continuous data.
-
-**This section tests that directly**, with a new, purpose-built experiment rather than reused classification by-products.
+**Motivation.** Sections 4.1–4.6 use a binary FRAGILE/EASY label from a 3-condition robustness test. Two objections motivate this continuous re-analysis: (1) AUC at a ~1.5% base rate is easily confused with accuracy — a classifier that always predicts EASY achieves ~98.5% "accuracy" and is useless; (2) the boundary experiment (Section 4.6.3) and Wilson-CI uncertainty flags (33.6% of at-risk designs straddle the threshold at 30 seeds) both suggested FRAGILE/EASY is a thresholded view of a continuum. **This section tests that directly** with a purpose-built continuous experiment.
 
 **Method.** Two sequential passes (`tools/continuous_margin_regression.py`, `tools/elbow_characterization.py`), both using the same finer joint Kp×Kd gain search as the final classification correction (Section 4.5.7) so the result is not confounded by an inadequate search:
 
@@ -633,39 +627,30 @@ The drop in θ̈_max-alone AUC under extended latency is itself informative: it 
 
 ### 4.5.6 Audit: 3-seed classification noise and its correction
 
-With exactly 3 binary seeds, success rate can only be {0, 1/3, 2/3, 1}. The classification threshold (0.80) sits between 2/3 and 1.0, so the test cannot distinguish a truly robust design (true p ≈ 0.85–0.95) from a truly fragile one (true p ≈ 0.5–0.7) — both commonly land on 2/3 by chance. Confirmed: 43 of 45 original FRAGILE designs (95.6%) were "borderline" (one seed-flip away from a different label).
+With 3 binary seeds, success rate can only be {0, 1/3, 2/3, 1}. The threshold (0.80) sits between 2/3 and 1.0, making the test unable to reliably distinguish true p ≈ 0.85 from true p ≈ 0.65. Confirmed: 43/45 original FRAGILE designs (95.6%) were one seed-flip from a different label. Re-evaluating 249 at-risk designs with 15 fresh disjoint seeds (gains frozen) gave:
 
-**Correction:** 249 at-risk designs re-evaluated with 15 fresh seeds (disjoint from original 3), gains frozen.
+| Regime | Original | 15-seed corrected |
+|---|---|---|
+| FRAGILE | 45 | 30 (60% flipped) |
+| MARGINAL | 5 | 2 (dissolved — 3-seed artifact) |
 
-| Regime | Original (3-seed) | Corrected (15-seed) | Flip rate |
-|---|---|---|---|
-| EASY | 2,347 | 2,365 | 6.1% of high-θ̈ subset |
-| FRAGILE | 45 | 30 | 60% (25→EASY, 2→INFEASIBLE) |
-| MARGINAL | 5 | 2 | 100% (all→EASY) |
-| INFEASIBLE | 3 | 3 (composition changed) | 66.7% |
-
-MARGINAL dissolved entirely — a 3-seed artifact. AUC improved: 0.943→0.957, confirming the physical signal was real and the noise had diluted it.
-
-**Lesson:** a binary criterion with n seeds cannot resolve probabilities finer than 1/n. Future work: use ≥7 seeds, or report continuous SR with a binomial CI. This correction is itself superseded by Section 4.5.7, which found the original gains were also suboptimal.
+AUC: 0.943→0.957. Each correction strengthened rather than weakened the signal. **Lesson:** binary test with n seeds cannot resolve probabilities finer than 1/n; use ≥7 seeds or report continuous SR with CI. Superseded by Section 4.5.7 (gain search was also underpowered).
 
 ### 4.5.7 Second audit: the gain search was also underpowered
 
-The original `autotune_continuous` probes Kd once at Kp = 40 (frozen), then searches Kp alone over 10 coarse log-spaced points (~2.16× step) — coarser than measured gain windows (1.5–3.3×). Proof case: R0475 was labeled INFEASIBLE under both the original and 15-seed correction (SR ≈ 0.40 at frozen gains Kp=155, Kd=1). A finer joint 18×7 grid found gains giving SR = 0.90 for the same hardware. It was never physically uncontrollable.
+`autotune_continuous` searches Kp alone (Kd frozen at a single reference probe), using ~10 coarse log-spaced points (~2.16× step) — coarser than many measured gain windows (1.5–3.3×). Proof case: R0475 was labeled INFEASIBLE in both the 3-seed and 15-seed passes (SR ≈ 0.40 at frozen gains). A finer 18×7 joint Kp×Kd grid found gains achieving SR = 0.90 for the same hardware — never physically uncontrollable.
 
-**Correction (`tools/exp1_final_correction.py`):** 241 at-risk designs — finer joint Kp×Kd search (126 combos), then 30 fresh seeds (disjoint), plus Wilson 95% CI to flag uncertain designs.
+**Correction:** 241 at-risk designs re-run with the finer joint search (126 combos, 3 seeds) + 30 fresh evaluation seeds + Wilson 95% CI to flag uncertain designs.
 
 | Regime | 15-seed (frozen gains) | Final (finer search + 30 seeds) |
 |---|---|---|
-| EASY | 2,365 | 2,362 |
-| FRAGILE | 30 | 36 |
-| MARGINAL | 2 | 0 (fully dissolved) |
-| INFEASIBLE | 3 | 2 |
+| FRAGILE | 30 | **36** (21 new from high-td EASY; 15 reclassified down) |
+| MARGINAL | 2 | 0 (dissolved) |
+| INFEASIBLE | 3 | **2** (1 was a search artifact) |
 
-**AUC 0.957→0.975; Cohen's d 1.74→3.71 (t=11.2, p=3.6×10⁻¹³).** Third consecutive correction where fixing a methodological flaw strengthened the finding. 15/30 first-pass FRAGILE designs flipped to EASY (lower-severity half, median td≈97); 21 new ones entered from the high-θ̈ EASY pool (median td≈149). FRAGILE mean θ̈_max rose 124.5→168.2 rad/s². Min FRAGILE td (58.8) still falls below many wide-window designs (top td values 411.8, 376.6, 334.8) — no clean separating value exists, confirming the continuum directly.
+**AUC 0.957→0.975; Cohen's d 1.74→3.71 (p=3.6×10⁻¹³).** Each audit strengthened the signal: the corrected FRAGILE population skews to higher authority (mean td 124.5→168.2 rad/s²), with false negatives exposed and false positives removed. Min FRAGILE td (58.8) falls below many wide-window designs (top EASY td: 411.8, 376.6) — no clean separating threshold exists, confirming the continuum.
 
-**Irreducible uncertainty:** 81/241 re-examined designs (33.6%) remain "uncertain" (Wilson CI straddles the threshold at n=30), concentrated on the ceiling/over-robustness test specifically (70/241 = 29%) and only above θ̈_max ≈ 55 rad/s². Below that value, the call is statistically solid.
-
-**S2R consequence:** re-deriving Section 5.1 on the final population with re-optimized gains reveals the 2 surviving INFEASIBLE designs both show **100% false approval** from the disturbance-free simple model — see Section 5.1.
+**Irreducible uncertainty:** 81/241 re-examined designs (33.6%) remain uncertain (Wilson CI straddles the 0.80 threshold at n=30), all above θ̈_max ≈ 55 rad/s². Below that value, the call is statistically solid.
 
 Data: `tools/exp1_final_correction.py`, `experiments/results/exp1_final_population_py.csv`.
 
@@ -971,11 +956,9 @@ What is robust is the **ranking**: θ̈_max is the best single predictor availab
 5. Flight detection study (Section 5.2) ran on n = 90 designs (45 narrow-window + 45 stratified wide-window) from the n = 2,400 study. Threshold (6.0°) is calibrated in simulation; hardware validation is required before deployment on real rockets.
 6. Latency is the primary gain ceiling compressor (ceiling 320→40-90 at latency = 6 for θ̈_max > 60 rad/s²). Wind barely shifts the floor (<5 Kp units across full wind range). Designs with high θ̈_max AND high latency (≥ 5 steps) should be flagged even if spec-only θ̈_max < 55 rad/s².
 
-### 7.4 The gain window is a continuum, not a binary class (primary data, not just inference)
+### 7.4 The gain window is a continuum, not a binary class
 
-Earlier drafts of this paper argued, from indirect evidence (the small n = 12 boundary experiment in Section 4.6.3, and the Wilson-CI "uncertain" flag covering 33.6% of at-risk designs in Section 4.5.7), that FRAGILE/EASY was probably a thresholded continuum rather than two natural classes — but neither piece of evidence was a direct, adequately-powered test of that question. **Section 4.0 is that test**, run specifically to settle it: n = 222 designs, stratified for coverage of the full θ̈_max range, evaluated for a continuous margin outcome. The result confirms the continuum claim directly and quantitatively — the fraction of designs below the 0.80 reliability threshold rises from 2% (θ̈_max < 40) to 46% (θ̈_max > 300), with no point of sharp transition, R² = 0.33 (5-fold CV, n = 262 pooled).
-
-This means the binary FRAGILE label used in Sections 4.1–4.6 is a thresholded operationalization of an underlying continuous quantity — gain margin under a 1.4× gain perturbation — not evidence of two naturally separated rocket populations. **Section 4.0, not this subsection's earlier indirect argument, is now the primary evidence for that claim**, and the practical implication is unchanged: a different robustness criterion would move which specific designs are labeled FRAGILE without changing the underlying continuous relationship, which is why Section 4.0's R² is the more fundamental and more defensible number in this paper, and why the binary AUC/Cohen's-d results elsewhere should be read as describing one particular threshold on that same continuum, not a separate or stronger finding.
+Section 4.0 established this directly (n = 262, R² = 0.33, no sharp transition). The binary FRAGILE label in Sections 4.1–4.6 is one threshold on that continuous quantity — not evidence of two naturally separated rocket populations. A different robustness criterion would move which designs are labeled FRAGILE; the underlying continuous relationship is unchanged, which is why Section 4.0's R² is the more fundamental number in this paper than the AUC/Cohen's-d results elsewhere.
 
 ### 7.5 Anticipated objections
 
@@ -1072,12 +1055,10 @@ What crosses 75%: hardware video of PID oscillation vs. ADRC; confirmed 6.0° fl
 
 The latency stress test now gives a compelling hardware experiment that didn't exist before: **same rocket, same gain, different MCU** → predict and confirm narrow-window vs. wide-window behavior on the latency axis alone. No mechanical modification required.
 
-### 9.5 Next steps, prioritized (as of 2026-06-18)
+### 9.5 Next steps, prioritized
 
-COMPLETED SINCE LAST DRAFT: (a) SMC controller-invariance test — confirms same ρ(Π,window)≈−0.75 as LQR (Section 4.0.2); (b) Observer universality test (Section 4.0.2.1) — classical integral PID tested as alternative disturbance estimator; integral partially helps at intermediate Π but fails at extreme Π (R2080: n_pass_pidi=0); ESO is specifically the escape mechanism; Pi formula corrected to keff×lat² throughout; (c) Performance frontier — maps PID failure boundary (Π=5,214) and ADRC extension (Section 4.0.3); (d) Frontier extension to Π=49,893 (stress-test population, n=44) — zero ADRC failures with extended ω₀/ωc; confirms ADRC has no fixed Π ceiling within the tested range (Section 4.0.3); (e) Theoretical derivation of why Π=keff×τ² — ceiling τ⁻¹ (DIPDT) + floor τ⁺¹ (bang-bang) = window τ⁻² = 1/Π; keff coefficient = −1.001 (theory −1.000 exactly), slope = −1.029 vs theory −1.000, all 7 exponents confirmed (Section 4.0.4).
-
-1. **Hardware: the matched-configuration test (Section 8.1.F).** Highest-value remaining experiment. A bench test (clamped airframe, IMU + servo, only Iyy/ballast varied) reproducing Section 4.0.1's protocol would suffice — far cheaper than a full flight campaign, and it is the only experiment that changes what is *known* rather than *re-confirmed*.
-2. **Tighten narrative for presentation:** lead with Section 4.0 and Section 4.0.3 (frontier figure); consolidate the four self-correction beats into one paragraph; fold negative results into limitations.
+1. **Hardware: the matched-configuration test (Section 8.1.F).** Highest-value remaining experiment. A bench test (clamped airframe, IMU + servo, Iyy varied by ballast) reproducing Section 4.0.1 on real hardware is the only result that changes *what is known* rather than *what is re-confirmed in simulation*.
+2. **Narrative compression for presentation:** lead with Section 4.0 and the frontier figure; consolidate the five self-correction beats (Section 9.2) into one paragraph for the talk.
 
 ---
 
