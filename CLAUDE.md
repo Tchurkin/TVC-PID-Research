@@ -516,6 +516,47 @@ Files: tools/window_ratio_lat_extension.py,
 experiments/results/window_ratio_lat_ext_py.csv,
 experiments/results/window_ratio_pooled_py.csv.
 
+## INTERACTION MODEL (2026-06-20, tools/window_ratio_interaction.py):
+Adding log(keff)*log(lat) interaction term to the window_ratio regression (n=82, lat 1-6):
+  Baseline (keff + lat):           CV R2=0.602
+  Full interaction (keff+lat+keff*lat): CV R2=0.660  (+0.058)
+  Best model (keff + keff*lat):    CV R2=0.671  (+0.069)  <-- WINNER
+
+WINNING MODEL: log(window) = C + a*log(keff) + b*log(keff)*log(lat)
+  C=7.27, a=-0.202 (near zero), b=-0.830
+  Formula: window ~ K / keff^(0.20 + 0.83*log(lat))
+  where the keff exponent grows with latency (not a fixed constant):
+    lat=1: keff exponent = -0.20 (barely depends on keff)
+    lat=3: keff exponent = -1.11
+    lat=6: keff exponent = -1.69
+  Effective latency exponent = b*log(keff):
+    keff=5:  lat_exp = -1.40 (measured -0.85; model underpredicts floor saturation at low keff)
+    keff=14: lat_exp = -2.20 (measured -2.23, excellent fit)
+    keff=30: lat_exp = -2.84 (measured -3.19, close fit)
+
+PHYSICAL INTERPRETATION: For keff >> 1.5, the model reduces to:
+  window ~ K / lat^(0.83*log(keff)) = K / keff^(0.83*log(lat))
+  "The keff exponent grows with latency" and vice versa.
+  Each 3x latency reduction (lat=6->lat=2) widens the window by a factor of keff^0.91 ~ keff.
+  For keff=15: 15^ 0.91 ~ 12x window improvement from latency alone.
+
+CORRECTED Pi_keff DESIGN RULE THRESHOLDS (from performance_frontier + adrc_frontier_extension):
+  NOTE: All prior Pi thresholds in this file used Pi_td = td*lat^2 = theta_ddot_max*lat^2.
+  The correct parameter is Pi_keff = keff*lat^2 (smaller by u_max factor, different scale).
+  First PID SR<0.90: Pi_keff = 320   (was Pi_td = 2,661)
+  First PID SR<0.80: Pi_keff = 870   (was Pi_td = 10,206)
+  First ADRC-std (wc=5) SR<0.80: Pi_keff ~ 1,200-1,600  (frontier: 1205, extension: 1617)
+  First ADRC-extended failure: Pi_keff = 5,648 (SR=0.93, only near-miss at extreme)
+  UPDATED DESIGN RULE TABLE (Pi = keff*lat^2):
+    Pi < 300:      PID safe (SR=1.000 for all tested designs, n=63 frontier)
+    Pi 300-900:    PID degrades; ADRC (omega0/wc=5) universally safe
+    Pi 900-1600:   ADRC-standard may fail; use omega0/wc=8-20
+    Pi 1600-5600:  ADRC extended (omega0/wc=20) achieves SR=1.000
+    Pi > 5600:     not yet tested
+
+Files: tools/window_ratio_interaction.py.
+Data: experiments/results/window_ratio_v2_py.csv (n=82), performance_frontier_py.csv, adrc_frontier_extension_py.csv.
+
 ## NEW (2026-06-20): Dual-regime bang-bang; exhaustive regression confirms stochastic residual
 
 DUAL-REGIME BANG-BANG (tools/bang_bang_transition.py, 2026-06-20):

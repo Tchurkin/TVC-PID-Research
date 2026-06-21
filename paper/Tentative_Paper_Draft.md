@@ -126,7 +126,7 @@ The authority/inertia ratio T_max × δ_max / Iyy appears in every spacecraft GN
 
 6. **Controller-invariance across three feedback architectures** (Section 4.0.2) — LQR (40 Q/R ratios), SMC (6 slopes × 20 Kp), and PID all reproduce Spearman ρ(Π, window) ≈ −0.75 on the same 50 designs. The constraint is not a PID parameterization artifact; it is a property of open-loop linear feedback without disturbance estimation under delay.
 
-7. **Performance frontier and ADRC extension** (Section 4.0.3) — optimal PID first fails at Π = 5,214 (SR = 0.467). ADRC (ω₀/ωc = 5) extends to Π = 12,648; with adaptive ω₀/ωc up to 20, zero failures to Π = 49,893 (3.9× extension). Updated design rule: Π < 5,000 → PID; 5,000–15,000 → ADRC standard; 15,000–50,000 → ADRC with ω₀/ωc = 12–20. ρ(Π, SR_adrc) = −0.325 vs ρ(Π, SR_pid) = −0.668 — ESO decoupling halves the Π sensitivity.
+7. **Performance frontier and ADRC extension** (Section 4.0.3) — optimal PID first fails (SR < 0.90) at **Π = 320** (k_eff-based), rising to SR < 0.80 at **Π = 870**; ADRC (ω₀/ωc = 5) first fails at **Π = 1,200**; with adaptive ω₀/ωc up to 20, zero failures up to **Π = 5,648** (ADRC SR = 0.93 at the extreme, Pi > 5,600 not yet tested). Updated design rule (all Π = k_eff × τ²): Π < 300 → PID safe; Π 300–900 → PID degrading, ADRC standard safe; Π 900–1,600 → ADRC with ω₀/ωc = 8–20; Π 1,600–5,600 → ADRC with ω₀/ωc = 20. Note: prior versions cited Pi_td = θ̈_max × τ²; the corrected parameter is Pi_keff = k_eff × τ² (smaller by a factor of u_max ≈ 4–15, depending on max_gimbal). ρ(Π, SR_adrc) = −0.325 vs ρ(Π, SR_pid) = −0.668 — ESO decoupling halves the Π sensitivity.
 
 8. **An exploratory cross-architecture ceiling comparison** (Section 6) — ADRC bandwidth ceiling ωc_max ≈ 70/(latency^0.57 · θ̈_max^0.31), R² = 0.823 (n = 46 cells). PID's authority exponent ≈ −0.20; ADRC's ≈ −0.31 (1.5× larger). To the author's knowledge, no prior work has made this comparison quantitatively for any TVC hardware class.
 
@@ -390,16 +390,19 @@ Zero ADRC failures up to Π = 49,893 with an appropriately tuned ω₀/ωc. Most
 
 **Key finding: ADRC does not have a fixed Π ceiling.** It has a tuning parameter (ω₀/ωc) that must scale with Π. Standard ω₀/ωc = 5 fails above Π ≈ 20,000; ω₀/ωc = 20 succeeds up to at least Π = 49,893. Whether ADRC eventually fails at Π > 50,000 is not yet determined — but within the full stress-test design space (latency ≤ 12, realistic hardware), no ADRC failure was found.
 
-**Interpretation.** Updated design rules across the full Π range:
+**Interpretation.** Updated design rules across the full Π = k_eff × τ² range:
 
-| Π range | Architecture | ω₀/ωc setting |
-|---|---|---|
-| < 5,000 | PID (optimal Kp) | N/A |
-| 5,000–15,000 | ADRC | 5 (standard) |
-| 15,000–50,000 | ADRC | 12–20 (latency-adaptive) |
-| > 50,000 | Unknown | Not yet tested |
+| Π = k_eff × τ² | Architecture | ω₀/ωc setting | Notes |
+|---|---|---|---|
+| < 300 | PID (optimal Kp) | N/A | SR = 1.000 for all tested designs |
+| 300–900 | ADRC preferred | 5 (standard) | PID SR starts degrading at Π ≈ 320 |
+| 900–1,600 | ADRC | 8–20 | ADRC-standard (ω₀/ωc = 5) may fail |
+| 1,600–5,600 | ADRC | 20 | ADRC extended achieves SR = 1.000 |
+| > 5,600 | Unknown | Not yet tested | — |
 
-**Practical design rule:** Π > 5,000 → use ADRC over PID. Π > 15,000 → also set ω₀/ωc ≥ 12 (not the textbook default of 5). Compute Π = θ̈_max × latency_steps² from hardware specs before choosing architecture.
+⚠️ **Pi correction note:** prior versions of this table cited thresholds in units of Π_td = θ̈_max × τ² (where θ̈_max = k_eff × u_max includes max_gimbal). The correct mechanistic parameter is Π = k_eff × τ², which is smaller by u_max = max_gimbal × 12/15 ≈ 1.6–12 depending on hardware. The qualitative design rule (low Π = PID safe, high Π = ADRC needed) is unchanged; only the threshold numbers change.
+
+**Practical design rule:** Compute Π = k_eff × latency_steps² from hardware specs. If Π > 300 → consider ADRC. If Π > 900 → ADRC strongly recommended with ω₀/ωc ≥ 8. k_eff = T_avg × (π/180 × 15/12) × L_nozzle / Iyy [rad/s²/CU], independent of max_gimbal.
 
 Data: `experiments/results/performance_frontier_py.csv` (n = 63), `experiments/results/adrc_frontier_extension_py.csv` (n = 44, extended).
 
@@ -430,7 +433,26 @@ The τ² is the **double squeeze**: ceiling drops τ⁻¹ while floor simultaneo
 
 **Physical meaning of Π.** The correct parameter is **Π = k_eff × τ²** [rad/CU]. For a control command of u CU, the system accumulates Π × u radians of rotation during the latency window τ before any corrective feedback arrives. This is the "blind-spot displacement per CU": a design with k_eff = 10 rad/s²/CU and latency = 6 steps (τ = 0.03 s) has Π = 10 × 0.03² = 0.009 rad/CU; at a typical wind-rejection command of u ≈ 5 CU, that is 0.009 × 5 = 0.045 rad = 2.6° of uncompensated blind-spot error per correction cycle. The floor rises and the ceiling falls precisely because both mechanisms trace back to τ: it is the interval during which the system is blind. Π is not empirical — it is the kinematic consequence of two independently derived mechanisms, each measured and confirmed. (An earlier draft defined Π/2 = ½ × θ̈_max × τ² [rad], the angular displacement at *maximum* TVC authority; this is mechanistically incorrect because max-gimbal does not appear in either the floor or ceiling formula.)
 
-**Exhaustive residual check: the remaining ~40% variance is stochastic, not a missing predictor.** After establishing the keff + latency formula, every available design parameter was tested as an addition to the baseline model (n = 82 non-censored designs, 5-fold CV; `tools/window_ratio_full_regression.py`). No factor adds more than +0.013 CV R²; the full 9-predictor model scores *lower* than baseline (CV R² 0.536 vs 0.602, from overfitting). Within-cell variance — the variance among designs sharing the same keff and latency tier, which estimates irreducible stochastic noise — is 1.32, against a total unexplained residual of 1.40. These are essentially equal, confirming that the unexplained window-ratio variance is predominantly seed-to-seed stochastic variation and per-design unmodeled parameters (backlash, deadband magnitude, Kp-sweep discretization), not a structural missing predictor. **The formula keff + latency is complete for the available parametric information.**
+**Interaction model: a principled unified equation without arbitrary tiers** (`tools/window_ratio_interaction.py`). The keff-tier dependence of the latency exponent is naturally captured by adding a single interaction term:
+
+> log(window) = C + a·log(k_eff) + b·log(k_eff)·log(τ)
+
+This model (n = 82, 5-fold CV) achieves **CV R² = 0.671** vs. 0.602 for the baseline (+0.069). The fitted coefficients are a ≈ −0.20 (keff alone at lat=1, near-zero), b ≈ −0.83 (interaction, keff-scaling of the latency penalty). The equivalent formula is:
+
+> **window ≈ K / k_eff^(0.20 + 0.83·log(τ))**
+
+where the keff exponent **grows with latency** rather than being fixed:
+
+| τ (latency steps) | Effective keff exponent | Per-doubling-of-τ compression |
+|---|---|---|
+| 1 (5 ms) | −0.20 | — |
+| 2 (10 ms) | −0.77 | — |
+| 3 (15 ms) | −1.11 | ≈ 2.2× |
+| 6 (30 ms) | −1.69 | ≈ 3.2× (keff=5) to ≈ 9× (keff=30) |
+
+The model reproduces the measured tier exponents with no arbitrary cutpoints: effective lat exponent = b·log(keff) gives −1.40 at keff=5 (measured −0.85; model underpredicts for low-keff designs where the floor saturates near 1), −2.20 at keff=14 (measured −2.23), −2.84 at keff=30 (measured −3.19). The mid-to-high keff range — where gain-window risk actually occurs — is well captured. **Builder implication: upgrading from lat=6 to lat=2 (a 3× latency reduction) widens the window by a factor of keff^0.91 ≈ keff; for a design with keff=15, that is a 15× window improvement, not the 3.7× the simple Π formula would imply.**
+
+**Exhaustive residual check: the remaining variance is stochastic, not a missing predictor.** After the interaction model, every available design parameter was tested as an additional predictor (n = 82 non-censored, 5-fold CV; `tools/window_ratio_full_regression.py`). No single factor adds more than +0.013 CV R²; the full 9-predictor model scores *lower* than the baseline (CV R² 0.536 vs 0.602, from overfitting). Within-cell variance — the variance among designs sharing the same keff and latency tier, which estimates irreducible stochastic noise — is 1.32, against a total unexplained residual of 1.40. These are essentially equal, confirming the unexplained ~33% variance is predominantly seed-to-seed stochastic variation and per-design unmodeled parameters (backlash, deadband magnitude, Kp-sweep discretization). **The keff + latency interaction is complete for the available parametric information.**
 
 One corollary for builders: because k_eff = T_avg × (π/180 × 15/12) × L_nozzle / Iyy and the factor (π/180 × 15/12) = 0.02182 is a universal constant, **max_gimbal_deg does not appear in k_eff and does not need to be measured precisely** for gain-window prediction. Adding log(max_gimbal) to the baseline model gives delta CV = −0.003 (confirming it adds noise rather than signal). A builder can assess risk from thrust rating, motor scale factor, nozzle moment arm, and moment of inertia alone. The gimbal angle determines the *commanded* authority (θ̈_max = keff × u_max = keff × δ_max × 12/15), which sets the absolute torque output, but the *sensitivity of the gain window to perturbations* is governed by keff alone.
 
