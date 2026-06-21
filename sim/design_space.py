@@ -30,9 +30,9 @@ p_unstable derivation (and known limitations)
   This is a documented STS vulnerability that should be replaced with a full
   linearised EOM derivation.  See design_space.py TODO.
 
-  Sign convention: static_margin ∈ [0.04, 0.24] calibers; Cm_alpha ∈ [-70, -30].
-  Positive static_margin with negative Cm_alpha gives p_unstable > 0 for all
-  sampled designs — all rockets in the study are open-loop unstable.
+  Sign convention: STANDARD AEROSPACE — positive static_margin = CP aft of CG = stable.
+  Design space static_margin ∈ [−0.30, 0.30]; negative values are aerodynamically unstable
+  (typical finless TVC body), positive values are stable (finned or ballast-forward designs).
 
 Command unit convention
 ───────────────────────
@@ -93,6 +93,11 @@ DESIGN_NAMES = [
 #   0.5 → half-F15 (~7.2 N avg, wet 50 g)   — marginal lift for lightest designs
 #   1.0 → standard F15 (14.4 N avg, wet 100 g)
 #   3.0 → triple-F15 (43.2 N avg, wet 300 g) — approaching G-class territory
+# mass: [0.50, 1.20] kg — F15 (14.4 N) lifts 1.47 kg at T/W=1; capped at 1.20 for T/W≥1.2
+#   with stock F15. T/W filter enforces T/W > 1 per-design using actual motor_scale thrust.
+# Iyy: [0.005, 0.100] kg·m² — lower bound covers ~300g rockets (Iyy ≈ 0.004 uniform rod);
+#   upper bound covers heavier/wider designs with mass distributed far from CG.
+#   Previous [0.010, 0.040] excluded the lightweight regime where FRAGILE is most common.
 # max_gimbal_deg floor lowered to 2 deg to create genuinely authority-limited designs
 # servo_slew_deg_s: [60, 200] deg/s — realistic hobby servo range (40 deg/s is the reliable floor)
 # static_margin: [-0.30, +0.30] — signed; negative = stable (fins, CP aft), positive = unstable
@@ -104,10 +109,10 @@ DESIGN_NAMES = [
 # Range [-0.30, +0.30] calibers: covers stable finned rockets to very unstable finless.
 # Convention matches Barrowman theory (positive stability margin → CP aft → stable).
 DESIGN_LO = np.array([
-    0.90, 0.010, -0.30, -90.0,  5.0, 0.50,  60.0,  2.0, 1.0, 0.00, 0.00, 0.05
+    0.50, 0.005, -0.30, -90.0,  5.0, 0.50,  60.0,  2.0, 1.0, 0.00, 0.00, 0.05
 ])
 DESIGN_HI = np.array([
-    2.10, 0.040,  0.30, -15.0, 14.0, 3.00, 200.0, 15.0, 6.0, 0.15, 0.25, 0.45
+    1.20, 0.100,  0.30, -15.0, 14.0, 3.00, 200.0, 15.0, 6.0, 0.15, 0.25, 0.45
 ])
 
 
@@ -128,9 +133,9 @@ def estimate_lambda_aero(
 
     Magnitude formula (calibrated, not first-principles):
       p_or_wn = 10 × |static_margin| × |Cm_alpha| / 52 × sqrt(35 / T_eff)
-    Then:
-      unstable (static_margin > 0): lambda_aero = +p²
-      stable   (static_margin < 0): lambda_aero = −ω_n²
+    Then (STANDARD AEROSPACE CONVENTION: positive SM = CP aft of CG = stable):
+      unstable (static_margin < 0): lambda_aero = +p²
+      stable   (static_margin > 0): lambda_aero = −ω_n²
       neutral  (static_margin = 0): lambda_aero = 0
 
     Calibration constants (10, 52, 35) are NOT derived from first principles.
@@ -143,10 +148,10 @@ def estimate_lambda_aero(
         10.0 * abs(static_margin) * abs(Cm_alpha) / 52.0
         * np.sqrt(35.0 / max(1e-6, effective_thrust))
     )
-    if static_margin > 0.0:
-        return magnitude ** 2    # unstable: positive = diverging
-    elif static_margin < 0.0:
-        return -(magnitude ** 2) # stable: negative = restoring
+    if static_margin < 0.0:
+        return magnitude ** 2    # unstable: CP forward of CG, positive = diverging
+    elif static_margin > 0.0:
+        return -(magnitude ** 2) # stable: CP aft of CG, negative = restoring
     else:
         return 0.0               # neutral
 
@@ -200,7 +205,7 @@ def sample_lhs(n: int, seed: int = 42) -> pd.DataFrame:
         axis=1,
     )
     df["p_unstable"] = df["lambda_aero"].apply(lambda lam: float(np.sqrt(max(0.0, lam))))
-    df["aerodynamically_stable"] = df["static_margin"] < 0.0
+    df["aerodynamically_stable"] = df["static_margin"] > 0.0
     df["tw_ratio"] = (F15_AVG_THRUST_N * df["motor_scale"]) / (df["mass"] * 9.81)
     df["design_id"] = np.arange(1, n + 1)
     df["rocket_id"] = [f"R{i:04d}" for i in range(1, n + 1)]

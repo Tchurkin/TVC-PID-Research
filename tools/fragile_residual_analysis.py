@@ -48,6 +48,8 @@ df['wind_x_td']      = df['wind_strength'] * df['td_max']
 df['td_div_slew']    = df['td_max'] / df['servo_slew_deg_s']
 df['keff_div_slew']  = df['keff_full'] / df['servo_slew_deg_s']
 df['wind_div_keff']  = df['wind_strength'] / df['keff_full']
+df['log_latency']    = np.log(df['latency_steps'].clip(lower=1))
+df['td_x_latency']   = np.log(df['td_max']) + df['log_latency']  # log(td × lat)
 
 # Binary FRAGILE label (exclude INFEASIBLE from FRAGILE group)
 df['is_fragile'] = (df['regime_label'] == 'FRAGILE').astype(int)
@@ -258,7 +260,7 @@ print(f"{'='*70}")
 
 all_features = ['log_td', 'log_keff', 'log_wind', 'log_slew',
                 'wind_x_keff', 'wind_x_td', 'td_div_slew', 'keff_div_slew',
-                'static_margin', 'log_authority']
+                'static_margin', 'log_authority', 'log_latency', 'td_x_latency']
 
 # Compute log versions for ratio columns
 for col in all_features:

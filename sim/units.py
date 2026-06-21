@@ -104,8 +104,14 @@ EASY_SLEW_SAT_FRAC     = 1.00   # (not binding by default)
 EASY_RMS_DEG           = 8.0    # max RMS error for EASY
 EASY_SETTLING_S        = 3.0    # max settling time for EASY
 EASY_OSC_SCORE         = 3.0    # max zero-crossing count for EASY
-FRAGILE_SUCCESS_RATE   = 0.35   # minimum success rate to avoid INFEASIBLE
+FRAGILE_SUCCESS_RATE   = 0.35   # minimum success rate to avoid INFEASIBLE (nominal gate)
 FRAGILE_RMS_DEG        = 16.0   # max RMS error for FRAGILE
+# Robustness gate for over/under tests: 3-seed mean must reach this threshold at
+# ±40% Kp/Kd to be considered "robust".  With 3 binary seeds, SR ∈ {0, 0.333, 0.667, 1.0}.
+# Setting 0.80 means only SR=1.0 (all 3 seeds pass) counts as robust — equivalent to
+# "any seed failing at ±40% Kp flags as FRAGILE".  More sensitive than the old 1-seed
+# test (36% detection at true p_fail=0.14 vs 14% with 1 seed).
+ROBUSTNESS_SUCCESS_RATE = 0.80
 
 # ── Divergence and progressive tracking bands (degrees) ─────────────────────
 # Primary binary: did the rocket diverge? (theta >= DIVERGE_THETA_DEG)

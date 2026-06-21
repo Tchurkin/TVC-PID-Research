@@ -586,3 +586,115 @@ All six primary findings are confirmed from simulation:
 Next phase: hardware flight validation (6-12 flights per roadmap).
 Priority: Kp=2 detection experiment → Kp_simple vs Kp_full improvement → θ̈ threshold hardware test.
 
+---
+
+## 2026-06-11 — Paper Draft Complete Rewrite
+
+**What happened:**
+
+`paper/Tentative_Paper_Draft.md` rewritten from scratch. Previous draft was completely outdated:
+described MATLAB workflow, PCH controllers, slew_min scaling law, and "infeasible regimes" as the
+primary story — none of which reflect the current study.
+
+**New paper structure:**
+- Title: "Simulator Fidelity and Gain Selection in Hobby-Scale TVC Rockets"
+- Working title: "When does your flight simulator lie to you?"
+- Abstract: θ̈_max formula → AUC=0.855 → 56% false rejection → ADRC fix
+- Introduction: The 4-hypothesis negative result journey (3 of 4 wrong)
+- Background: What is/isn't novel; explicit positioning against prior literature
+- Methods: Python sim, LHS n=1200, autotune_continuous, T/W filter, all 6 regime criteria
+- Results: All 6 findings with correct numbers, confidence levels, and limitations
+- Discussion: Sim-to-real narrative, FRAGILE base rate (1.3%), ADRC as architectural fix
+- Hardware validation plan: Priority A-D experiments, minimum success criteria
+- STS framing: 4-hypothesis narrative; probability estimates with and without hardware
+- Appendix: Key data files table, rejected findings list (6 documented)
+
+**Artifacts produced:**
+- `paper/Tentative_Paper_Draft.md` — complete rewrite
+
+---
+
+## 2026-06-12 — Relay Study Rerun + Paper K_u Validation
+
+**What happened:**
+
+**Relay rerun with current labels (n=41: 25 EASY + 16 FRAGILE):**
+Previous relay study used Kp=80-capped labels (n=50 old labels). K_u claim was based on
+old "FRAGILE" which included 16 designs now correctly EASY. Reran relay_easy_comparison.py
+to get K_u for all 16 current-FRAGILE designs.
+
+**Results (correct labels):**
+- EASY median K_u = 108 [18, 356] (n=25 spanning full theta_ddot range)
+- FRAGILE median K_u = 39 [24, 128] (n=16, all current FRAGILE)
+- Ratio = 2.80×, Mann-Whitney p = 0.0072 (p < 0.01, significant)
+- Step 2: rho(theta_ddot, A_deg) = 0.616, p=1.8e-5 (was 0.781 with old labels)
+- Power law updated: A ≈ 1.63° × theta_ddot^0.40 (was 0.95° × theta_ddot^0.57)
+
+**Key findings:**
+1. K_u separation 2.8× holds at median — core claim VALIDATED
+2. R0115 outlier: K_u=128 but best_Kp=253 (high-floor FRAGILE). Probe at Kp=2 measures
+   wind-driven oscillation, not bang-bang. Excluding R0115: FRAGILE median=38, p=0.0037.
+3. r(log_theta_ddot, log_K_u) = +0.004 at individual level (essentially zero).
+   The ceiling-compression is a GROUP-LEVEL effect, not individual-level.
+   keff_full is the better individual predictor: r=-0.407, p=0.008.
+4. FN FRAGILE designs (R0804, R0047, R0680, R0452) have K_u median=38 — same as TP FRAGILE.
+   NOT "milder K_u compression" as previously claimed. The mild classification refers
+   to SR@1.4x, not K_u. Paper Section 4.5 corrected.
+5. 15/16 FRAGILE have over_sr=0.0 (ceiling-limited). Direct evidence for ceiling compression
+   from n=1200 classification, independent of relay study.
+
+**Paper updates (paper/Tentative_Paper_Draft.md):**
+- Abstract: rho=0.62, K_u=108, p=0.0072
+- Section 4.4 Step 2: updated rho, n, power law, amplitude range
+- Section 4.4 Step 4: updated K_u table, p-value, R0115/R0336 notes
+- Added group-level caveat: r(log_td, log_K_u)=0.004 at individual level
+- Added direct ceiling evidence: 15/16 FRAGILE ceiling-limited from n=1200
+- Section 4.5: corrected FN K_u claim (same K_u as TP, not milder; keff_full is driver)
+- Executive Summary: updated mechanism chain numbers
+
+**Artifacts produced/updated:**
+- `experiments/results/relay_easy_comparison_py.csv` — rerun with current labels (n=41)
+- `paper/Tentative_Paper_Draft.md` — K_u and mechanistic chain sections updated
+- `paper/Executive_Summary_STS.md` — mechanism diagram updated
+- `CLAUDE.md` — governing equation chain numbers updated
+
+
+## 2026-06-13 -- H5 Latency Discovery: Combined Predictor AUC=0.924
+
+**Trigger:** User asked to add latency limitation to paper and verify all design space ranges are
+realistic for hobby TVC hardware. Investigation revealed latency was ALREADY in the LHS design
+space [1-6 steps = 5-30ms] and is a significant independent predictor of FRAGILE.
+
+**Discovery: latency_steps omitted from H1-H4 exhaustive search**
+tools/fragile_residual_analysis.py used 10 features: log_td, log_keff, log_wind, log_slew,
+wind_x_keff, wind_x_td, td_div_slew, keff_div_slew, static_margin, log_authority.
+latency_steps was in the design space but NOT in the feature list -- an oversight.
+
+**H5 Result (latency_steps, hardware variable):**
+- r(latency_steps, FRAGILE) = +0.139
+- All 16 FRAGILE have latency >= 4 steps (20ms+); binomial p = 2.04e-05 vs 50.9% base rate
+- r(latency_steps, theta_ddot) = -0.033 -- INDEPENDENT, not a proxy
+- AUC(latency alone) = 0.836 (10-fold CV)
+- AUC(theta_ddot + latency) = 0.924 +/- 0.085 (10-fold CV); delta = +0.072
+- log(theta_ddot x latency) single variable gives identical AUC = 0.924 -- multiplicative
+- P(delta > 0.03) = 1.00 over 3000 bootstrap resamples
+
+**Physical mechanism:**
+theta_ddot x tau_latency [rad/s^2 x s = rad/s] = max angular velocity before loop responds.
+Phase lag at 5Hz: 1-step=9 deg, 3-step=27 deg, 6-step=54 deg -- independently compresses ceiling.
+All 4 FN designs (R0804, R0047, R0680, R0452) have latency_steps=6 (30ms maximum).
+
+**REVISED NARRATIVE:**
+OLD: "FRAGILE is MECHANICAL. H1-H4 all rejected. theta_ddot is optimal (AUC=0.855)."
+NEW: "FRAGILE is HARDWARE: mechanical authority (AUC=0.855) + control loop latency (combined=0.924).
+     H1-H4 (environmental) rejected; H5 (hardware latency) confirmed."
+
+**Design space realism:** latency [1-6] = [5-30ms] covers Teensy to slow Arduino. Realistic.
+Behavior >30ms untested -- noted as limitation in paper. No rerun needed.
+
+**Files updated:**
+- paper/Tentative_Paper_Draft.md (Sec 1.3, 4.2, 4.5, 7.3, 9.1)
+- paper/Executive_Summary_STS.md (hypothesis table)
+- CLAUDE.md (H5, revised FN explanation, updated PHYSICAL INTERPRETATION)
+- memory/authority-iyy-ratio.md, memory/project-direction.md
+

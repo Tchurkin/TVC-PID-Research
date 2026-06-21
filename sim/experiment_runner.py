@@ -55,7 +55,7 @@ from actuator_model import ActuatorParams
 from disturbance_model import DisturbanceParams
 from fidelity_config import FidelityConfig, apply_fidelity_config, ABLATION_MODULES
 from simulator import ScenarioParams, simulate, SimResult
-from units import FRAGILE_SUCCESS_RATE
+from units import FRAGILE_SUCCESS_RATE, ROBUSTNESS_SUCCESS_RATE
 
 ROOT       = Path(__file__).resolve().parents[1]
 RESULT_DIR = ROOT / "experiments" / "results"
@@ -380,23 +380,24 @@ def _eval_design_exp1(row: dict) -> dict:
     def eval_nominal(Kp, Kd):
         pid = PIDParams(Kp=Kp, Kd=Kd, Ki=0.0, u_max=act.u_max, i_lim=act.u_max)
         # 3 seeds: wind is stochastic — single-seed is too noisy near the EASY/MARGINAL
-        # RMS boundary (8 deg).  Under/over checks only need 1 seed since they produce
-        # a binary pass/fail for the robustness score.
+        # RMS boundary (8 deg).  Under/over also use 3 seeds: mild-FRAGILE designs have
+        # SR@1.4x ≈ 0.86, giving only 14% detection probability on seed=1 alone.
+        # 3 seeds raises detection to 36% for the mildest cases and 64% at SR@1.4x=0.71.
         runs = [_run_one(pid, plant, act, sen, dis, sc, seed=s) for s in (1, 2, 3)]
         return _aggregate(runs)
 
     def eval_robustness(Kp, Kd):
         pid = PIDParams(Kp=Kp, Kd=Kd, Ki=0.0, u_max=act.u_max, i_lim=act.u_max)
-        return _aggregate([_run_one(pid, plant, act, sen, dis, sc, seed=1)])
+        return _aggregate([_run_one(pid, plant, act, sen, dis, sc, seed=s) for s in (1, 2, 3)])
 
     nominal = eval_nominal(best_Kp, best_Kd)
     under   = eval_robustness(UNDER_SCALE * best_Kp, UNDER_SCALE * best_Kd)
     over    = eval_robustness(OVER_SCALE  * best_Kp, OVER_SCALE  * best_Kd)
 
     n_pass = (
-        int(nominal["success_rate"] >= FRAGILE_SUCCESS_RATE)
-        + int(under["success_rate"]  >= FRAGILE_SUCCESS_RATE)
-        + int(over["success_rate"]   >= FRAGILE_SUCCESS_RATE)
+        int(nominal["success_rate"] >= FRAGILE_SUCCESS_RATE)    # 0.35: not INFEASIBLE
+        + int(under["success_rate"]  >= ROBUSTNESS_SUCCESS_RATE)  # 0.80: robust to under-gain
+        + int(over["success_rate"]   >= ROBUSTNESS_SUCCESS_RATE)   # 0.80: robust to over-gain
     )
     robustness = n_pass / 3.0
 
@@ -471,7 +472,7 @@ def run_exp1(
     """
     print(f"=== EXP1 (Python, full-physics regime labels) n={n_designs} seed={seed} ===")
     print(f"    Fidelity: full physics (nonlinear_aero, dyn_aero, thrust_curve, cg_shift ON)")
-    print(f"    Gain grid: {len(KP_GRID)}x{len(KD_GRID)} = {len(KP_GRID)*len(KD_GRID)} combos")
+    print(f"    Autotune: continuous log-search Kp=[1,320], Kd probe [1,4,16,64], 3-seed robustness")
     designs = sample_lhs(n_designs, seed)
     rows = designs.to_dict("records")
 

@@ -1,4 +1,0 @@
-regime_label,median_envelope_cmd_deg,mean_envelope_cmd_deg,min_envelope_cmd_deg,max_envelope_cmd_deg,frac_pass_reference_cmd,median_success_reference_cmd,median_rms_err_reference_cmd_deg,n_cells
-EASY,15,16.4285714285714,15,20,0.285714285714286,0.583333333333333,16.5558666320413,14
-FRAGILE,10,5.58823529411765,0,15,0,0,39.0114634874352,34
-INFEASIBLE,0,0.5,0,5,0,0,90,120

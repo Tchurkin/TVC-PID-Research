@@ -168,13 +168,12 @@ class AeroParams:
             (L/D) ≈ 12.5 → Cmq ≈ −15 (finless, conservative estimate)
         """
         CN_alpha = 2.0  # finless/finned body (Barrowman, slender body)
-        # Signed Cm_alpha:
-        #   static_margin_calibers > 0 → CP forward of CG → destabilising (+)
+        # Signed Cm_alpha — STANDARD AEROSPACE CONVENTION:
+        #   static_margin_calibers > 0 → CP aft of CG → restoring (−, stable rocket)
         #   static_margin_calibers = 0 → neutral
-        #   static_margin_calibers < 0 → CP aft of CG → restoring (−, stable rocket)
-        # This allows aerodynamically stable designs (finned rockets with positive
-        # static margin in the traditional sense) to be included in the design space.
-        Cm_alpha_physical = CN_alpha * static_margin_calibers
+        #   static_margin_calibers < 0 → CP forward of CG → destabilising (+, unstable)
+        # Positive static margin = stable: same convention as Barrowman/OpenRocket.
+        Cm_alpha_physical = -CN_alpha * static_margin_calibers
 
         # Pitch damping: finless body; proportional to body slenderness
         L_D_ratio = L_ROCKET / D_REF
