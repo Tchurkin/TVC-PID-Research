@@ -1,0 +1,32 @@
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 20 concurrent workers.
+[Parallel(n_jobs=-1)]: Done  14 out of  44 | elapsed:  3.4min remaining:  7.2min
+[Parallel(n_jobs=-1)]: Done  23 out of  44 | elapsed:  6.4min remaining:  5.8min
+[Parallel(n_jobs=-1)]: Done  32 out of  44 | elapsed:  6.4min remaining:  2.4min
+[Parallel(n_jobs=-1)]: Done  41 out of  44 | elapsed:  6.9min remaining:   30.0s
+[Parallel(n_jobs=-1)]: Done  44 out of  44 | elapsed:  6.9min finished
+Loading stress test population...
+Selected designs with Pi >= 9000: n=44
+Pi range: 9119 to 49893
+Labels: {'FRAGILE': 29, 'INFEASIBLE': 12, 'EASY': 3}
+Latency range: 7 - 12
+
+ADRC grid: 6 omega_c × 4 ratios = 24 settings
+Approx total sims: 33,132
+Running parallel...
+
+
+Saved 44 rows to adrc_frontier_extension_py.csv
+
+=== ADRC Frontier Extension Results ===
+Traceback (most recent call last):
+  File "C:\Users\braxt\MATLAB Drive\TVC PID Research\tools\adrc_frontier_extension.py", line 271, in <module>
+    main()
+  File "C:\Users\braxt\MATLAB Drive\TVC PID Research\tools\adrc_frontier_extension.py", line 217, in main
+    df['Pi_tier'] = pd.cut(df['Pi'], bins=[9000]+bins[1:]+[1e8],
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\braxt\MATLAB Drive\TVC PID Research\.venv\Lib\site-packages\pandas\core\reshape\tile.py", line 281, in cut
+    fac, bins = _bins_to_cuts(
+                ^^^^^^^^^^^^^^
+  File "C:\Users\braxt\MATLAB Drive\TVC PID Research\.venv\Lib\site-packages\pandas\core\reshape\tile.py", line 536, in _bins_to_cuts
+    raise ValueError(
+ValueError: Bin labels must be one fewer than the number of bin edges

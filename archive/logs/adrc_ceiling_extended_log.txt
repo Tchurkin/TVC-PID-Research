@@ -1,0 +1,44 @@
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 20 concurrent workers.
+[Parallel(n_jobs=-1)]: Done  88 tasks      | elapsed:  2.3min
+[Parallel(n_jobs=-1)]: Done 248 tasks      | elapsed:  3.7min
+[Parallel(n_jobs=-1)]: Done 472 tasks      | elapsed:  5.3min
+[Parallel(n_jobs=-1)]: Done 528 out of 528 | elapsed:  5.5min finished
+Reference designs for 6 td levels:
+  target=20  found td=20.0  Iyy=0.0403  motor_scale=1.64  max_gimbal=7.8
+  target=50  found td=50.0  Iyy=0.0244  motor_scale=2.17  max_gimbal=8.9
+  target=90  found td=90.3  Iyy=0.0092  motor_scale=1.50  max_gimbal=8.8
+  target=130  found td=129.9  Iyy=0.0173  motor_scale=2.75  max_gimbal=13.0
+  target=200  found td=198.3  Iyy=0.0092  motor_scale=1.95  max_gimbal=14.9
+  target=300  found td=295.7  Iyy=0.0066  motor_scale=2.46  max_gimbal=12.7
+
+Total cells: 528   Total sims: 5280
+Running (parallel)...
+
+
+Saved 528 raw rows to adrc_ceiling_extended_py.csv
+Saved 48 summary rows to adrc_ceiling_extended_summary_py.csv
+
+=== Ceiling table ===
+latency_steps    1     2     3     4     6     8     10   12
+td                                                          
+19.994277      30.0  20.0  20.0  15.0  15.0  10.0  10.0  7.0
+49.993071      15.0  10.0  10.0   7.0   7.0   5.0   5.0  3.0
+90.308507      20.0  15.0   7.0   7.0   5.0   3.0   3.0  3.0
+129.908583     15.0  10.0  10.0   7.0   7.0   5.0   5.0  5.0
+198.279300     10.0  10.0   7.0   7.0   5.0   5.0   3.0  3.0
+295.739194     10.0  10.0   7.0   7.0   5.0   5.0   NaN  NaN
+
+=== Power law fit (n=46 valid cells) ===
+  omega_c_max ~ 70 / (latency^0.57 * td^0.31)
+  exponents: latency=-0.574, td=-0.311, intercept=4.245
+  R2 = 0.823
+
+  Original result (n=21): ~ 648 / (lat^0.66 * td^0.77)
+  Extended result (n=46): ~ 70 / (lat^0.57 * td^0.31)
+
+  PID comparison:
+    Kp_max ~ 380 / latency^1.0  (keff coef ~-0.20, latency-dominated)
+    ADRC: omega_c_max latency exponent = 0.57
+          ADRC td exponent             = 0.31
+  => PID: ceiling barely depends on authority (exp -0.20)
+     ADRC: ceiling also latency-dominated

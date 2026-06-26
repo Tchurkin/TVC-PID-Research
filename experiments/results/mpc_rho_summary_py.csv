@@ -1,0 +1,4 @@
+variant,n,rho,p
+Unconstrained_PD,50,-0.969,5.87e-31
+Constrained_H1,50,-0.969,5.87e-31
+Constrained_H5,50,,nan

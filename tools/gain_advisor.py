@@ -1,23 +1,27 @@
 """
 tools/gain_advisor.py
 
-A genuinely usable builder tool: given hardware specifications alone (no
-simulation, no tuning, no flight test), recommend either a PID gain range or
-an ADRC bandwidth, plus a continuous risk score -- not a binary GO/NOGO.
+Builder tool: given hardware specifications, predict gain window risk and
+recommend a PID Kp range and ADRC bandwidth ceiling — all in physical units.
 
-Every formula used here is sourced from a specific experiment in this
-project, listed in PROVENANCE below, so a skeptical reader can check exactly
-what evidence backs each number and how strong that evidence is.
+Physical units throughout (no simulator-internal "control unit" conversions exposed):
+  keff  = T_avg × L_nozzle / Iyy   [s⁻²]   rotational authority per radian of gimbal
+  τ     = total loop delay           [s]       measurement-to-actuation latency
+  Π     = keff × τ²                 [-]       dimensionless risk parameter (saturation onset)
+
+Usage (CLI — delay in seconds):
+    python tools/gain_advisor.py --thrust 14.4 --l_nozzle 0.25 --iyy 0.015 --tau 0.025
+
+Usage (CLI — delay as latency steps):
+    python tools/gain_advisor.py --thrust 14.4 --l_nozzle 0.25 --iyy 0.015 --lat 5 --loop_hz 200
+
+Usage (CLI — include gimbal to enable margin score and ADRC ceiling):
+    python tools/gain_advisor.py --thrust 14.4 --l_nozzle 0.25 --iyy 0.015 --tau 0.025 --gimbal 10
 
 Usage (library):
     from gain_advisor import recommend
-    rec = recommend(thrust_n=14.4, max_gimbal_deg=10.0, l_nozzle_m=0.25,
-                     Iyy_kgm2=0.015, latency_steps=4)
+    rec = recommend(thrust_n=14.4, l_nozzle_m=0.25, Iyy_kgm2=0.015, tau_s=0.025)
     print(rec.summary())
-
-Usage (CLI):
-    python tools/gain_advisor.py --thrust 14.4 --gimbal 10 --l_nozzle 0.25 \
-        --iyy 0.015 --latency 4
 """
 
 from __future__ import annotations
@@ -25,160 +29,281 @@ import argparse
 import numpy as np
 from dataclasses import dataclass
 
-# ── Constants (units.py) ────────────────────────────────────────────────────
-REF_MAX_GIMBAL_DEG = 15.0
-REF_U_MAX = 12.0
-CU_TO_RAD = np.pi / 180 * REF_MAX_GIMBAL_DEG / REF_U_MAX  # rad per code-unit, 0.02182
+# ── Internal simulator constants — not exposed to users ──────────────────────
+# Needed only for converting fit coefficients (derived in the simulator's internal
+# CU unit system) into physical-unit output formulas. Builders never need these.
+_CU_TO_RAD = np.pi / 180.0 * 15.0 / 12.0  # 0.02182 rad per code-unit
+_DT_SIM    = 0.005                           # simulator timestep [s] = 200 Hz loop
 
-# ── PROVENANCE ───────────────────────────────────────────────────────────────
-# theta_ddot_max formula:      Newton's 2nd law, no fitting (exact).
-# PID Kp ceiling (380/latency): DIPDT theory + empirical (tools/gain_window_boundary_v2.py
-#     R^2=0.53 n=20; tools/window_ratio_regression.py v2 n=93 uncensored).
-#     KEY FINDING (2026-06-17): ceiling is INDEPENDENT OF KEFF (keff coeff ≈ 0.005 ≈ 0).
-#     Empirical latency exponent -0.86 (population regression); -1.0 from DIPDT theory.
-#     380/latency is a reasonable approximate formula (DIPDT + 2.1x bang-bang correction).
-# PID Kp floor (UPDATED 2026-06-17, tools/window_ratio_resweep_v2.py n=104 non-censored):
-#     NEW FORMULA: 0.06 * keff^1.06 * latency^0.96  (R^2=0.627, CV R^2=0.594)
-#     OLD formula (0.35 * keff^0.70 from relay study, keff-only, rho=0.58) was INCOMPLETE:
-#     latency was not tested. New finding: floor rises with latency as strongly as with keff
-#     (both exponents ≈ +1.0). Mechanism: high latency → angular error accumulates for τ sec
-#     before correction acts → need higher Kp to keep SR>=0.80. The WINDOW-RATIO FORMULA
-#     NEGATIVE RESULT (AUC=0.500 on held-out data, CLAUDE.md) tested the old keff-only floor;
-#     the updated formula with latency has not yet been externally validated.
-# Continuous margin model (over_sr ~ log td + log lat): tools/continuous_margin_
-#     regression.py + tools/elbow_characterization.py, n=222, R^2=0.274, p=5.8e-11.
-#     NOTE: the window_ratio regression (v2, 2026-06-17) gives CV R^2=0.616 with the same
-#     predictors but a better-specified outcome (direct window width, not over_sr). The
-#     over_sr model is retained here as the margin score since it's in [0,1] and interpretable.
-# ADRC bandwidth ceiling (omega_c_max ~ 645/(lat^0.66 * td^0.77)):
-#     tools/adrc_bandwidth_ceiling.py, n=21 valid cells (3 authority levels x
-#     up to 8 latencies), R^2=0.936. Smaller sample than the PID formulas;
-#     treat as a first-pass result pending a larger sweep.
+# ── Π_crit thresholds (dimensionless) ────────────────────────────────────────
+# Source: tools/delay_model_robustness_test.py (n=10, 4 delay-model types).
+# Π_crit_physical = Π_crit_CU × _DT_SIM² / _CU_TO_RAD
+# bare_metal = 177: integer FIFO; most bare-metal TVC builds sit here
+# rtos       = 275: RTOS with ±1-step scheduling jitter
+# partial_iir= 407: half-time-constant IIR + remaining FIFO buffer
+# filtered   = inf: Madgwick / Mahony / complementary filter eliminates saturation
+_PI_CRIT = {
+    "bare_metal":  177  * _DT_SIM**2 / _CU_TO_RAD,  # ≈ 0.203
+    "rtos":        275  * _DT_SIM**2 / _CU_TO_RAD,  # ≈ 0.315
+    "partial_iir": 407  * _DT_SIM**2 / _CU_TO_RAD,  # ≈ 0.466
+    "filtered":    float("inf"),
+}
 
-L_NOZZLE_DEFAULT = 0.25  # m, fixed airframe assumption used throughout this project
+# ── Kp ceiling constant ───────────────────────────────────────────────────────
+# Kp_ceiling [rad/rad, dimensionless] ≈ _KP_CEIL_CONST / τ [s]
+# Derivation: K_u_CU ≈ 380/lat (DIPDT + 2.1× bang-bang correction)
+#   → K_u_physical = K_u_CU × _CU_TO_RAD = 380 × _CU_TO_RAD × _DT_SIM / τ_s
+_KP_CEIL_CONST = 380.0 * _CU_TO_RAD * _DT_SIM           # ≈ 0.04146 [s]
+_KP_CEIL_CONST_CONSERVATIVE = 0.9 * _KP_CEIL_CONST       # ≈ 0.03731 [s]
+
+# ── PROVENANCE ────────────────────────────────────────────────────────────────
+# keff = T × L / Iyy:
+#   Newton's 2nd law (exact). Units: s⁻².
+#
+# Π = keff × τ²:
+#   From bang-bang blind-spot impulse ∝ keff × τ². Validated by: (a) saturation
+#   regime map (n=29, ρ=0.808 vs theory, p=2e-7); (b) performance frontier (n=63,
+#   ADRC advantage first appears at Π≈0.37, 17% above saturation onset); (c) causal
+#   2×2 factorial (PID-nosat SR=1.000 for all 15 designs; ADRC slew_frac=0.000).
+#
+# Kp_ceiling [rad/rad] ≈ 0.042/τ:
+#   DIPDT phase-margin analysis + 2.1× empirical bang-bang correction (keff-independent
+#   at moderate Π; keff coefficient ≈ 0.005 ≈ 0 in window_ratio regression, n=93).
+#   5 direct spot-check simulations all correct. Conservative uses 90% of this.
+#   Held-out validation: median pred/meas = 0.55× (underpredicts; safe direction).
+#
+# Kp_floor [rad/rad]:
+#   Converted from: 0.06 × keff_CU^1.061 × lat^0.964 (window_ratio v2, n=104,
+#   CV R²=0.594). CAVEAT: measured with frozen Kd=1.0 — may overstate the floor.
+#   keff > 20 CU (~keff > 915 s⁻²): add 1.5× safety margin (formula underpredicts here).
+#
+# Continuous margin model:
+#   over_sr ≈ 0.787 - 0.040×log(θ̈_max) - 0.072×log(τ) (n=262, CV R²=0.325, p=5.8e-11).
+#   Requires max_gimbal_deg (optional parameter).
+#
+# ADRC ceiling:
+#   ωc_max ≈ 3.41/(τ^0.57 × θ̈_max^0.31) [rad/s] (n=46, R²=0.823; exploratory).
+#   Requires max_gimbal_deg (optional parameter).
+#
+# Kd starting point:
+#   Population median Kd_best = 1.0 in the simulator's internal units;
+#   range observed: [1.0, 4.0]. The Z-N formula gives Kd = 0.57 (lower bound);
+#   1.0 is a better default. Increase if oscillation persists.
 
 
 @dataclass
 class Recommendation:
-    theta_ddot_max: float
-    keff_full: float
-    latency_steps: int
-    predicted_margin: float       # continuous, [0,1]-ish; over_sr regression
-    predicted_window_ratio: float # predicted Kp ceiling/floor ratio; window regression
-    pid_kp_floor: float
-    pid_kp_ceiling: float
-    pid_window_ratio: float       # from floor/ceiling formulas directly
-    adrc_omega_c_max: float
-    risk_tier: str
+    keff: float                           # [s⁻²]
+    tau_s: float                          # [s]
+    pi_val: float                         # Π = keff × τ² [-]
+    pi_crit: float                        # firmware-specific threshold [-]
+    firmware_type: str
+    theta_ddot_max: float | None          # [rad/s²]; None if max_gimbal not given
+    predicted_margin: float | None        # [0, 1]; None if no theta_ddot
+    pid_kp_ceiling: float                 # [rad/rad]
+    pid_kp_ceiling_conservative: float    # [rad/rad]
+    pid_kp_floor: float | None            # [rad/rad]
+    pid_window_ratio: float | None        # [-]
+    adrc_omega_c_max: float | None        # [rad/s]
+
+    @property
+    def risk_tier(self) -> str:
+        p = self.pi_val
+        if p < 0.10:
+            return "NEGLIGIBLE — linear regime, no saturation risk at any realistic Kp"
+        elif p < _PI_CRIT["bare_metal"]:
+            return "LOW — linear regime for all MCU types; ceiling cap sufficient"
+        elif p < _PI_CRIT["rtos"]:
+            return "MODERATE — saturation onset for bare-metal MCUs; tune with wind"
+        elif p < _PI_CRIT["partial_iir"]:
+            return "ELEVATED — saturation regime for most MCU types; full-physics tuning required"
+        elif p < 1.0:
+            return "HIGH — deep saturation; ADRC or rate filter strongly recommended"
+        else:
+            return "CRITICAL — Π > 1.0; extreme saturation regime; ADRC with adaptive ω₀/ωc required"
 
     def summary(self) -> str:
-        extrapolation_warn = (
-            "\n  WARNING: keff_full > 20 -- floor formula extrapolates beyond training data;"
-            " window ratio likely OVERPREDICTED (actual risk higher than shown)"
-            if self.keff_full > 20 else ""
-        )
+        above = self.pi_val > self.pi_crit
+        regime = "ABOVE saturation onset" if above else "below saturation onset"
+        cal_fail = "~61%" if self.pi_val >= 0.40 else ("~58%" if self.pi_val >= 0.32 else "~9%")
+        high_keff_warn = (self.keff * _CU_TO_RAD) > 20
+
         lines = [
-            f"theta_ddot_max = {self.theta_ddot_max:.1f} rad/s^2  "
-            f"(keff_full = {self.keff_full:.2f} rad/s^2 per code-unit)",
-            f"latency_steps = {self.latency_steps}",
+            "── TVC Gain Advisor ────────────────────────────────────────────",
+            f"keff  = T × L / Iyy = {self.keff:.1f} s⁻²",
+            f"τ     = loop delay  = {self.tau_s * 1000:.1f} ms",
+            f"Π     = keff × τ²  = {self.pi_val:.4f}  ({regime}; Π_crit = {self.pi_crit:.3f} for {self.firmware_type})",
+            f"Risk:   {self.risk_tier}",
             "",
-            f"Predicted gain-margin score: {self.predicted_margin:.2f} (1.0=no risk; over_sr model, CV R2=0.325)",
-            f"Predicted window ratio: {self.predicted_window_ratio:.1f}x ceiling/floor "
-            f"(window regression, CV R2=0.616){extrapolation_warn}",
-            f"Risk tier: {self.risk_tier}",
-            "",
-            "If using PID:",
-            f"  Recommended Kp range: [{self.pid_kp_floor:.1f}, {self.pid_kp_ceiling:.1f}]"
-            f"  (formula-predicted window ratio {self.pid_window_ratio:.1f}x)",
-            "  Tune in a full-physics simulator with wind, not a disturbance-free one --",
-            "  disturbance-free tuning has a documented ~64% false-rejection rate for",
-            "  designs in this risk range, and (rarely) 100% false approval for the most",
-            "  extreme designs (see CLAUDE.md Finding 4 / paper Section 5.1).",
-            "",
-            "If using ADRC (Active Disturbance Rejection Control):",
-            f"  Recommended omega_c <= {self.adrc_omega_c_max:.1f} rad/s "
-            f"(omega0 ~ 5x omega_c as a starting point)",
-            "  ADRC closes most of the PID gap for high-risk designs (Section 6); if the",
-            "  PID window above looks dangerously narrow, ADRC is the more robust choice.",
         ]
+
+        if self.theta_ddot_max is not None:
+            lines.append(f"θ̈_max (at max gimbal) = {self.theta_ddot_max:.1f} rad/s²")
+        if self.predicted_margin is not None:
+            lines.append(
+                f"Gain-margin score:  {self.predicted_margin:.2f}  "
+                "(1.0=no risk; n=262 regression, CV R²=0.33)"
+            )
+
+        lines += [
+            "",
+            "── PID ─────────────────────────────────────────────────────────",
+            f"  Kp ceiling:       < {self.pid_kp_ceiling:.4f} rad/rad  "
+            f"(= {self.pid_kp_ceiling * 180 / np.pi:.3f} °/°)",
+            f"  Conservative:     < {self.pid_kp_ceiling_conservative:.4f} rad/rad",
+        ]
+
+        if self.pid_kp_floor is not None:
+            lines += [
+                f"  Kp floor (est.):  ≥ {self.pid_kp_floor:.5f} rad/rad  "
+                f"(upper bound; may overstate floor)",
+                f"  Window ratio:     {self.pid_window_ratio:.0f}×",
+            ]
+            if high_keff_warn:
+                lines.append("  ⚠  Very high authority: floor formula likely underpredicts by ≥ 1.5×.")
+
+        lines += [
+            "  Kd starting point: 1.0 (population median; range [1.0, 4.0])",
+            f"  Disturbance-free calibration failure rate at this Π: {cal_fail}",
+            "  Tune in a full-physics simulator WITH wind, not still air.",
+            "",
+        ]
+
+        if self.adrc_omega_c_max is not None:
+            lines += [
+                "── ADRC ────────────────────────────────────────────────────────",
+                f"  ωc ceiling:  ≤ {self.adrc_omega_c_max:.1f} rad/s  |  start with ω₀ = 5×ωc",
+            ]
+            if self.pi_val > _PI_CRIT["rtos"]:
+                lines.append(
+                    "  ADRC strongly recommended over PID at this Π "
+                    "(ESO prevents saturation; PID cannot)."
+                )
+
+        lines.append("────────────────────────────────────────────────────────────────")
         return "\n".join(lines)
 
 
 def recommend(
     thrust_n: float,
-    max_gimbal_deg: float,
+    l_nozzle_m: float,
     Iyy_kgm2: float,
-    latency_steps: int,
-    l_nozzle_m: float = L_NOZZLE_DEFAULT,
+    tau_s: float | None = None,
+    latency_steps: int | None = None,
+    loop_hz: float = 200.0,
+    max_gimbal_deg: float | None = None,
+    firmware_type: str = "bare_metal",
 ) -> Recommendation:
-    keff_full = thrust_n * CU_TO_RAD * l_nozzle_m / Iyy_kgm2
-    u_max = max_gimbal_deg * REF_U_MAX / REF_MAX_GIMBAL_DEG
-    theta_ddot_max = keff_full * u_max
+    """
+    Compute gain window risk from hardware specs.
 
-    # Continuous margin model: over_sr ~ a + b*log(td) + c*log(latency)
-    # Fit on n=222, R^2=0.274 (tools/continuous_margin_regression.py +
-    # tools/elbow_characterization.py). Clipped to [0,1] -- the linear fit can
-    # extrapolate outside that range for extreme inputs.
-    a, b, c = 1.168, -0.0396, -0.0720
-    margin = a + b * np.log(theta_ddot_max) + c * np.log(latency_steps)
-    margin = float(np.clip(margin, 0.0, 1.0))
+    Parameters
+    ----------
+    thrust_n       : average motor thrust [N]
+    l_nozzle_m     : nozzle-to-CG moment arm [m]
+    Iyy_kgm2       : pitch moment of inertia [kg·m²]
+    tau_s          : total loop delay in seconds — preferred; directly measurable
+                     (IMU read → filter → PID → servo start-of-motion)
+    latency_steps  : loop delay in integer steps; used only when tau_s is None;
+                     requires loop_hz to convert
+    loop_hz        : control loop frequency [Hz]; default 200
+    max_gimbal_deg : maximum physical gimbal travel [°]; optional — enables the
+                     continuous margin score and the ADRC bandwidth ceiling recommendation
+    firmware_type  : 'bare_metal' | 'rtos' | 'partial_iir' | 'filtered'
+                     Determines which Π_crit threshold applies (see PROVENANCE above)
+    """
+    if tau_s is None:
+        if latency_steps is None:
+            raise ValueError("Provide either tau_s [s] or latency_steps + loop_hz.")
+        tau_s = latency_steps / loop_hz
 
-    pid_kp_ceiling = 380.0 / latency_steps
-    # Updated 2026-06-17: floor depends on BOTH keff AND latency (R^2=0.627, CV=0.594).
-    # Old formula (0.35*keff^0.70, keff-only) was underpowered — latency simply was never tested.
-    pid_kp_floor   = 0.06 * keff_full ** 1.061 * latency_steps ** 0.964
-    window_ratio   = pid_kp_ceiling / pid_kp_floor if pid_kp_floor > 0 else float("inf")
+    lat_equiv = tau_s * loop_hz  # effective latency in steps (for fit formulas)
 
-    # Predicted window ratio from population regression (2026-06-17, tools/window_ratio_resweep_v2.py):
-    # log(window) ~ 9.07 - 1.19*log(keff) - 1.88*log(lat)  [n=116, R^2=0.659]
-    # CAVEAT: floor formula (0.06*keff^1.06*lat^0.96) was fit on keff < ~20.
-    # For extreme designs (keff > 20, td > 200), the floor is observed to be 5-10x larger
-    # than the formula predicts (e.g. td=250 design: formula gives floor=8 at lat=4, measured floor=77).
-    # The window ratio will be significantly overpredicted (risk understated) for such designs.
-    predicted_window_ratio = 8700.0 * keff_full ** (-1.19) * latency_steps ** (-1.88)
+    # ── Core physical quantities ────────────────────────────────────────────
+    keff   = thrust_n * l_nozzle_m / Iyy_kgm2   # [s⁻²]
+    pi_val = keff * tau_s**2                      # [-] dimensionless
 
-    # ADRC bandwidth ceiling: omega_c_max ~ A / (latency^p * td^q)
-    # tools/adrc_bandwidth_ceiling.py, n=21, R^2=0.936.
-    A, p, q = 645.0, 0.66, 0.77
-    adrc_omega_c_max = A / (latency_steps ** p * theta_ddot_max ** q)
+    pi_crit = _PI_CRIT.get(firmware_type, _PI_CRIT["bare_metal"])
 
-    if theta_ddot_max < 36:
-        tier = "LOW RISK -- below the smallest theta_ddot_max ever observed to need careful tuning in this study"
-    elif theta_ddot_max < 55:
-        tier = "LOW-MODERATE -- tune with wind in the simulator if latency_steps >= 5"
-    elif theta_ddot_max < 90:
-        tier = "MODERATE -- gain margin starts to narrow; full-physics tuning recommended"
-    elif theta_ddot_max < 150:
-        tier = "ELEVATED -- gain margin measurably narrower; consider ADRC or careful PID tuning + flight test at Kp=2"
-    else:
-        tier = "HIGH -- gain margin substantially narrowed in this study's population; ADRC strongly recommended, or extensive full-physics PID tuning"
+    # ── Gain ceiling (keff-independent) ────────────────────────────────────
+    pid_kp_ceiling              = _KP_CEIL_CONST              / tau_s  # [rad/rad]
+    pid_kp_ceiling_conservative = _KP_CEIL_CONST_CONSERVATIVE / tau_s  # [rad/rad]
+
+    # ── Gain floor (approximate; frozen-Kd artifact — treat as upper bound) ─
+    keff_cu = keff * _CU_TO_RAD                  # [rad/s²/CU] — internal use only
+    pid_kp_floor = (
+        0.06 * (keff_cu ** 1.061) * (lat_equiv ** 0.964) * _CU_TO_RAD
+    )  # [rad/rad]
+    if keff_cu > 20:
+        pid_kp_floor *= 1.5  # safety margin: formula underpredicts at high authority
+
+    pid_window_ratio = (
+        pid_kp_ceiling / pid_kp_floor if pid_kp_floor > 0 else float("inf")
+    )
+
+    # ── Optional: theta_ddot_max and models that require it ─────────────────
+    theta_ddot_max    = None
+    predicted_margin  = None
+    adrc_omega_c_max  = None
+
+    if max_gimbal_deg is not None:
+        theta_ddot_max = keff * max_gimbal_deg * (np.pi / 180.0)   # [rad/s²]
+
+        # Continuous margin model (n=262, CV R²=0.325) — coefficients in physical units
+        predicted_margin = float(np.clip(
+            0.787 - 0.0396 * np.log(theta_ddot_max) - 0.0720 * np.log(tau_s),
+            0.0, 1.0,
+        ))
+
+        # ADRC ceiling (n=46, R²=0.823, exploratory) — coefficients in physical units
+        adrc_omega_c_max = 3.41 / (tau_s ** 0.57 * theta_ddot_max ** 0.31)
 
     return Recommendation(
+        keff=keff,
+        tau_s=tau_s,
+        pi_val=pi_val,
+        pi_crit=pi_crit,
+        firmware_type=firmware_type,
         theta_ddot_max=theta_ddot_max,
-        keff_full=keff_full,
-        latency_steps=latency_steps,
-        predicted_margin=margin,
-        predicted_window_ratio=predicted_window_ratio,
-        pid_kp_floor=pid_kp_floor,
+        predicted_margin=predicted_margin,
         pid_kp_ceiling=pid_kp_ceiling,
-        pid_window_ratio=window_ratio,
+        pid_kp_ceiling_conservative=pid_kp_ceiling_conservative,
+        pid_kp_floor=pid_kp_floor,
+        pid_window_ratio=pid_window_ratio,
         adrc_omega_c_max=adrc_omega_c_max,
-        risk_tier=tier,
     )
 
 
 def main():
-    ap = argparse.ArgumentParser(description="TVC gain advisor: predict gain sensitivity from hardware specs alone.")
-    ap.add_argument("--thrust", type=float, required=True, help="Average motor thrust, N")
-    ap.add_argument("--gimbal", type=float, required=True, help="Max gimbal deflection, deg")
-    ap.add_argument("--iyy", type=float, required=True, help="Pitch moment of inertia, kg*m^2")
-    ap.add_argument("--latency", type=int, required=True, help="Control loop latency, steps (5ms each at 200Hz)")
-    ap.add_argument("--l_nozzle", type=float, default=L_NOZZLE_DEFAULT, help="Nozzle-to-CG moment arm, m")
+    ap = argparse.ArgumentParser(
+        description="TVC gain advisor: predict saturation regime and Kp window from hardware specs."
+    )
+    ap.add_argument("--thrust",   type=float, required=True, help="Average motor thrust [N]")
+    ap.add_argument("--l_nozzle", type=float, required=True, help="Nozzle-to-CG moment arm [m]")
+    ap.add_argument("--iyy",      type=float, required=True, help="Pitch moment of inertia [kg·m²]")
+
+    delay_grp = ap.add_mutually_exclusive_group(required=True)
+    delay_grp.add_argument("--tau", type=float, help="Total loop delay [s]  (e.g. 0.025 for 25 ms)")
+    delay_grp.add_argument("--lat", type=int,   help="Loop delay in integer steps (with --loop_hz)")
+
+    ap.add_argument("--loop_hz",  type=float, default=200.0,
+                    help="Control loop frequency [Hz]; default 200")
+    ap.add_argument("--gimbal",   type=float, default=None,
+                    help="Max gimbal travel [°] (optional; enables margin score and ADRC ceiling)")
+    ap.add_argument("--firmware", type=str,   default="bare_metal",
+                    choices=list(_PI_CRIT.keys()),
+                    help="Firmware delay model (bare_metal/rtos/partial_iir/filtered)")
     args = ap.parse_args()
 
     rec = recommend(
-        thrust_n=args.thrust, max_gimbal_deg=args.gimbal, Iyy_kgm2=args.iyy,
-        latency_steps=args.latency, l_nozzle_m=args.l_nozzle,
+        thrust_n=args.thrust,
+        l_nozzle_m=args.l_nozzle,
+        Iyy_kgm2=args.iyy,
+        tau_s=args.tau,
+        latency_steps=args.lat,
+        loop_hz=args.loop_hz,
+        max_gimbal_deg=args.gimbal,
+        firmware_type=args.firmware,
     )
     print(rec.summary())
 

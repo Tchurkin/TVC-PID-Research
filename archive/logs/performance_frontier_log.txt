@@ -1,0 +1,55 @@
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 20 concurrent workers.
+[Parallel(n_jobs=-1)]: Done  37 out of  63 | elapsed:  6.2min remaining:  4.4min
+[Parallel(n_jobs=-1)]: Done  50 out of  63 | elapsed:  8.5min remaining:  2.2min
+[Parallel(n_jobs=-1)]: Done  63 out of  63 | elapsed:  8.8min finished
+Loading population...
+
+Selecting designs by Pi tier:
+  Pi [    0-   100): n=10  labels: {'EASY': 10}  Pi range [8,100]
+  Pi [  100-   300): n=10  labels: {'EASY': 10}  Pi range [113,240]
+  Pi [  300-   800): n=10  labels: {'EASY': 10}  Pi range [328,743]
+  Pi [  800-  2000): n=10  labels: {'EASY': 10}  Pi range [825,1869]
+  Pi [ 2000-  5000): n=10  labels: {'EASY': 7, 'FRAGILE': 3}  Pi range [2056,4366]
+  Pi [ 5000-  9000): n=10  labels: {'FRAGILE': 8, 'EASY': 1, 'INFEASIBLE': 1}  Pi range [5149,8264]
+  Pi [ 9000-10000000): n=3  labels: {'FRAGILE': 2, 'EASY': 1}  Pi range [9199,12648]
+
+Total designs selected: 63
+Pi range: 8 to 12648
+Regimes: {'EASY': 49, 'FRAGILE': 13, 'INFEASIBLE': 1}
+
+Approx total sims: 31,374
+Running parallel...
+
+Saved 63 rows to performance_frontier_py.csv
+
+=== Performance frontier by Pi tier ===
+          n  pid_mean  pid_below80  adrc_mean  adrc_below80  delta_mean
+Pi_tier                                                                
+<100     10     1.000        0.000      1.000         0.000       0.000
+100-300  10     1.000        0.000      1.000         0.000       0.000
+300-800  10     1.000        0.000      1.000         0.000       0.000
+800-2k   10     1.000        0.000      1.000         0.000       0.000
+2k-5k    10     0.940        0.000      1.000         0.000       0.060
+5k-9k    10     0.867        0.100      0.973         0.000       0.107
+>9k       3     0.622        0.667      0.911         0.333       0.289
+
+=== Designs where ADRC succeeds but PID fails (sr_delta > 0.1) ===
+   rocket_id final_label          td  latency            Pi  peak_pid_sr  peak_adrc_sr  best_wc
+51     R2106     FRAGILE  144.841476        6   5214.293149     0.466667      0.933333      5.0
+60     R1513        EASY  283.506819        6  10206.245496     0.600000      1.000000      5.0
+
+=== Designs where BOTH fail (adrc_sr < 0.80) ===
+   rocket_id final_label          td  latency            Pi  peak_pid_sr  peak_adrc_sr  best_wc
+62     R2072     FRAGILE  351.336759        6  12648.123335     0.333333      0.733333      5.0
+
+=== Spearman correlations ===
+rho(Pi, peak_pid_sr):   -0.668  p=2.15e-09
+rho(Pi, peak_adrc_sr):  -0.325  p=9.35e-03
+rho(Pi, sr_delta):      0.558  p=2.02e-06  [positive = ADRC advantage grows with Pi]
+
+=== Summary ===
+First design with SR<90%: PID at Pi=2616, ADRC at Pi=7795  (ADRC extends frontier 3.0x in Pi)
+First design with SR<80%: PID at Pi=5214, ADRC at Pi=12648  (ADRC extends frontier 2.4x in Pi)
+First design with SR<50%: PID at Pi=5214, ADRC at Pi=nan  (ADRC extends frontier nanx in Pi)
+
+Done.

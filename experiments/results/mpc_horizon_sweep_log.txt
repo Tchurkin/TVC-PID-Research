@@ -1,0 +1,55 @@
+========================================================================
+MPC HORIZON SWEEP: H = 1,2,3,4,5 vs Pi constraint
+========================================================================
+Seeds: 202001–202008 (fresh, disjoint from all prior)
+Horizons: [1, 2, 3, 4, 5]
+Kp values: 10, Seeds/Kp: 8
+
+Loaded population: 2400 designs
+
+Selecting 50 designs (same bins as full-physics audit, random_state=42):
+  bin [   0,  30): 10 designs, Pi=3-54
+  bin [  30,  60): 10 designs, Pi=4-180
+  bin [  60, 120): 10 designs, Pi=23-483
+  bin [ 120, 200): 10 designs, Pi=57-1147
+  bin [ 200,1000): 10 designs, Pi=20-867
+Total: 50 designs, Pi=3–1147
+
+Running 50×10 Kp × 7 variants × 8 seeds
+= 28,000 simulations (full TVC physics)
+Estimated time: 30-90 minutes
+
+  Design 1/50: R0878 keff~2.1 lat=3 Pi=19
+  Design 11/50: R1539 keff~6.0 lat=2 Pi=24
+  Design 21/50: R0969 keff~14.6 lat=5 Pi=366
+  Design 31/50: R0024 keff~18.0 lat=4 Pi=289
+  Design 41/50: R1203 keff~31.2 lat=2 Pi=125
+
+Detail saved: mpc_horizon_sweep_detail_py.csv (500 rows)
+Design-level saved: mpc_horizon_sweep_py.csv (50 rows)
+
+========================================================================
+MPC HORIZON SWEEP -- RESULTS
+========================================================================
+Cross-check against prior results:
+  mpc_full_physics_audit: PD rho=-0.701, H1 rho=-0.807, H5 rho=-0.052
+
+  PD_baseline       : rho=-0.722 ***   n_perfect=9/50  mean=0.810
+  H=1_MPC           : rho=-0.788 ***   n_perfect=3/50  mean=0.518
+  H=2_MPC           : rho=-0.166 (ns)  n_perfect=23/50  mean=0.526
+  H=3_MPC           : rho=-0.071 (ns)  n_perfect=27/50  mean=0.630
+  H=4_MPC           : rho=-0.035 (ns)  n_perfect=31/50  mean=0.710
+  H=5_MPC           : rho=-0.005 (ns)  n_perfect=33/50  mean=0.748
+  ADRC_reference    : rho=+nan (ns)  n_perfect=50/50  mean=1.000
+
+HORIZON TRANSITION SUMMARY:
+  H=1: rho=-0.788  Pi-DEPENDENT
+  H=2: rho=-0.166  ESCAPES Pi
+  H=3: rho=-0.071  ESCAPES Pi
+  H=4: rho=-0.035  ESCAPES Pi
+  H=5: rho=-0.005  ESCAPES Pi
+
+H_CRIT = 2: minimum planning horizon to escape Pi constraint
+Rho summary saved: mpc_horizon_sweep_rho_py.csv
+
+Done.

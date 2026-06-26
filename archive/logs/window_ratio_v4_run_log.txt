@@ -1,0 +1,66 @@
+v2 had 120 designs; reloading same 120 rocket_ids from pool
+Matched 120/120 rocket_ids in regenerated pool
+
+Sim estimate per design:
+  Coarse grid (9Kp x 7Kd x 3seeds): 189
+  GS refinement (3 rounds x 2 axes x 12 iters x 5 seeds): 360
+  Kp sweep (20Kp x 6Kd x 12seeds): 1440
+  Total per design: 1989   Grand total: ~238,680
+
+Kd range for search: [0.10, 32.0]  (was [1.0, 64.0])
+Kd values for existential sweep: [ 0.1   0.38  1.46  5.62 21.5 ]
+Eval seeds: 75001 - 75012
+Running...
+
+
+Saved 120 rows to experiments\results\window_ratio_v4_py.csv
+
+=================================================================
+WINDOW RATIO v4 (CORRECTED Kd) RESULTS
+=================================================================
+n_valid=120/120  floor_censored=81  ceil_censored=95
+  (v2 had: 116/120, floor_censored=12, ceil_censored=23)
+window_ratio: min=9.4x  p25=1302.9x  median=5000.0x  p75=5000.0x  max=5000.0x
+
+opt_Kd distribution (should be 0.1-2.0; was always 1.0 in v2):
+  min=0.052  p25=0.052  median=0.064  p75=0.102  max=0.468
+  Designs with opt_Kd < 0.15 (near grid min): 110/120
+
+best_Kd at floor Kp: min=0.052  median=0.380  max=0.468
+
+Correlations with log(window_ratio):
+  r(log_td)=-0.417  rho=-0.458  p=2.10e-06
+  r(log_lat)=-0.387  rho=-0.424  p=1.30e-05
+  r(log_keff)=-0.428  rho=-0.490  p=1.06e-06
+
+OLS models (outcome: log(window_ratio)):
+  log_td only                              R2=0.174  CV=0.148+/-0.131  coefs=[+9.970 -0.494]
+  log_keff only                            R2=0.183  CV=0.133+/-0.208  coefs=[+9.134 -0.572]
+  log_keff + log_lat                       R2=0.331  CV=0.307+/-0.103  coefs=[+9.866 -0.569 -0.760]
+  log(Pi) = log_keff + log_lat²            R2=0.318  CV=0.313+/-0.056  coefs=[+9.695 -0.447]
+  log_td + log_lat                         R2=0.324  CV=0.318+/-0.048  coefs=[+10.719 -0.495 -0.766]
+
+--- Comparison with v2 (frozen Kd=1.0) ---
+  v2: log_keff+log_lat  R2=0.659  CV=0.616+/-0.080  coefs=[-1.192keff,-1.880lat]
+  v2: window median=?x (censored at ~8000x)
+
+Ceiling regression (n=25 non-censored):
+  Theory: ceiling ~ lat^-1.0, keff-independent (coeff~0)
+  ceil ~ keff+lat: R2=0.450  coefs: keff=-0.516 lat=-1.997
+  Implied: ceil ~ 10204 * keff^-0.52 * lat^-2.00
+
+Floor regression (n=39 non-censored):
+  Theory (v2): floor ~ keff^1.06 * lat^0.96 * 0.06  (BIASED, Kd=1.0)
+  Expected correction: constant ~0.021 (0.06 * 0.35), exponents preserved
+  floor ~ keff only:    R2=0.019  coefs: keff=+0.218  implied: floor~0.2189*keff^0.22
+  floor ~ keff + lat:   R2=0.103  CV=-0.579+/-0.656
+  coefs: keff=+0.206 lat=+0.403
+  Implied: floor ~ 0.1433 * keff^0.21 * lat^0.40
+  v2 was: 0.06 * keff^1.06 * lat^0.96
+
+C = window_ratio * Pi: median=202757  p25=71327  p75=586412
+  v2 had: median~9391  (theory 6300 -- both biased upward)
+  Expected corrected C ~ 26831 (if floor shifts 2.9x, C scales same)
+
+Saved: experiments\results\window_ratio_v4_py.csv
+       experiments\results\window_ratio_v4_sweep_py.csv

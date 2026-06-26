@@ -1,0 +1,41 @@
+window_ratio_v5_constrained_kd.py
+  Kd constraint: ratios [np.float64(0.1), np.float64(0.32), np.float64(1.0), np.float64(3.16)] * Kp  UNION  KD_ZN=0.57
+  Kd/Kp range: [0.10, 3.16]  (plus fixed 0.57)
+  Kp sweep: 28 pts [0.050, 500]
+  Eval seeds: 80001 - 80015  (15 seeds)
+
+Loading 10k pool (seed=8888)...
+Selected 25 designs
+Est. sims: 52,500  (~0.1 hrs at 200 sim/s)
+Running...
+
+Saved 25 rows to experiments\results\window_ratio_v5_py.csv
+
+============================================================
+WINDOW RATIO v5 (CONSTRAINED Kd) RESULTS
+============================================================
+n=25, valid=3, floor_censored=15, ceil_censored=20
+window_ratio: min=234.6x  p25=576.4x  median=918.3x  p75=918.3x  max=918.3x
+
+opt_Kd at floor: {'count': 25.0, 'mean': 0.3369197095942625, 'std': 0.2110769773193312, 'min': 0.01, '25%': 0.15800000000000003, '50%': 0.2752394903927485, '75%': 0.5445114811318649, 'max': 0.8697567896410853}
+opt_Kd at ceil:  {'count': 25.0, 'mean': 23.1996, 'std': 14.403035409246204, 'min': 0.57, '25%': 0.57, '50%': 32.0, '75%': 32.0, 'max': 32.0}
+
+Floor regression (n=10 non-censored):
+  floor ~ keff+lat: R2=0.189
+  coefs: keff=-0.196  lat=-0.477  const=-0.457
+  Implied: floor ~ 0.6332 * keff^-0.20 * lat^-0.48
+  v2 (biased Kd=1.0): 0.0600 * keff^1.06 * lat^0.96
+  artifact-test pred: 0.0210 * keff^1.06 * lat^0.96  (0.35 * v2)
+
+Ceiling regression (n=5 non-censored):
+  ceil ~ keff+lat: R2=0.891
+  coefs: keff=-0.607  lat=-3.333
+  Theory: keff~0, lat~-1.0  (ceiling=380/lat, keff-independent)
+
+Window regression (n=3 non-censored):
+
+C = window * Pi:  median=299275  p25=209746  p75=404367
+  Theory (ceiling/floor formulas): C = 380/0.021 = 18095
+  v2 empirical: C ~ 9391
+
+Correlations with log(window_ratio):

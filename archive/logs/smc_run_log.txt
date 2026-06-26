@@ -1,0 +1,58 @@
+[Parallel(n_jobs=-1)]: Using backend LokyBackend with 20 concurrent workers.
+[Parallel(n_jobs=-1)]: Done  22 out of  50 | elapsed:  7.6min remaining:  9.7min
+[Parallel(n_jobs=-1)]: Done  33 out of  50 | elapsed:  8.4min remaining:  4.3min
+[Parallel(n_jobs=-1)]: Done  44 out of  50 | elapsed: 13.9min remaining:  1.9min
+[Parallel(n_jobs=-1)]: Done  50 out of  50 | elapsed: 14.1min finished
+Loading LQR design selection (same 50 designs)...
+Designs loaded: 50
+td range: 3.7 to 311.8 rad/s^2
+Regimes: {'EASY': 43, 'FRAGILE': 7}
+
+Grid: 6 lambda_s x 20 Kp = 120 combos per design
+Total sims: 60,000
+Running parallel sweep...
+
+Saved 50 summary rows, 6000 detail rows
+
+=== SMC window by td tier ===
+          n  med_total  med_best_lam  n_zero_total
+td_tier                                           
+<40      16       55.0          20.0             0
+40-80     9       49.0          20.0             0
+80-120    5       28.0          14.0             0
+120-200  10       13.0           9.0             0
+>200     10       21.5          13.0             0
+
+=== Spearman correlations ===
+rho(td,   n_pass_total)    = -0.679  p=5.79e-08
+rho(Pi,   n_pass_total)    = -0.753  p=2.82e-10
+rho(td,   n_pass_best_lam) = -0.596  p=5.06e-06
+rho(Pi,   n_pass_best_lam) = -0.789  p=9.62e-12
+
+=== Zero-window designs (peak_sr < 0.80 everywhere) ===
+  None — every design found at least one valid (lambda_s, Kp)
+
+=== Window by td x latency (median n_pass_best_lam) ===
+                  n  median_pass
+td_tier lat_tier                
+<40     1-2       3         20.0
+        3-4       5         20.0
+        5-6       8         19.5
+40-80   1-2       4         20.0
+        3-4       5         19.0
+80-120  1-2       2         20.0
+        3-4       2         12.0
+        5-6       1         10.0
+120-200 1-2       3         18.0
+        3-4       2          8.5
+        5-6       5          7.0
+>200    1-2       4         17.5
+        3-4       3         14.0
+        5-6       3          7.0
+
+=== LQR comparison (from lqr_controller_test_py.csv) ===
+LQR rho(Pi, n_pass_qr) = -0.747  p=4.8e-10  (from prior experiment)
+SMC rho(Pi, n_pass_total) = -0.753  p=2.82e-10
+SMC rho(Pi, n_pass_best_lam) = -0.789  p=9.62e-12
+
+Done.

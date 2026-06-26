@@ -1,0 +1,59 @@
+========================================================================
+MPC FULL-PHYSICS AUDIT (REVIEWER-FLAGGED: is simplified result real or artifact?)
+========================================================================
+Seeds: 200001–200010 (10 per Kp value)
+Kp sweep: 12 values in [1.0, 398.1] CU
+Physics: FULL (wind with inertia_scale, slew+deadband+backlash, sensor latency+noise)
+Hypothesis: H=5 MPC rho ~ -0.75 (same as PID/LQR/SMC) when wind is realistic
+
+
+Selecting 50 designs (5 td bins x 10 each):
+  bin [   0,  30): 10 designs, Pi=3-54
+  bin [  30,  60): 10 designs, Pi=4-180
+  bin [  60, 120): 10 designs, Pi=23-483
+  bin [ 120, 200): 10 designs, Pi=57-1147
+  bin [ 200,1000): 10 designs, Pi=20-867
+Total: 50 designs, Pi=3–1147
+
+Running 600 design×Kp combos × 4 variants × 10 seeds = 24,000 simulations (sequential)
+This may take 20-60 minutes on a typical CPU.
+
+  Design 1/50: R0878 keff~2.1 lat=3 Pi=19
+  Design 6/50: R2040 keff~0.7 lat=2 Pi=3
+  Design 11/50: R1539 keff~6.0 lat=2 Pi=24
+  Design 16/50: R2157 keff~4.3 lat=1 Pi=4
+  Design 21/50: R0969 keff~14.6 lat=5 Pi=366
+  Design 26/50: R1672 keff~7.3 lat=6 Pi=263
+  Design 31/50: R0024 keff~18.0 lat=4 Pi=289
+  Design 36/50: R2246 keff~17.4 lat=3 Pi=157
+  Design 41/50: R1203 keff~31.2 lat=2 Pi=125
+  Design 46/50: R1679 keff~25.2 lat=4 Pi=403
+
+========================================================================
+MPC FULL-PHYSICS AUDIT -- RESULTS
+========================================================================
+
+Spearman rho(log Pi_keff, frac_pass) per variant:
+  Simplified-physics baselines: PD rho=-0.969, H1 rho=-0.969, H5 rho=NaN
+  Full TVC (other tests): LQR rho=-0.747, SMC rho=-0.753, ADRC rho=-0.283
+
+  Unconstrained_PD            : n=50  rho=-0.701  p=1.46e-08  n_perfect=9/50  mean=0.825
+  Constrained_H1              : n=50  rho=-0.807  p=1.53e-12  n_perfect=3/50  mean=0.517
+  Constrained_H5_MPC          : n=50  rho=-0.052  p=7.18e-01  n_perfect=41/50  mean=0.855
+  ADRC_reference              : n=50  rho=+nan  p=nan  n_perfect=50/50  mean=1.000
+
+Best achievable SR (any Kp) by Pi tier:
+  Pi tier                    PD        H1        H5      ADRC
+  Pi     0-100      n=24     1.000     1.000     0.921     1.000
+  Pi   100-300      n=15     1.000     1.000     0.933     1.000
+  Pi   300-1000     n=10     1.000     1.000     1.000     1.000
+  Pi  1000-5000     n= 1     1.000     1.000     1.000     1.000
+
+No designs with PD best_sr < 0.80 (unexpectedly high wind tolerance)
+
+--- VERDICT ---
+  H5 MPC rho=-0.052: NEAR ADRC (+nan)
+  -> Constraint planning WITHOUT disturbance model approaches ADRC performance
+  -> CLAIM 'disturbance estimation uniquely necessary' REQUIRES REVISION
+
+Saved: mpc_full_physics_audit_detail_py.csv, mpc_full_physics_audit_py.csv, mpc_full_physics_audit_rho_py.csv

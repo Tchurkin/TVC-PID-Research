@@ -42,8 +42,8 @@ Simulation infrastructure:
 - Gain-search protocol: joint 18×7 Kp×Kd grid (126 combinations), 30-seed evaluation, Wilson 95% CI flagging.
 
 Core experiments (all with fresh disjoint seeds):
-- Saturation regime map (n = 29, replicated to combined n = 142; 4 universality campaigns)
-- 2×2 factorial causal isolation (n = 15, saturation on/off × PID/ADRC; reproduced at n = 142 via regime-map SR_nosat ≈ 0.99)
+- Saturation regime map (n = 29 designs, 4 universality campaigns)
+- 2×2 factorial causal isolation (n = 15, saturation on/off × PID/ADRC)
 - Controller invariance: PID/LQR/SMC/ADRC (n = 50 designs each); MPC H=1 (ρ = −0.807, full physics, same as PD); **MPC H=5 full-physics audit (2026-06-24, n = 50): ρ = −0.052, p = 0.718 — escapes Π constraint via anticipatory planning; comparable to ADRC on frac_pass (0.855 vs 1.000); revised claim: reactive controllers fail, H=5 planning OR ESO succeeds**
 - Performance frontier and extension to Π_td = 57 / Π_keff ≈ 6.4 (n = 63 + 44)
 - Delay model robustness (integer FIFO, jitter, lag, lag+delay, n = 10 × 4 models)
