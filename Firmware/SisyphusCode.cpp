@@ -31,6 +31,17 @@ constexpr float K1_NOMINAL           = 20.00f;   // theta feedback gain
 constexpr float K2_NOMINAL           = 3.14f;    // q feedback gain
 constexpr float U_MAX                = 12.0f;    // command saturation
 
+// ---- Attitude control-law selection ----
+// CONTROL_LQR  = existing flight-proven adaptive-LQR state feedback. DEFAULT (no behavior change).
+// CONTROL_ADRC = ADRC ported from the validated landing sim (ESO + online keff as b0).
+//                BENCH-TEST on hardware before flying it; then set CONTROL_MODE = CONTROL_ADRC.
+#define CONTROL_LQR  0
+#define CONTROL_ADRC 1
+#define CONTROL_MODE CONTROL_LQR
+constexpr float ADRC_WC = 6.0f;                  // ADRC controller bandwidth (rad/s) -- from the validated sim
+constexpr float ADRC_W0 = 30.0f;                 // ESO bandwidth (rad/s) = 5*wc
+constexpr float DT_CTRL = 1.0f / CONTROL_HZ;     // true control-loop period (s) for the ESO integration
+
 // Adaptation parameters (from jad struct in rocket_defaults.m)
 constexpr float LAMBDA_RLS           = 0.97f;
 constexpr float ADAPT_GUARD_S        = 0.50f;
@@ -154,6 +165,7 @@ struct AdaptiveState {
   float demand_lp = 0.0f;
   float disturb_lp = 0.0f;
   float resid_lp = 0.0f;
+  float z1 = 0.0f, z2 = 0.0f, z3 = 0.0f;   // ADRC ESO states: attitude / rate / total-disturbance estimates
 };
 
 struct Diagnostics {
@@ -612,8 +624,24 @@ void runJointAdaptive() {
   diag.K_eff_theta = K1_NOMINAL * gain_scale;
   diag.K_eff_q = K2_NOMINAL * gain_scale;
 
+  // --- Control law: adaptive-LQR (default) or ADRC (ported from the validated sim) ---
+#if CONTROL_MODE == CONTROL_ADRC
+  // ADRC: a 3rd-order ESO estimates rate (z2) and total disturbance (z3) from the attitude estimate; b0 = the online
+  // keff estimate, so the firmware's adaptive identification feeds the ADRC inversion. thRef = 0 (regulate to vertical).
+  float b0 = min(KEFF_MAX, max(KEFF_MIN, adapt.keff_est));
+  float uA = b0 * tm.u_act_meas;                                          // realized angular accel (anti-windup: measured actuator)
+  float e_obs = tm.theta_rad - adapt.z1;
+  adapt.z1 += DT_CTRL * (adapt.z2 + 3.0f * ADRC_W0 * e_obs);
+  adapt.z2 += DT_CTRL * (adapt.z3 + uA + 3.0f * ADRC_W0 * ADRC_W0 * e_obs);
+  adapt.z3 += DT_CTRL * (ADRC_W0 * ADRC_W0 * ADRC_W0 * e_obs);
+  float alphaDes = ADRC_WC * ADRC_WC * (0.0f - adapt.z1) - 2.0f * ADRC_WC * adapt.z2 - adapt.z3;
+  float u_cmd_raw = alphaDes / b0;                                        // invert: command units = desired angular accel / keff
+  diag.K_eff_theta = ADRC_WC * ADRC_WC / b0;                             // effective gains, for log comparability
+  diag.K_eff_q = 2.0f * ADRC_WC / b0;
+#else
   // --- State feedback: u_cmd = -K_eff * [theta; q] ---
   float u_cmd_raw = -(diag.K_eff_theta * tm.theta_rad + diag.K_eff_q * tm.q_meas);
+#endif
 
   // --- Safety shields ---
   diag.shield_slew = false;

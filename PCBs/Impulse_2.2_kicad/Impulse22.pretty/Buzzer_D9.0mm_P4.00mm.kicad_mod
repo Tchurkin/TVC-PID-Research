@@ -1,0 +1,13 @@
+(footprint "Buzzer_D9.0mm_P4.00mm"
+		(layer "F.Cu")
+		(uuid "62e55f71-0d46-4504-9317-70984eb617e6")
+		(at 0 0)
+		(property "Reference" "BUZZER1" (at 0 -2.5 0) (layer "F.SilkS") (uuid "02ecf96d-fb2e-4863-87aa-f148c848972b") (effects (font (size 1 1) (thickness 0.15))))
+		(property "Value" "Buzzer 2.7kHz" (at 0 2.5 0) (layer "F.Fab") (uuid "abfa8071-2936-4cc9-b68a-a707040d368e") (effects (font (size 1 1) (thickness 0.15))))
+		(attr through_hole)
+		(pad "1" thru_hole rect (at 2 0) (size 1.8 1.8) (drill 1.02) (layers "*.Cu" "*.Mask") (uuid "62651ae5-9a2b-43e1-b20a-0c41c019f97c"))
+		(pad "2" thru_hole circle (at -2 0) (size 1.8 1.8) (drill 1.02) (layers "*.Cu" "*.Mask") (uuid "a34ab457-5fb2-404a-b37b-8b0f34f20301"))
+		(fp_circle (center 0 0) (end 4.5 0) (stroke (width 0.12) (type solid)) (fill no) (layer "F.SilkS") (uuid "d493169a-fc69-4252-bb1b-f5ca3691fc35"))
+		(fp_circle (center 0 0) (end 4.75 0) (stroke (width 0.05) (type solid)) (fill no) (layer "F.CrtYd") (uuid "7d60aa8a-8195-4602-9ade-24251368a315"))
+		(fp_text user "+" (at 3.6 -2.2) (layer "F.SilkS") (uuid "547f9c32-a0e3-4c2e-ab1b-8b407b881693") (effects (font (size 1 1) (thickness 0.15))))
+	)

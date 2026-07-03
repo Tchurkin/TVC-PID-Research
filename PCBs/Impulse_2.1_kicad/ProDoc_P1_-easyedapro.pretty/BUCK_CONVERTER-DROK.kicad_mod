@@ -1,0 +1,13 @@
+(footprint "BUCK CONVERTER-DROK"
+	(version 20240108)
+	(generator "altium_convert")
+    (layer "B.Cu")
+    (uuid "f9d8c3f3-049b-4c54-b0a9-323dddf15146")
+    (property "Reference" "REF**" (at 0 0 0) (layer "F.SilkS") (uuid "6dbf3682-b7e5-45a1-9fbc-95fbb3e123a4") (effects (font (size 1 1) (thickness 0.15))))
+    (property "Value" "BUCK CONVERTER-DROK" (at 0 1 0) (layer "F.Fab") (hide yes) (uuid "b5ef7e77-3d4b-417d-b707-3821e0e5654c") (effects (font (size 1 1) (thickness 0.15))))
+    (pad "1" thru_hole circle (at 0.0000 -5.0800 180) (size 1.5240 1.5240) (drill 0.914) (layers "*.Cu" "*.Mask") (uuid "d27b9add-9e66-4033-8108-55f579325b4a"))
+    (pad "2" thru_hole circle (at 0.0000 -2.5400 180) (size 1.5240 1.5240) (drill 0.914) (layers "*.Cu" "*.Mask") (uuid "06bbf6fe-b997-4f92-a565-d438de998f80"))
+    (pad "3" thru_hole circle (at 0.0000 0.0000 180) (size 1.5240 1.5240) (drill 0.914) (layers "*.Cu" "*.Mask") (uuid "629d1d35-4008-4a89-87a1-491cc83adce4"))
+    (pad "4" thru_hole circle (at 0.0000 2.5400 180) (size 1.5240 1.5240) (drill 0.914) (layers "*.Cu" "*.Mask") (uuid "a478f8bf-83ae-4e08-9dbb-7638ecc291f6"))
+    (pad "5" thru_hole circle (at 0.0000 5.0800 180) (size 1.5240 1.5240) (drill 0.914) (layers "*.Cu" "*.Mask") (uuid "adfba309-8efa-4f61-a9e0-a3fc7d6f19a1"))
+  )

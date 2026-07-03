@@ -1,0 +1,10 @@
+(footprint "BUZ-TH_BD9.0-P4.00-D0.6-FD"
+	(version 20240108)
+	(generator "altium_convert")
+    (layer "F.Cu")
+    (uuid "03800e3c-02d5-499c-aa1d-17452ef434cd")
+    (property "Reference" "REF**" (at 0 0 0) (layer "F.SilkS") (uuid "69036e92-91e4-4e2d-8632-dcf8b4936cb4") (effects (font (size 1 1) (thickness 0.15))))
+    (property "Value" "BUZ-TH_BD9.0-P4.00-D0.6-FD" (at 0 1 0) (layer "F.Fab") (hide yes) (uuid "8bbd57ea-f21b-46b7-92b2-ab5544edf3ea") (effects (font (size 1 1) (thickness 0.15))))
+    (pad "1" thru_hole circle (at 1.9990 0.0000 180) (size 1.8009 1.8009) (drill 1.001) (layers "*.Cu" "*.Mask") (uuid "9d9c0ab1-c6d3-4a8f-9b65-c58eb08f1161"))
+    (pad "2" thru_hole circle (at -2.0015 0.0000 180) (size 1.8009 1.8009) (drill 1.001) (layers "*.Cu" "*.Mask") (uuid "2f956c22-b00f-4eea-b27b-129e8529a24e"))
+  )

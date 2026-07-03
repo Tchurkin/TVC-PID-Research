@@ -1,0 +1,12 @@
+(footprint "SW-TH_4P-L6.0-W6.0-P4.50-LS6.5"
+	(version 20240108)
+	(generator "altium_convert")
+    (layer "F.Cu")
+    (uuid "96166c35-d602-49c9-8e9f-024fdd0fbb9c")
+    (property "Reference" "REF**" (at 0 0 0) (layer "F.SilkS") (uuid "ab6e5b78-fd2f-443c-bbf0-f51bbe097d3d") (effects (font (size 1 1) (thickness 0.15))))
+    (property "Value" "SW-TH_4P-L6.0-W6.0-P4.50-LS6.5" (at 0 1 0) (layer "F.Fab") (hide yes) (uuid "f51d519e-a57a-4c29-a6a4-b8f01ccbcd87") (effects (font (size 1 1) (thickness 0.15))))
+    (pad "1" thru_hole circle (at -3.2512 -2.2504) (size 1.8009 1.8009) (drill 1.199) (layers "*.Cu" "*.Mask") (uuid "75a43092-cb7e-44af-8549-88ddf2ffe9d1"))
+    (pad "2" thru_hole circle (at 3.2487 -2.2504) (size 1.8009 1.8009) (drill 1.199) (layers "*.Cu" "*.Mask") (uuid "881e776f-298a-4c5e-8978-9ca6fa7ca240"))
+    (pad "3" thru_hole circle (at -3.2512 2.2504) (size 1.8009 1.8009) (drill 1.199) (layers "*.Cu" "*.Mask") (uuid "8e745d9c-978e-406c-bf5b-b27a10a73a21"))
+    (pad "4" thru_hole circle (at 3.2487 2.2504) (size 1.8009 1.8009) (drill 1.199) (layers "*.Cu" "*.Mask") (uuid "fec9c3b4-9a91-431a-8741-4480b1389a24"))
+  )

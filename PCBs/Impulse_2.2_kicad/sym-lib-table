@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "Impulse22")(type "KiCad")(uri "${KIPRJMOD}/Impulse22.kicad_sym")(options "")(descr "Impulse project symbols"))
+)

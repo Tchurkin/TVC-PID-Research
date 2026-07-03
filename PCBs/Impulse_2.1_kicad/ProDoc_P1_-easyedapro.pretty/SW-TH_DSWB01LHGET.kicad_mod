@@ -1,0 +1,10 @@
+(footprint "SW-TH_DSWB01LHGET"
+	(version 20240108)
+	(generator "altium_convert")
+    (layer "F.Cu")
+    (uuid "1a7104d4-0823-4e0d-9182-ea7c9dd078de")
+    (property "Reference" "REF**" (at 0 0 0) (layer "F.SilkS") (uuid "e03d361b-9ab8-485b-b538-e128a8a90227") (effects (font (size 1 1) (thickness 0.15))))
+    (property "Value" "SW-TH_DSWB01LHGET" (at 0 1 0) (layer "F.Fab") (hide yes) (uuid "4c8e96ad-e84c-4f70-9127-c601b6ce8eef") (effects (font (size 1 1) (thickness 0.15))))
+    (pad "2" thru_hole circle (at 3.8100 0.0000 180) (size 1.6002 1.6002) (drill 1.001) (layers "*.Cu" "*.Mask") (uuid "290bf580-33d4-4028-b921-aa6fd8faa316"))
+    (pad "1" thru_hole circle (at -3.8100 0.0000 180) (size 1.6002 1.6002) (drill 1.001) (layers "*.Cu" "*.Mask") (uuid "2f780b5b-08c6-4e13-8873-fd01748bbf00"))
+  )

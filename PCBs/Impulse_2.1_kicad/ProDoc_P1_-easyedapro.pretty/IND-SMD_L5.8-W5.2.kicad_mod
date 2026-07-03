@@ -1,0 +1,10 @@
+(footprint "IND-SMD_L5.8-W5.2"
+	(version 20240108)
+	(generator "altium_convert")
+    (layer "B.Cu")
+    (uuid "dbe3fcc7-29ff-4382-9b53-c6728f30ea0f")
+    (property "Reference" "REF**" (at 0 0 0) (layer "F.SilkS") (uuid "0e3aa51e-ee62-4509-b207-9d3ffb35c92b") (effects (font (size 1 1) (thickness 0.15))))
+    (property "Value" "IND-SMD_L5.8-W5.2" (at 0 1 0) (layer "F.Fab") (hide yes) (uuid "c9195dba-de62-4f85-bcbc-96886cdd0b69") (effects (font (size 1 1) (thickness 0.15))))
+    (pad "1" smd rect (at 0.0000 -2.3266 270) (size 2.9997 5.4991) (layers "B.Cu" "B.Paste" "B.Mask") (uuid "78ad8cc1-5c7b-4648-bbcb-a3f930a808d4"))
+    (pad "2" smd rect (at 0.0000 2.3241 270) (size 2.9997 5.4991) (layers "B.Cu" "B.Paste" "B.Mask") (uuid "80190f21-cfeb-4f3e-aa0c-640c308a2cd3"))
+  )

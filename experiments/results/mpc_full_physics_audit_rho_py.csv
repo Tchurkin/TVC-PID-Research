@@ -1,5 +1,0 @@
-variant,n,rho,p,n_perfect,mean_frac
-Unconstrained_PD,50,-0.701,1.46e-08,9,0.825
-Constrained_H1,50,-0.807,1.53e-12,3,0.517
-Constrained_H5_MPC,50,-0.052,7.18e-01,41,0.855
-ADRC_reference,50,,nan,50,1.0

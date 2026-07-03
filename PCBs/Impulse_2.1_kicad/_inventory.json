@@ -1,0 +1,4345 @@
+[
+{
+"ref": "R40",
+"fp": "ProDoc_P1_-easyedapro:R0603",
+"val": "R0603",
+"at": [
+37.4396,
+61.3245,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "$1N14265",
+"at": [
+0.0,
+-0.7544,
+90.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "R_LED",
+"at": [
+0.0,
+0.7518,
+90.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+}
+]
+},
+{
+"ref": "BUZZER",
+"fp": "ProDoc_P1_-easyedapro:BUZ-TH_BD9.0-P4.00-D0.6-FD",
+"val": "BUZ-TH_BD9.0-P4.00-D0.6-FD",
+"at": [
+94.7115,
+66.04,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "circle",
+"net": "BUZZER",
+"at": [
+1.999,
+0.0,
+180.0
+],
+"size": [
+1.8009,
+1.8009
+],
+"drill": 1.001
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "GND",
+"at": [
+-2.0015,
+0.0,
+180.0
+],
+"size": [
+1.8009,
+1.8009
+],
+"drill": 1.001
+}
+]
+},
+{
+"ref": "PYRO_ON",
+"fp": "ProDoc_P1_-easyedapro:HDR-TH_2P-P2.54-V-M",
+"val": "HDR-TH_2P-P2.54-V-M",
+"at": [
+58.7172,
+73.5584,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "7.4V",
+"at": [
+0.0,
+1.27,
+270.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "$1N50177",
+"at": [
+0.0,
+-1.27,
+270.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+}
+]
+},
+{
+"ref": "Y",
+"fp": "ProDoc_P1_-easyedapro:HDR-TH_3P-P2.54-V-M",
+"val": "HDR-TH_3P-P2.54-V-M",
+"at": [
+16.4922,
+19.05,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "SERVOY",
+"at": [
+0.0,
+-2.54,
+90.0
+],
+"size": [
+1.6993,
+1.6993
+],
+"drill": 1.1
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "5V-DIRTY",
+"at": [
+0.0,
+0.0,
+90.0
+],
+"size": [
+1.6993,
+1.6993
+],
+"drill": 1.1
+},
+{
+"n": "3",
+"type": "thru_hole",
+"shape": "circle",
+"net": "GND",
+"at": [
+0.0,
+2.54,
+90.0
+],
+"size": [
+1.6993,
+1.6993
+],
+"drill": 1.1
+}
+]
+},
+{
+"ref": "R39",
+"fp": "ProDoc_P1_-easyedapro:R0603",
+"val": "R0603",
+"at": [
+41.1912,
+62.1284,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "$1N14222",
+"at": [
+0.0,
+-0.7544,
+90.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "G_LED",
+"at": [
+0.0,
+0.7518,
+90.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+}
+]
+},
+{
+"ref": "SERVO1",
+"fp": "ProDoc_P1_-easyedapro:HDR-TH_3P-P2.54-V-M",
+"val": "HDR-TH_3P-P2.54-V-M",
+"at": [
+25.3822,
+19.05,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "SERVO1",
+"at": [
+0.0,
+-2.54,
+90.0
+],
+"size": [
+1.6993,
+1.6993
+],
+"drill": 1.1
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "5V-DIRTY",
+"at": [
+0.0,
+0.0,
+90.0
+],
+"size": [
+1.6993,
+1.6993
+],
+"drill": 1.1
+},
+{
+"n": "3",
+"type": "thru_hole",
+"shape": "circle",
+"net": "GND",
+"at": [
+0.0,
+2.54,
+90.0
+],
+"size": [
+1.6993,
+1.6993
+],
+"drill": 1.1
+}
+]
+},
+{
+"ref": "DROK_exclusive",
+"fp": "ProDoc_P1_-easyedapro:HDR-TH_2P-P2.54-V-M",
+"val": "HDR-TH_2P-P2.54-V-M",
+"at": [
+107.95,
+72.39,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "5V-CLEAN",
+"at": [
+-1.27,
+0.0,
+0.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "5V-DIRTY",
+"at": [
+1.27,
+0.0,
+0.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+}
+]
+},
+{
+"ref": "SW1",
+"fp": "ProDoc_P1_-easyedapro:SW-TH_DSWB01LHGET",
+"val": "SW-TH_DSWB01LHGET",
+"at": [
+140.1166,
+23.6956,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "circle",
+"net": "$1N50225",
+"at": [
+-3.81,
+0.0,
+180.0
+],
+"size": [
+1.6002,
+1.6002
+],
+"drill": 1.001
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "$1N50240",
+"at": [
+3.81,
+0.0,
+180.0
+],
+"size": [
+1.6002,
+1.6002
+],
+"drill": 1.001
+}
+]
+},
+{
+"ref": "H1",
+"fp": "MountingHole:MountingHole_3.2mm_M3",
+"val": "MountingHole_3.2mm_M3",
+"at": [
+72.5578,
+72.7776,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "",
+"type": "np_thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+0.0,
+0.0,
+0.0
+],
+"size": [
+3.2,
+3.2
+],
+"drill": 3.2
+}
+]
+},
+{
+"ref": "U7",
+"fp": "ProDoc_P1_-easyedapro:BMP280",
+"val": "BMP280",
+"at": [
+150.83155,
+49.9999,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "circle",
+"net": "3.3V",
+"at": [
+-13.97,
+-10.16,
+270.0
+],
+"size": [
+1.524,
+1.524
+],
+"drill": 0.914
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "GND",
+"at": [
+-11.43,
+-10.16,
+270.0
+],
+"size": [
+1.524,
+1.524
+],
+"drill": 0.914
+},
+{
+"n": "3",
+"type": "thru_hole",
+"shape": "circle",
+"net": "SCL",
+"at": [
+-8.89,
+-10.16,
+270.0
+],
+"size": [
+1.524,
+1.524
+],
+"drill": 0.914
+},
+{
+"n": "4",
+"type": "thru_hole",
+"shape": "circle",
+"net": "SDA",
+"at": [
+-6.35,
+-10.16,
+270.0
+],
+"size": [
+1.524,
+1.524
+],
+"drill": 0.914
+},
+{
+"n": "5",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+-3.81,
+-10.16,
+270.0
+],
+"size": [
+1.524,
+1.524
+],
+"drill": 0.914
+},
+{
+"n": "6",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+-1.27,
+-10.16,
+270.0
+],
+"size": [
+1.524,
+1.524
+],
+"drill": 0.914
+}
+]
+},
+{
+"ref": "Q14",
+"fp": "ProDoc_P1_-easyedapro:SOT-23-3_L2.9-W1.6-P1.90-LS2.8-BR",
+"val": "SOT-23-3_L2.9-W1.6-P1.90-LS2.8-BR",
+"at": [
+45.0012,
+68.7324,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "PYRO3",
+"at": [
+0.95,
+-1.2344,
+270.0
+],
+"size": [
+1.0693,
+0.5994
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "GND",
+"at": [
+-0.95,
+-1.2344,
+270.0
+],
+"size": [
+1.0693,
+0.5994
+],
+"drill": null
+},
+{
+"n": "3",
+"type": "smd",
+"shape": "rect",
+"net": "$1N56715",
+"at": [
+0.0,
+1.2344,
+270.0
+],
+"size": [
+1.0693,
+0.5994
+],
+"drill": null
+}
+]
+},
+{
+"ref": "MAIN",
+"fp": "ProDoc_P1_-easyedapro:HDR-TH_2P-P2.54-V-M",
+"val": "HDR-TH_2P-P2.54-V-M",
+"at": [
+86.36,
+29.21,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "$1N50225",
+"at": [
+0.0,
+-1.27,
+90.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "GND",
+"at": [
+0.0,
+1.27,
+90.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+}
+]
+},
+{
+"ref": "Q13",
+"fp": "ProDoc_P1_-easyedapro:SOT-23-3_L2.9-W1.6-P1.90-LS2.8-BR",
+"val": "SOT-23-3_L2.9-W1.6-P1.90-LS2.8-BR",
+"at": [
+66.3372,
+68.7324,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "PYRO4",
+"at": [
+0.95,
+-1.2344,
+270.0
+],
+"size": [
+1.0693,
+0.5994
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "GND",
+"at": [
+-0.95,
+-1.2344,
+270.0
+],
+"size": [
+1.0693,
+0.5994
+],
+"drill": null
+},
+{
+"n": "3",
+"type": "smd",
+"shape": "rect",
+"net": "$1N56609",
+"at": [
+0.0,
+1.2344,
+270.0
+],
+"size": [
+1.0693,
+0.5994
+],
+"drill": null
+}
+]
+},
+{
+"ref": "P2O",
+"fp": "ProDoc_P1_-easyedapro:HDR-TH_2P-P2.54-V-M",
+"val": "HDR-TH_2P-P2.54-V-M",
+"at": [
+49.0652,
+73.5584,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "$1N42393",
+"at": [
+0.0,
+-1.27,
+90.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "7.4V",
+"at": [
+0.0,
+1.27,
+90.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+}
+]
+},
+{
+"ref": "R44",
+"fp": "ProDoc_P1_-easyedapro:R0603",
+"val": "R0603",
+"at": [
+104.9858,
+59.0296,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "$1N56715",
+"at": [
+-0.7544,
+0.0,
+0.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "$1N42562",
+"at": [
+0.7518,
+0.0,
+0.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+}
+]
+},
+{
+"ref": "SERVO2",
+"fp": "ProDoc_P1_-easyedapro:HDR-TH_3P-P2.54-V-M",
+"val": "HDR-TH_3P-P2.54-V-M",
+"at": [
+94.5,
+38.96,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "SERVO2",
+"at": [
+0.0,
+-2.54,
+90.0
+],
+"size": [
+1.6993,
+1.6993
+],
+"drill": 1.1
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "5V-DIRTY",
+"at": [
+0.0,
+0.0,
+90.0
+],
+"size": [
+1.6993,
+1.6993
+],
+"drill": 1.1
+},
+{
+"n": "3",
+"type": "thru_hole",
+"shape": "circle",
+"net": "GND",
+"at": [
+0.0,
+2.54,
+90.0
+],
+"size": [
+1.6993,
+1.6993
+],
+"drill": 1.1
+}
+]
+},
+{
+"ref": "R48",
+"fp": "ProDoc_P1_-easyedapro:R0603",
+"val": "R0603",
+"at": [
+56.4896,
+62.1284,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "PYRO3",
+"at": [
+0.0,
+-0.7544,
+90.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "GND",
+"at": [
+0.0,
+0.7518,
+90.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+}
+]
+},
+{
+"ref": "R23",
+"fp": "ProDoc_P1_-easyedapro:R0603",
+"val": "R0603",
+"at": [
+85.2068,
+17.78,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "GND",
+"at": [
+0.7518,
+0.0,
+180.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "$1N14383",
+"at": [
+-0.7544,
+0.0,
+180.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+}
+]
+},
+{
+"ref": "U1",
+"fp": "ProDoc_P1_-easyedapro:TEENSY41",
+"val": "TEENSY41",
+"at": [
+137.795,
+101.6,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "0-RX1/CS1/CRX2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "CS_IMU",
+"at": [
+-27.94,
+7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "1-TX1/MISO1/CTX2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "MISO",
+"at": [
+-25.4,
+7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "2-OUT2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "INT_IMU",
+"at": [
+-22.86,
+7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "3-LRCLK2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "SERVOX",
+"at": [
+-20.32,
+7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "3V3-1",
+"type": "thru_hole",
+"shape": "roundrect",
+"net": "3.3V",
+"at": [
+5.08,
+7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "3V3-3",
+"type": "thru_hole",
+"shape": "roundrect",
+"net": "3.3V",
+"at": [
+-25.4,
+-7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "4-BCLK2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "SERVOY",
+"at": [
+-17.78,
+7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "5-IN2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "SERVO1",
+"at": [
+-15.24,
+7.62,
+180.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "6-OUT1D",
+"type": "thru_hole",
+"shape": "circle",
+"net": "R_LED",
+"at": [
+-12.7,
+7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "7-RX2/OUT1A",
+"type": "thru_hole",
+"shape": "circle",
+"net": "G_LED",
+"at": [
+-10.16,
+7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "8-TX2/IN2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "B_LED",
+"at": [
+-7.62,
+7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "9-OUT1C",
+"type": "thru_hole",
+"shape": "circle",
+"net": "PYRO1",
+"at": [
+-5.08,
+7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "10-CS\\\\MQSR",
+"type": "thru_hole",
+"shape": "circle",
+"net": "PYRO2",
+"at": [
+-2.54,
+7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "11-MOSI/CTX1",
+"type": "thru_hole",
+"shape": "circle",
+"net": "PYRO3",
+"at": [
+0.0,
+7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "12-MISO/MQSL",
+"type": "thru_hole",
+"shape": "circle",
+"net": "PYRO4",
+"at": [
+2.54,
+7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "13-SCK/LED",
+"type": "thru_hole",
+"shape": "circle",
+"net": "BUZZER",
+"at": [
+2.54,
+-7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "14-A0/TX3/SPDIF_OUT",
+"type": "thru_hole",
+"shape": "circle",
+"net": "BUTTON",
+"at": [
+0.0,
+-7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "15-A1/RX3/SPDIF_IN",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+-2.54,
+-7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "16-A2/RX4/SCL1",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+-5.08,
+-7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "17-A3/TX4/SDA1",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+-7.62,
+-7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "18-A4/SDA0",
+"type": "thru_hole",
+"shape": "circle",
+"net": "SDA",
+"at": [
+-10.16,
+-7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "19-A5/SCL0",
+"type": "thru_hole",
+"shape": "circle",
+"net": "SCL",
+"at": [
+-12.7,
+-7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "20-A6/TX5/LRCLK1",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+-15.24,
+-7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "21-A7/RX5/BCLK1",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+-17.78,
+-7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "22-A8/CTX1",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+-20.32,
+-7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "23-A9/CRX1/MCLK1",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+-22.86,
+-7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "24-A10/TX6/SCL2",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+7.62,
+7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "25-A11/RX6/SDA2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "SERVO4",
+"at": [
+10.16,
+7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "26-A12/MOSI1",
+"type": "thru_hole",
+"shape": "circle",
+"net": "MOSI",
+"at": [
+12.7,
+7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "27-A13/SCK1",
+"type": "thru_hole",
+"shape": "circle",
+"net": "SCK",
+"at": [
+15.24,
+7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "28-RX7",
+"type": "thru_hole",
+"shape": "circle",
+"net": "SERVO2",
+"at": [
+17.78,
+7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "29-TX7",
+"type": "thru_hole",
+"shape": "circle",
+"net": "SERVO3",
+"at": [
+20.32,
+7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "30-CRX3",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+22.86,
+7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "31-CTX3",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+25.4,
+7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "32-OUT1B",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+27.94,
+7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "33-MCLK2",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+27.94,
+-7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "34-RX8",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+25.4,
+-7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "35-TX8",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+22.86,
+-7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "36-PWM",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+20.32,
+-7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "37-PWM",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+17.78,
+-7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "38-A14/CS/IN1",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+15.24,
+-7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "39-A15/CS/OUT1A",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+12.7,
+-7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "40-A16/CS1",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+10.16,
+-7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "41-A17/MISO1",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+7.62,
+-7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "GND1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "GND",
+"at": [
+-30.48,
+7.62,
+0.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "GND3",
+"type": "thru_hole",
+"shape": "rect",
+"net": "GND",
+"at": [
+5.08,
+-7.62,
+0.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "GND6",
+"type": "thru_hole",
+"shape": "rect",
+"net": "GND",
+"at": [
+-27.94,
+-7.62,
+270.0
+],
+"size": [
+1.5088,
+1.5088
+],
+"drill": 1.001
+},
+{
+"n": "VIN",
+"type": "thru_hole",
+"shape": "circle",
+"net": "5V-CLEAN",
+"at": [
+-30.48,
+-7.62,
+180.0
+],
+"size": [
+1.6764,
+1.6764
+],
+"drill": 1.001
+}
+]
+},
+{
+"ref": "P1+P2",
+"fp": "ProDoc_P1_-easyedapro:HDR-TH_2P-P2.54-V-M",
+"val": "HDR-TH_2P-P2.54-V-M",
+"at": [
+31.75,
+88.9,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "PYRO1",
+"at": [
+-1.27,
+0.0,
+0.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "PYRO2",
+"at": [
+1.27,
+0.0,
+0.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+}
+]
+},
+{
+"ref": "SERVO4",
+"fp": "ProDoc_P1_-easyedapro:HDR-TH_3P-P2.54-V-M",
+"val": "HDR-TH_3P-P2.54-V-M",
+"at": [
+89.0,
+45.46,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "SERVO4",
+"at": [
+0.0,
+-2.54,
+90.0
+],
+"size": [
+1.6993,
+1.6993
+],
+"drill": 1.1
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "5V-DIRTY",
+"at": [
+0.0,
+0.0,
+90.0
+],
+"size": [
+1.6993,
+1.6993
+],
+"drill": 1.1
+},
+{
+"n": "3",
+"type": "thru_hole",
+"shape": "circle",
+"net": "GND",
+"at": [
+0.0,
+2.54,
+90.0
+],
+"size": [
+1.6993,
+1.6993
+],
+"drill": 1.1
+}
+]
+},
+{
+"ref": "Out",
+"fp": "ProDoc_P1_-easyedapro:HDR-TH_2P-P2.54-V-M",
+"val": "HDR-TH_2P-P2.54-V-M",
+"at": [
+95.25,
+81.28,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "SDA",
+"at": [
+1.27,
+0.0,
+180.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "SCL",
+"at": [
+-1.27,
+0.0,
+180.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+}
+]
+},
+{
+"ref": "P3O",
+"fp": "ProDoc_P1_-easyedapro:HDR-TH_2P-P2.54-V-M",
+"val": "HDR-TH_2P-P2.54-V-M",
+"at": [
+45.0012,
+73.5584,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "$1N56715",
+"at": [
+0.0,
+-1.27,
+90.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "7.4V",
+"at": [
+0.0,
+1.27,
+90.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+}
+]
+},
+{
+"ref": "power_tap",
+"fp": "ProDoc_P1_-easyedapro:HDR-TH_2P-P2.54-V-M",
+"val": "HDR-TH_2P-P2.54-V-M",
+"at": [
+41.1912,
+73.5584,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "7.4V",
+"at": [
+0.0,
+1.27,
+270.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "GND",
+"at": [
+0.0,
+-1.27,
+270.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+}
+]
+},
+{
+"ref": "P4",
+"fp": "ProDoc_P1_-easyedapro:LED0805-R-RD",
+"val": "LED0805-R-RD",
+"at": [
+76.2,
+18.001,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "$1N56605",
+"at": [
+0.0,
+1.049,
+270.0
+],
+"size": [
+1.0008,
+1.3995
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "GND",
+"at": [
+0.0,
+-1.0516,
+270.0
+],
+"size": [
+1.0008,
+1.3995
+],
+"drill": null
+}
+]
+},
+{
+"ref": "LED",
+"fp": "ProDoc_P1_-easyedapro:LED-SMD_4P-L3.2-W2.8-LS3.5-BL-CW",
+"val": "LED-SMD_4P-L3.2-W2.8-LS3.5-BL-CW",
+"at": [
+97.79,
+24.13,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "3.3V",
+"at": [
+1.5494,
+-0.7518,
+270.0
+],
+"size": [
+0.8001,
+1.0998
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "$1N14307",
+"at": [
+1.5494,
+0.7493,
+270.0
+],
+"size": [
+0.8001,
+1.0998
+],
+"drill": null
+},
+{
+"n": "3",
+"type": "smd",
+"shape": "rect",
+"net": "$1N14222",
+"at": [
+-1.5519,
+0.7493,
+270.0
+],
+"size": [
+0.8001,
+1.0998
+],
+"drill": null
+},
+{
+"n": "4",
+"type": "smd",
+"shape": "rect",
+"net": "$1N14265",
+"at": [
+-1.5519,
+-0.7518,
+270.0
+],
+"size": [
+0.8001,
+1.0998
+],
+"drill": null
+}
+]
+},
+{
+"ref": "J_SENSOR",
+"fp": "Connector_PinHeader_2.54mm:PinHeader_2x05_P2.54mm_Vertical",
+"val": "Header 2x5 sensor module",
+"at": [
+46.99,
+102.87,
+90.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "3.3V",
+"at": [
+0.0,
+0.0,
+90.0
+],
+"size": [
+1.7,
+1.7
+],
+"drill": 1.0
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "GND",
+"at": [
+2.54,
+0.0,
+90.0
+],
+"size": [
+1.7,
+1.7
+],
+"drill": 1.0
+},
+{
+"n": "3",
+"type": "thru_hole",
+"shape": "circle",
+"net": "SCK",
+"at": [
+0.0,
+2.54,
+90.0
+],
+"size": [
+1.7,
+1.7
+],
+"drill": 1.0
+},
+{
+"n": "4",
+"type": "thru_hole",
+"shape": "circle",
+"net": "MOSI",
+"at": [
+2.54,
+2.54,
+90.0
+],
+"size": [
+1.7,
+1.7
+],
+"drill": 1.0
+},
+{
+"n": "5",
+"type": "thru_hole",
+"shape": "circle",
+"net": "MISO",
+"at": [
+0.0,
+5.08,
+90.0
+],
+"size": [
+1.7,
+1.7
+],
+"drill": 1.0
+},
+{
+"n": "6",
+"type": "thru_hole",
+"shape": "circle",
+"net": "CS_IMU",
+"at": [
+2.54,
+5.08,
+90.0
+],
+"size": [
+1.7,
+1.7
+],
+"drill": 1.0
+},
+{
+"n": "7",
+"type": "thru_hole",
+"shape": "circle",
+"net": "INT_IMU",
+"at": [
+0.0,
+7.62,
+90.0
+],
+"size": [
+1.7,
+1.7
+],
+"drill": 1.0
+},
+{
+"n": "8",
+"type": "thru_hole",
+"shape": "circle",
+"net": "SDA",
+"at": [
+2.54,
+7.62,
+90.0
+],
+"size": [
+1.7,
+1.7
+],
+"drill": 1.0
+},
+{
+"n": "9",
+"type": "thru_hole",
+"shape": "circle",
+"net": "SCL",
+"at": [
+0.0,
+10.16,
+90.0
+],
+"size": [
+1.7,
+1.7
+],
+"drill": 1.0
+},
+{
+"n": "10",
+"type": "thru_hole",
+"shape": "circle",
+"net": "GND",
+"at": [
+2.54,
+10.16,
+90.0
+],
+"size": [
+1.7,
+1.7
+],
+"drill": 1.0
+}
+]
+},
+{
+"ref": "R49",
+"fp": "ProDoc_P1_-easyedapro:R0603",
+"val": "R0603",
+"at": [
+52.07,
+58.9382,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "PYRO2",
+"at": [
+0.0,
+-0.7544,
+90.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "GND",
+"at": [
+0.0,
+0.7518,
+90.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+}
+]
+},
+{
+"ref": "Q15",
+"fp": "ProDoc_P1_-easyedapro:SOT-23-3_L2.9-W1.6-P1.90-LS2.8-BR",
+"val": "SOT-23-3_L2.9-W1.6-P1.90-LS2.8-BR",
+"at": [
+49.0652,
+68.7324,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "PYRO2",
+"at": [
+0.95,
+-1.2344,
+270.0
+],
+"size": [
+1.0693,
+0.5994
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "GND",
+"at": [
+-0.95,
+-1.2344,
+270.0
+],
+"size": [
+1.0693,
+0.5994
+],
+"drill": null
+},
+{
+"n": "3",
+"type": "smd",
+"shape": "rect",
+"net": "$1N42393",
+"at": [
+0.0,
+1.2344,
+270.0
+],
+"size": [
+1.0693,
+0.5994
+],
+"drill": null
+}
+]
+},
+{
+"ref": "SERVO3",
+"fp": "ProDoc_P1_-easyedapro:HDR-TH_3P-P2.54-V-M",
+"val": "HDR-TH_3P-P2.54-V-M",
+"at": [
+99.06,
+50.8,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "SERVO3",
+"at": [
+0.0,
+-2.54,
+90.0
+],
+"size": [
+1.6993,
+1.6993
+],
+"drill": 1.1
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "5V-DIRTY",
+"at": [
+0.0,
+0.0,
+90.0
+],
+"size": [
+1.6993,
+1.6993
+],
+"drill": 1.1
+},
+{
+"n": "3",
+"type": "thru_hole",
+"shape": "circle",
+"net": "GND",
+"at": [
+0.0,
+2.54,
+90.0
+],
+"size": [
+1.6993,
+1.6993
+],
+"drill": 1.1
+}
+]
+},
+{
+"ref": "C33",
+"fp": "ProDoc_P1_-easyedapro:C0603",
+"val": "C0603",
+"at": [
+15.24,
+39.37,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "GND",
+"at": [
+0.6985,
+0.0,
+180.0
+],
+"size": [
+0.8001,
+0.8992
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "5V-CLEAN",
+"at": [
+-0.701,
+0.0,
+180.0
+],
+"size": [
+0.8001,
+0.8992
+],
+"drill": null
+}
+]
+},
+{
+"ref": "P3",
+"fp": "ProDoc_P1_-easyedapro:LED0805-R-RD",
+"val": "LED0805-R-RD",
+"at": [
+81.5365,
+24.45,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "$1N42562",
+"at": [
+0.0,
+1.049,
+270.0
+],
+"size": [
+1.0008,
+1.3995
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "GND",
+"at": [
+0.0,
+-1.0516,
+270.0
+],
+"size": [
+1.0008,
+1.3995
+],
+"drill": null
+}
+]
+},
+{
+"ref": "logic_power_reg",
+"fp": "ProDoc_P1_-easyedapro:HDR-TH_2P-P2.54-V-M",
+"val": "HDR-TH_2P-P2.54-V-M",
+"at": [
+17.78,
+78.74,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "$1N50240",
+"at": [
+-1.27,
+0.0,
+0.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "$1N52582",
+"at": [
+1.27,
+0.0,
+0.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+}
+]
+},
+{
+"ref": "servo_power_reg",
+"fp": "ProDoc_P1_-easyedapro:HDR-TH_2P-P2.54-V-M",
+"val": "HDR-TH_2P-P2.54-V-M",
+"at": [
+25.4,
+96.52,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "$1N50240",
+"at": [
+-1.27,
+0.0,
+0.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "$1N49822",
+"at": [
+1.27,
+0.0,
+0.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+}
+]
+},
+{
+"ref": "R43",
+"fp": "ProDoc_P1_-easyedapro:R0603",
+"val": "R0603",
+"at": [
+143.3957,
+66.04,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "$1N42393",
+"at": [
+-0.7544,
+0.0,
+0.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "$1N42395",
+"at": [
+0.7518,
+0.0,
+0.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+}
+]
+},
+{
+"ref": "BUTTON",
+"fp": "ProDoc_P1_-easyedapro:SW-TH_4P-L6.0-W6.0-P4.50-LS6.5",
+"val": "SW-TH_4P-L6.0-W6.0-P4.50-LS6.5",
+"at": [
+116.84,
+50.8,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "circle",
+"net": "3.3V",
+"at": [
+-3.2512,
+-2.2504,
+0.0
+],
+"size": [
+1.8009,
+1.8009
+],
+"drill": 1.199
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+3.2487,
+-2.2504,
+0.0
+],
+"size": [
+1.8009,
+1.8009
+],
+"drill": 1.199
+},
+{
+"n": "3",
+"type": "thru_hole",
+"shape": "circle",
+"net": "BUTTON",
+"at": [
+-3.2512,
+2.2504,
+0.0
+],
+"size": [
+1.8009,
+1.8009
+],
+"drill": 1.199
+},
+{
+"n": "4",
+"type": "thru_hole",
+"shape": "circle",
+"net": "$1N14383",
+"at": [
+3.2487,
+2.2504,
+0.0
+],
+"size": [
+1.8009,
+1.8009
+],
+"drill": 1.199
+}
+]
+},
+{
+"ref": "R37",
+"fp": "ProDoc_P1_-easyedapro:R0603",
+"val": "R0603",
+"at": [
+93.98,
+29.8704,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "$1N42243",
+"at": [
+-0.7544,
+0.0,
+0.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "$1N42245",
+"at": [
+0.7518,
+0.0,
+0.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+}
+]
+},
+{
+"ref": "P4O",
+"fp": "ProDoc_P1_-easyedapro:HDR-TH_2P-P2.54-V-M",
+"val": "HDR-TH_2P-P2.54-V-M",
+"at": [
+66.3372,
+73.5584,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "$1N56609",
+"at": [
+0.0,
+-1.27,
+90.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "7.4V",
+"at": [
+0.0,
+1.27,
+90.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+}
+]
+},
+{
+"ref": "R45",
+"fp": "ProDoc_P1_-easyedapro:R0603",
+"val": "R0603",
+"at": [
+118.11,
+63.5,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "$1N56605",
+"at": [
+-0.7544,
+0.0,
+0.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "$1N56609",
+"at": [
+0.7518,
+0.0,
+0.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+}
+]
+},
+{
+"ref": "U6",
+"fp": "ProDoc_P1_-easyedapro:MPU-6050 MODULE",
+"val": "MPU-6050 MODULE",
+"at": [
+123.19,
+25.306,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "3.3V",
+"at": [
+0.0,
+8.89,
+270.0
+],
+"size": [
+1.2065,
+1.2065
+],
+"drill": 0.66
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "GND",
+"at": [
+0.0,
+6.35,
+270.0
+],
+"size": [
+1.2065,
+1.2065
+],
+"drill": 0.66
+},
+{
+"n": "3",
+"type": "thru_hole",
+"shape": "circle",
+"net": "SCL",
+"at": [
+0.0,
+3.81,
+270.0
+],
+"size": [
+1.2065,
+1.2065
+],
+"drill": 0.66
+},
+{
+"n": "4",
+"type": "thru_hole",
+"shape": "circle",
+"net": "SDA",
+"at": [
+0.0,
+1.27,
+270.0
+],
+"size": [
+1.2065,
+1.2065
+],
+"drill": 0.66
+},
+{
+"n": "5",
+"type": "thru_hole",
+"shape": "circle",
+"net": "SDA",
+"at": [
+0.0,
+-1.27,
+270.0
+],
+"size": [
+1.2065,
+1.2065
+],
+"drill": 0.66
+},
+{
+"n": "6",
+"type": "thru_hole",
+"shape": "circle",
+"net": "SCL",
+"at": [
+0.0,
+-3.81,
+270.0
+],
+"size": [
+1.2065,
+1.2065
+],
+"drill": 0.66
+},
+{
+"n": "7",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+0.0,
+-6.35,
+270.0
+],
+"size": [
+1.2065,
+1.2065
+],
+"drill": 0.66
+},
+{
+"n": "8",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+0.0,
+-8.89,
+270.0
+],
+"size": [
+1.2065,
+1.2065
+],
+"drill": 0.66
+}
+]
+},
+{
+"ref": "H2",
+"fp": "MountingHole:MountingHole_3.2mm_M3",
+"val": "MountingHole_3.2mm_M3",
+"at": [
+29.0,
+74.0,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "",
+"type": "np_thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+0.0,
+0.0,
+0.0
+],
+"size": [
+3.2,
+3.2
+],
+"drill": 3.2
+}
+]
+},
+{
+"ref": "P2",
+"fp": "ProDoc_P1_-easyedapro:LED0805-R-RD",
+"val": "LED0805-R-RD",
+"at": [
+101.8565,
+34.61,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "$1N42395",
+"at": [
+0.0,
+1.049,
+270.0
+],
+"size": [
+1.0008,
+1.3995
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "GND",
+"at": [
+0.0,
+-1.0516,
+270.0
+],
+"size": [
+1.0008,
+1.3995
+],
+"drill": null
+}
+]
+},
+{
+"ref": "H4",
+"fp": "MountingHole:MountingHole_3.2mm_M3",
+"val": "MountingHole_3.2mm_M3",
+"at": [
+67.31,
+25.4,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "",
+"type": "np_thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+0.0,
+0.0,
+0.0
+],
+"size": [
+3.2,
+3.2
+],
+"drill": 3.2
+}
+]
+},
+{
+"ref": "MAIN1",
+"fp": "ProDoc_P1_-easyedapro:HDR-TH_2P-P2.54-V-M",
+"val": "HDR-TH_2P-P2.54-V-M",
+"at": [
+130.81,
+63.5,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "3.3V",
+"at": [
+0.0,
+1.27,
+270.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "GND",
+"at": [
+0.0,
+-1.27,
+270.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+}
+]
+},
+{
+"ref": "P1",
+"fp": "ProDoc_P1_-easyedapro:LED0805-R-RD",
+"val": "LED0805-R-RD",
+"at": [
+102.87,
+17.5793,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "$1N42245",
+"at": [
+0.0,
+1.049,
+270.0
+],
+"size": [
+1.0008,
+1.3995
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "GND",
+"at": [
+0.0,
+-1.0516,
+270.0
+],
+"size": [
+1.0008,
+1.3995
+],
+"drill": null
+}
+]
+},
+{
+"ref": "PYRO",
+"fp": "ProDoc_P1_-easyedapro:HDR-TH_2P-P2.54-V-M",
+"val": "HDR-TH_2P-P2.54-V-M",
+"at": [
+53.8912,
+72.2884,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "$1N50177",
+"at": [
+1.27,
+0.0,
+180.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "GND",
+"at": [
+-1.27,
+0.0,
+180.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+}
+]
+},
+{
+"ref": "H3",
+"fp": "MountingHole:MountingHole_3.2mm_M3",
+"val": "MountingHole_3.2mm_M3",
+"at": [
+35.56,
+25.4,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "",
+"type": "np_thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+0.0,
+0.0,
+0.0
+],
+"size": [
+3.2,
+3.2
+],
+"drill": 3.2
+}
+]
+},
+{
+"ref": "X",
+"fp": "ProDoc_P1_-easyedapro:HDR-TH_3P-P2.54-V-M",
+"val": "HDR-TH_3P-P2.54-V-M",
+"at": [
+16.4922,
+30.48,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "SERVOX",
+"at": [
+0.0,
+-2.54,
+90.0
+],
+"size": [
+1.6993,
+1.6993
+],
+"drill": 1.1
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "5V-DIRTY",
+"at": [
+0.0,
+0.0,
+90.0
+],
+"size": [
+1.6993,
+1.6993
+],
+"drill": 1.1
+},
+{
+"n": "3",
+"type": "thru_hole",
+"shape": "circle",
+"net": "GND",
+"at": [
+0.0,
+2.54,
+90.0
+],
+"size": [
+1.6993,
+1.6993
+],
+"drill": 1.1
+}
+]
+},
+{
+"ref": "R50",
+"fp": "ProDoc_P1_-easyedapro:R0603",
+"val": "R0603",
+"at": [
+47.5412,
+62.1284,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "PYRO1",
+"at": [
+0.0,
+-0.7544,
+90.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "GND",
+"at": [
+0.0,
+0.7518,
+90.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+}
+]
+},
+{
+"ref": "Q16",
+"fp": "ProDoc_P1_-easyedapro:SOT-23-3_L2.9-W1.6-P1.90-LS2.8-BR",
+"val": "SOT-23-3_L2.9-W1.6-P1.90-LS2.8-BR",
+"at": [
+62.2732,
+68.7324,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "PYRO1",
+"at": [
+0.95,
+-1.2344,
+270.0
+],
+"size": [
+1.0693,
+0.5994
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "GND",
+"at": [
+-0.95,
+-1.2344,
+270.0
+],
+"size": [
+1.0693,
+0.5994
+],
+"drill": null
+},
+{
+"n": "3",
+"type": "smd",
+"shape": "rect",
+"net": "$1N42243",
+"at": [
+0.0,
+1.2344,
+270.0
+],
+"size": [
+1.0693,
+0.5994
+],
+"drill": null
+}
+]
+},
+{
+"ref": "C43",
+"fp": "ProDoc_P1_-easyedapro:CAP-SMD_BD6.3-L6.6-W6.6-FD",
+"val": "CAP-SMD_BD6.3-L6.6-W6.6-FD",
+"at": [
+157.9347,
+58.9508,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "5V-DIRTY",
+"at": [
+-2.6721,
+0.0,
+0.0
+],
+"size": [
+3.5001,
+1.1989
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "GND",
+"at": [
+2.6695,
+0.0,
+0.0
+],
+"size": [
+3.5001,
+1.1989
+],
+"drill": null
+}
+]
+},
+{
+"ref": "P1O",
+"fp": "ProDoc_P1_-easyedapro:HDR-TH_2P-P2.54-V-M",
+"val": "HDR-TH_2P-P2.54-V-M",
+"at": [
+62.2732,
+73.5584,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "$1N42243",
+"at": [
+0.0,
+-1.27,
+90.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "7.4V",
+"at": [
+0.0,
+1.27,
+90.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+}
+]
+},
+{
+"ref": "LM2594_enable1",
+"fp": "ProDoc_P1_-easyedapro:HDR-TH_2P-P2.54-V-M",
+"val": "HDR-TH_2P-P2.54-V-M",
+"at": [
+19.05,
+88.9,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "$1N52591",
+"at": [
+1.27,
+0.0,
+180.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "$1N52582",
+"at": [
+-1.27,
+0.0,
+180.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+}
+]
+},
+{
+"ref": "P3+P4",
+"fp": "ProDoc_P1_-easyedapro:HDR-TH_2P-P2.54-V-M",
+"val": "HDR-TH_2P-P2.54-V-M",
+"at": [
+26.67,
+82.55,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "rect",
+"net": "PYRO3",
+"at": [
+-1.27,
+0.0,
+0.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "PYRO4",
+"at": [
+1.27,
+0.0,
+0.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": 1.199
+}
+]
+},
+{
+"ref": "R47",
+"fp": "ProDoc_P1_-easyedapro:R0603",
+"val": "R0603",
+"at": [
+62.23,
+56.3982,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "PYRO4",
+"at": [
+0.0,
+-0.7544,
+90.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "GND",
+"at": [
+0.0,
+0.7518,
+90.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+}
+]
+},
+{
+"ref": "R38",
+"fp": "ProDoc_P1_-easyedapro:R0603",
+"val": "R0603",
+"at": [
+44.45,
+64.77,
+0.0
+],
+"layer": "F.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "B_LED",
+"at": [
+0.0,
+-0.7544,
+90.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "$1N14307",
+"at": [
+0.0,
+0.7518,
+90.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+}
+]
+},
+{
+"ref": "R8",
+"fp": "ProDoc_P1_-easyedapro:R0402",
+"val": "R0402",
+"at": [
+40.4292,
+56.5404,
+0.0
+],
+"layer": "B.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "$1N33864",
+"at": [
+0.4318,
+0.0,
+180.0
+],
+"size": [
+0.5664,
+0.541
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "$1N52591",
+"at": [
+-0.4343,
+0.0,
+180.0
+],
+"size": [
+0.5664,
+0.541
+],
+"drill": null
+}
+]
+},
+{
+"ref": "C38",
+"fp": "ProDoc_P1_-easyedapro:CAP-SMD_BD6.3-L6.6-W6.6-LS7.2-R-RD",
+"val": "CAP-SMD_BD6.3-L6.6-W6.6-LS7.2-R-RD",
+"at": [
+33.5712,
+53.2384,
+0.0
+],
+"layer": "B.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "$1N52591",
+"at": [
+2.5527,
+0.0,
+180.0
+],
+"size": [
+3.2588,
+1.1506
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "GND",
+"at": [
+-2.5552,
+0.0,
+180.0
+],
+"size": [
+3.2588,
+1.1506
+],
+"drill": null
+}
+]
+},
+{
+"ref": "R9",
+"fp": "ProDoc_P1_-easyedapro:R0603",
+"val": "R0603",
+"at": [
+39.1592,
+55.0164,
+0.0
+],
+"layer": "B.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "$1N33864",
+"at": [
+0.7518,
+0.0,
+180.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "GND",
+"at": [
+-0.7544,
+0.0,
+180.0
+],
+"size": [
+0.8077,
+0.8636
+],
+"drill": null
+}
+]
+},
+{
+"ref": "U4",
+"fp": "ProDoc_P1_-easyedapro:SOP-8_L4.9-W3.9-P1.27-LS6.0-BL",
+"val": "SOP-8_L4.9-W3.9-P1.27-LS6.0-BL",
+"at": [
+40.8,
+49.7358,
+0.0
+],
+"layer": "B.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "oval",
+"net": null,
+"at": [
+1.905,
+2.6822,
+180.0
+],
+"size": [
+0.6299,
+1.8644
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "oval",
+"net": null,
+"at": [
+0.635,
+2.6822,
+180.0
+],
+"size": [
+0.6299,
+1.8644
+],
+"drill": null
+},
+{
+"n": "3",
+"type": "smd",
+"shape": "oval",
+"net": null,
+"at": [
+-0.635,
+2.6822,
+180.0
+],
+"size": [
+0.6299,
+1.8644
+],
+"drill": null
+},
+{
+"n": "4",
+"type": "smd",
+"shape": "oval",
+"net": "$1N33864",
+"at": [
+-1.905,
+2.6822,
+180.0
+],
+"size": [
+0.6299,
+1.8644
+],
+"drill": null
+},
+{
+"n": "5",
+"type": "smd",
+"shape": "oval",
+"net": "GND",
+"at": [
+-1.905,
+-2.6822,
+180.0
+],
+"size": [
+0.6299,
+1.8644
+],
+"drill": null
+},
+{
+"n": "6",
+"type": "smd",
+"shape": "oval",
+"net": "GND",
+"at": [
+-0.635,
+-2.6822,
+180.0
+],
+"size": [
+0.6299,
+1.8644
+],
+"drill": null
+},
+{
+"n": "7",
+"type": "smd",
+"shape": "oval",
+"net": "$1N50240",
+"at": [
+0.635,
+-2.6822,
+180.0
+],
+"size": [
+0.6299,
+1.8644
+],
+"drill": null
+},
+{
+"n": "8",
+"type": "smd",
+"shape": "oval",
+"net": "$1N33870",
+"at": [
+1.905,
+-2.6822,
+180.0
+],
+"size": [
+0.6299,
+1.8644
+],
+"drill": null
+}
+]
+},
+{
+"ref": "C22",
+"fp": "ProDoc_P1_-easyedapro:C0402",
+"val": "C0402",
+"at": [
+42.2072,
+54.7624,
+0.0
+],
+"layer": "B.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "$1N33864",
+"at": [
+0.5436,
+0.0,
+180.0
+],
+"size": [
+0.7899,
+0.541
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "$1N52591",
+"at": [
+-0.5461,
+0.0,
+180.0
+],
+"size": [
+0.7899,
+0.541
+],
+"drill": null
+}
+]
+},
+{
+"ref": "D8",
+"fp": "ProDoc_P1_-easyedapro:SMA_L4.3-W2.6-LS5.2-RD",
+"val": "SMA_L4.3-W2.6-LS5.2-RD",
+"at": [
+24.2367,
+47.9959,
+0.0
+],
+"layer": "B.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "5V-CLEAN",
+"at": [
+2.2022,
+0.0,
+0.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "$1N52582",
+"at": [
+-2.1996,
+0.0,
+0.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": null
+}
+]
+},
+{
+"ref": "D10",
+"fp": "ProDoc_P1_-easyedapro:SMA_L4.3-W2.6-LS5.2-RD",
+"val": "SMA_L4.3-W2.6-LS5.2-RD",
+"at": [
+34.5872,
+47.6504,
+0.0
+],
+"layer": "B.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "$1N33870",
+"at": [
+2.1996,
+0.0,
+0.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "GND",
+"at": [
+-2.2022,
+0.0,
+0.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": null
+}
+]
+},
+{
+"ref": "L4",
+"fp": "ProDoc_P1_-easyedapro:IND-SMD_L5.8-W5.2",
+"val": "IND-SMD_L5.8-W5.2",
+"at": [
+47.0332,
+50.9524,
+0.0
+],
+"layer": "B.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "$1N33870",
+"at": [
+0.0,
+-2.3266,
+270.0
+],
+"size": [
+2.9997,
+5.4991
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "$1N52591",
+"at": [
+0.0,
+2.3241,
+270.0
+],
+"size": [
+2.9997,
+5.4991
+],
+"drill": null
+}
+]
+},
+{
+"ref": "C39",
+"fp": "ProDoc_P1_-easyedapro:CAP-SMD_BD6.3-L6.5-W6.5-LS7.2-FD",
+"val": "CAP-SMD_BD6.3-L6.5-W6.5-LS7.2-FD",
+"at": [
+24.6812,
+53.2384,
+0.0
+],
+"layer": "B.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "$1N50240",
+"at": [
+-2.6721,
+0.0,
+0.0
+],
+"size": [
+3.5001,
+1.1989
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "GND",
+"at": [
+2.6695,
+0.0,
+0.0
+],
+"size": [
+3.5001,
+1.1989
+],
+"drill": null
+}
+]
+},
+{
+"ref": "D9",
+"fp": "ProDoc_P1_-easyedapro:SMA_L4.3-W2.6-LS5.2-RD",
+"val": "SMA_L4.3-W2.6-LS5.2-RD",
+"at": [
+54.1452,
+46.8884,
+0.0
+],
+"layer": "B.Cu",
+"pads": [
+{
+"n": "1",
+"type": "smd",
+"shape": "rect",
+"net": "5V-DIRTY",
+"at": [
+-2.2022,
+0.0,
+180.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": null
+},
+{
+"n": "2",
+"type": "smd",
+"shape": "rect",
+"net": "$1N49822",
+"at": [
+2.1996,
+0.0,
+180.0
+],
+"size": [
+1.999,
+1.999
+],
+"drill": null
+}
+]
+},
+{
+"ref": "U8",
+"fp": "ProDoc_P1_-easyedapro:BUCK CONVERTER-DROK",
+"val": "BUCK CONVERTER-DROK",
+"at": [
+171.45,
+27.94125,
+0.0
+],
+"layer": "B.Cu",
+"pads": [
+{
+"n": "1",
+"type": "thru_hole",
+"shape": "circle",
+"net": "$1N49822",
+"at": [
+0.0,
+-5.08,
+180.0
+],
+"size": [
+1.524,
+1.524
+],
+"drill": 0.914
+},
+{
+"n": "2",
+"type": "thru_hole",
+"shape": "circle",
+"net": "GND",
+"at": [
+0.0,
+-2.54,
+180.0
+],
+"size": [
+1.524,
+1.524
+],
+"drill": 0.914
+},
+{
+"n": "3",
+"type": "thru_hole",
+"shape": "circle",
+"net": "GND",
+"at": [
+0.0,
+0.0,
+180.0
+],
+"size": [
+1.524,
+1.524
+],
+"drill": 0.914
+},
+{
+"n": "4",
+"type": "thru_hole",
+"shape": "circle",
+"net": "$1N50240",
+"at": [
+0.0,
+2.54,
+180.0
+],
+"size": [
+1.524,
+1.524
+],
+"drill": 0.914
+},
+{
+"n": "5",
+"type": "thru_hole",
+"shape": "circle",
+"net": null,
+"at": [
+0.0,
+5.08,
+180.0
+],
+"size": [
+1.524,
+1.524
+],
+"drill": 0.914
+}
+]
+}
+]

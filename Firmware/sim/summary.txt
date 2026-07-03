@@ -1,0 +1,36 @@
+
+=== SYSIPHUS LANDING GNC (TVC + MARGIN FINS) ===
+STATE -> PAD
+STATE -> ARM
+ARM: press 5x
+CALIBRATING - hold still
+PAD CAL gBias 0.0100 aBias 0.200440.152
+LOG LND000.CSV
+STATE -> CD
+T-10
+T-9
+T-8
+T-7
+T-6
+T-5
+T-4
+T-3
+T-2
+T-1
+T-0
+STATE -> BOOST
+STATE -> COAST
+STATE -> BURN
+STATE -> TD
+
+================ SIL SUMMARY ================
+final state     : TD
+phases reached  : BOOST=1 COAST=1 LANDING_BURN=1
+apogee          : 56.3 m
+touchdown x     : 0.77 m   (target 0)
+touchdown speed : 0.01 m/s (impact vz)
+final tilt      : 3.4 deg (true)
+est vs true @ TD: estZ=1.68 (true 0.00)  estX=0.59 (true 0.77)
+keff (RLS)      : 4.70
+VERDICT         : PASS (flew the full profile, soft+on-target)
+=============================================

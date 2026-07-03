@@ -1,0 +1,4 @@
+rocket_id,keff,lat,pid_limit_SM,adrc_limit_SM
+R0614,5.6,2,-0.6,-0.6
+R2304,17.0,2,-0.6,-0.6
+R1253,36.5,2,-0.6,-0.4

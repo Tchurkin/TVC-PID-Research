@@ -1,8 +1,0 @@
-source_name,enabled_in_simple,enabled_in_high_fidelity,expected_physical_effect,likely_regime_impact
-deadband,0,1,"Small control commands are ignored around zero, reducing effective authority for fine corrections.","Usually minor in EASY cells; contributes to boundary fragility when control margin is small."
-backlash,0,1,"Direction reversals lose command through linkage slack, creating large hysteresis and delayed response.","High impact in FRAGILE and INFEASIBLE zones; dominant source of decision flips near boundaries."
-latency,0,1,"Additional sensor delay reduces phase margin and can increase oscillatory behavior.","Low isolated impact in current sweep; may still matter in combinations near boundary dynamics."
-sensor_noise,0,1,"Gyro noise, bias, random walk, quantization, and initial attitude bias degrade state estimate quality.","Can trigger false boundary crossings in FRAGILE cells; moderate impact on disagreement risk."
-thrust_mismatch,0,1,"Post-fault control effectiveness drop (0.85 scale) underpowers commanded torque.","Can convert borderline workable cells into failures, especially in FRAGILE and INFEASIBLE cells."
-aero_mismatch,0,1,"Post-fault damping reduction (0.75 scale) changes rotational damping and transient burden.","Consistently second-tier contributor across regimes; relevant for boundary displacement."
-effectiveness_drift,0,1,"Time-varying control effectiveness drift during the run reduces sustained controllability.","Usually secondary in current sweep but can compound with mismatch and noise in FRAGILE regions."

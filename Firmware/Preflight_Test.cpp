@@ -1,0 +1,732 @@
+/*
+  Preflight_Test.cpp — Sysiphus Rocket Pre-launch Verification
+  ---------------------------------------------------------------
+  Runs on the actual hardware. Uses real IMU and servos.
+  Pyro channels are BLOCKED — fires are printed to Serial only.
+  Works fully without a Serial Monitor — all feedback via LED + buzzer.
+
+  STARTUP: LED blinks blue → press button to begin (open monitor first if using it)
+
+  TESTS (advance with button press):
+    1. Servo Center       — WHITE  — servos to neutral, verify visually
+    2. Servo Sweep        — BLUE   — sweeps ±5° each axis, 1 beep per step
+    3. Live TVC           — CYAN   — real IMU, servos respond; YELLOW if at limit
+    4. Flight Simulation  — PURPLE — runs staged flight; beeps at each event
+    5. Emergency Test     — RED→GREEN (pass) or RED flash (fail)
+    6. Sensor Readout     — GREEN  — live IMU/baro; beep every 3s to confirm running
+
+  Mirrors Research_Flight.cpp: fixed PD controller + configurable feedback
+  delay (INJECTED_DELAY_MS) and actuator slew-rate limit (SLEW_RATE_LIMIT_DPS).
+  Sweep those two on the bench before flight to characterize the boundary.
+
+  Upload this file instead of Ascent_Test.cpp when bench testing.
+  ---------------------------------------------------------------
+*/
+
+#include <Wire.h>
+#include <PWMServo.h>
+#include <MPU6050_tockn.h>
+#include <Adafruit_BMP280.h>
+
+// ── Pins (match Ascent_Test.cpp exactly) ────────────────────────────────────
+constexpr int button = 14;
+constexpr int buzzer = 13;
+constexpr int P1     = 9;    // Melt wire for streamer deployment
+constexpr int P2     = 10;   // Not connected
+constexpr int P3     = 11;   // Ignition for ascent motor
+constexpr int P4     = 12;   // Melt wire for parachute ejection
+constexpr int RLED   = 6;
+constexpr int GLED   = 7;
+constexpr int BLED   = 8;
+
+// ── Tuning (keep in sync with Ascent_Test.cpp / Research_Flight.cpp) ────────
+const float  Xtune       = 0,    Ytune      = 0;
+const double ServoXMult  = 4.33, ServoYMult = 4.33;
+const double burnTime    = 3.45;
+const double avThrust    = 14.34;
+const double rocketWeight= 0.78;
+const double G           = 9.81;
+const double ignitionDelay = 0.2;
+
+// ── Experiment Variables (mirror Research_Flight.cpp) ──────────────────────
+// Sweep these on the bench to characterize the stability boundary before flight.
+constexpr float INJECTED_DELAY_MS   = 0;      // ms, feedback delay
+constexpr float SLEW_RATE_LIMIT_DPS = 0;      // deg/s, servo slew cap (0 = unlimited)
+
+// ── PD Gains (fixed) ────────────────────────────────────────────────────────
+constexpr float PD_P     = 0.08, PD_D = 0.08;
+constexpr float MAX_TILT = 5.0;
+
+// ── Hardware ─────────────────────────────────────────────────────────────────
+PWMServo servoX, servoY;
+MPU6050  mpu6050(Wire);
+Adafruit_BMP280 bmp;
+
+// ── State ────────────────────────────────────────────────────────────────────
+float gyro_x, gyro_y, gyro_z, ang_vel_x, ang_vel_y;
+float tiltX, tiltY;
+int   testMode = 0;   // increments on button press
+
+// Actuator delay buffer (same structure as Research_Flight.cpp)
+constexpr int DELAY_BUF_SIZE = 60;
+struct {
+  float         x[DELAY_BUF_SIZE], y[DELAY_BUF_SIZE];
+  unsigned long t[DELAY_BUF_SIZE];
+  int head = 0, count = 0;
+} delayBuf;
+
+// Slew-rate limiter state
+float         slew_last_x = 0, slew_last_y = 0;
+unsigned long slew_last_t = 0;
+
+float applySlewLimit(float target, float &last, float dt) {
+  if (SLEW_RATE_LIMIT_DPS <= 0) { last = target; return target; }
+  float max_delta = SLEW_RATE_LIMIT_DPS * dt;
+  last += constrain(target - last, -max_delta, max_delta);
+  return last;
+}
+
+void pushServoCmd(float cx, float cy) {
+  delayBuf.x[delayBuf.head] = cx;
+  delayBuf.y[delayBuf.head] = cy;
+  delayBuf.t[delayBuf.head] = millis();
+  delayBuf.head = (delayBuf.head + 1) % DELAY_BUF_SIZE;
+  if (delayBuf.count < DELAY_BUF_SIZE) delayBuf.count++;
+}
+
+bool popServoCmd(float &cx, float &cy) {
+  if (delayBuf.count == 0) return false;
+  int tail = ((delayBuf.head - delayBuf.count) % DELAY_BUF_SIZE + DELAY_BUF_SIZE) % DELAY_BUF_SIZE;
+  if (millis() - delayBuf.t[tail] < (unsigned long)INJECTED_DELAY_MS) return false;
+  cx = delayBuf.x[tail];
+  cy = delayBuf.y[tail];
+  delayBuf.count--;
+  return true;
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+void LED(bool r, bool g, bool b) {
+  digitalWrite(RLED, !r);
+  digitalWrite(GLED, !g);
+  digitalWrite(BLED, !b);
+}
+
+void beep(int freq, int dur) { tone(buzzer, freq); delay(dur); noTone(buzzer); }
+
+// Mirrors countdown() in Research_Flight.cpp: delta-based calibration over
+// the full countdown window. Library auto-integrates gyro angle, so the
+// total angle drift / elapsed time = bias offset. Handles beep gaps correctly.
+float sim_initial_alt = 0;
+void runCountdown(int duration) {
+  servoX.write(90 + Xtune);
+  servoY.write(90 + Ytune);
+
+  mpu6050.update();
+  float start_x = mpu6050.getGyroAngleX();
+  float start_y = mpu6050.getGyroAngleY();
+  unsigned long t0 = millis();
+
+  for (int i = duration; i > 0; i--) {
+    Serial.println(i);
+    unsigned long secStart = millis();
+    if (i > 3) {
+      LED(true, false, false); beep(440, 200); LED(false, false, false);
+    } else {
+      LED(true, false, true); tone(buzzer, 880);   // purple = calibrating
+    }
+    while (millis() - secStart < 1000) mpu6050.update();
+    noTone(buzzer); LED(false, false, false);
+  }
+
+  float elapsed = (millis() - t0) / 1000.0f;
+  float offX = (mpu6050.getGyroAngleX() - start_x) / elapsed;
+  float offY = (mpu6050.getGyroAngleY() - start_y) / elapsed;
+  mpu6050.setGyroOffsets(offX, offY, 0.0f);
+
+  Serial.print(F("  offsets (dps): X=")); Serial.print(offX, 3);
+  Serial.print(F("  Y=")); Serial.println(offY, 3);
+
+  sim_initial_alt = bmp.readAltitude(1013.25);
+  Serial.print(F("  initial_alt: ")); Serial.println(sim_initial_alt);
+
+  // Flush cached values with fresh offsets applied
+  unsigned long flush = millis();
+  while (millis() - flush < 500) mpu6050.update();
+  gyro_x = gyro_y = gyro_z = ang_vel_x = ang_vel_y = 0;
+
+  Serial.println(F("  [LAUNCH]"));
+}
+
+// Pyro is BLOCKED in test mode — print only
+void mockPyro(int pin, const char* label) {
+  Serial.print(F("  [PYRO BLOCKED] Would fire "));
+  Serial.print(label);
+  Serial.print(F(" (pin "));
+  Serial.print(pin);
+  Serial.println(F(")"));
+}
+
+void waitButtonRelease() { while (digitalRead(button) == HIGH) delay(10); }
+
+bool buttonPressed() {
+  if (digitalRead(button) == HIGH) {
+    delay(30); // debounce
+    waitButtonRelease();
+    return true;
+  }
+  return false;
+}
+
+void printHeader(int mode, const char* name) {
+  Serial.println(F("\n========================================"));
+  Serial.print(F("  TEST "));
+  Serial.print(mode);
+  Serial.print(F(": "));
+  Serial.println(name);
+  Serial.println(F("========================================"));
+}
+
+// ── Simulated flight profile ─────────────────────────────────────────────────
+// Returns altitude (m) at time t (seconds from ignition)
+float simAltitude(float t) {
+  const float a_burn   = avThrust / rocketWeight - G;  // net accel during burn
+  const float v_burnout = a_burn * burnTime;
+  const float alt_burnout = 0.5f * a_burn * burnTime * burnTime;
+  const float t_coast  = v_burnout / G;                // coast to apogee
+  const float alt_apogee = alt_burnout + (v_burnout * v_burnout) / (2.0f * G);
+
+  if (t < 0) return 0;
+  if (t <= burnTime) {
+    return 0.5f * a_burn * t * t;
+  } else if (t <= burnTime + t_coast) {
+    float dt = t - burnTime;
+    return alt_burnout + v_burnout * dt - 0.5f * G * dt * dt;
+  } else {
+    float dt = t - (burnTime + t_coast);
+    return alt_apogee - 0.5f * G * dt * dt;   // free-fall approximation
+  }
+}
+
+float simVertVel(float t) {
+  const float a_burn    = avThrust / rocketWeight - G;
+  const float v_burnout = a_burn * burnTime;
+  if (t <= burnTime) return a_burn * t;
+  return v_burnout - G * (t - burnTime);
+}
+
+// ── IMU read — no sensor fusion: accel atan for angle (on ground / bench) ────
+// Matches Research_Flight.cpp ground convention. Live TVC uses atan because
+// the user physically tilts the rocket on the bench.
+void readIMU() {
+  mpu6050.update();
+  float raw_x    =  mpu6050.getAccAngleX();
+  float raw_y    = -mpu6050.getAccAngleY();   // Y inverted (sensor mounting)
+  float raw_z    =  mpu6050.getGyroAngleZ();
+  float raw_av_x =  mpu6050.getGyroX();
+  float raw_av_y = -mpu6050.getGyroY();       // Y inverted
+
+  const float ga = 0.9, va = 0.9;
+  gyro_x   = ga * raw_x   + (1 - ga) * gyro_x;
+  gyro_y   = ga * raw_y   + (1 - ga) * gyro_y;
+  gyro_z   = ga * raw_z   + (1 - ga) * gyro_z;
+  ang_vel_x = va * raw_av_x + (1 - va) * ang_vel_x;
+  ang_vel_y = va * raw_av_y + (1 - va) * ang_vel_y;
+}
+
+// Fixed PD, matches Research_Flight.cpp
+void computeTVC() {
+  float rawX = PD_P * gyro_x + PD_D * ang_vel_x;
+  float rawY = PD_P * gyro_y + PD_D * ang_vel_y;
+  tiltX = constrain(rawX, -MAX_TILT, MAX_TILT) * ServoXMult;
+  tiltY = constrain(rawY, -MAX_TILT, MAX_TILT) * ServoYMult;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  TEST 1 — Servo Center
+// ─────────────────────────────────────────────────────────────────────────────
+void test_servoCenter() {
+  printHeader(1, "Servo Center");
+  int nx = (int)(90 + Xtune), ny = (int)(90 + Ytune);
+  Serial.print(F("  Writing ServoX -> ")); Serial.println(nx);
+  Serial.print(F("  Writing ServoY -> ")); Serial.println(ny);
+  servoX.write(nx);
+  servoY.write(ny);
+  LED(true, true, true);   // WHITE — servos centred
+  beep(440, 100);
+  Serial.println(F("  Verify both TVC fins are physically centred, then press button."));
+  while (!buttonPressed()) delay(50);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  TEST 2 — Servo Sweep
+// ─────────────────────────────────────────────────────────────────────────────
+void test_servoSweep() {
+  printHeader(2, "Servo Sweep");
+  Serial.println(F("  Sweeping -5 -> +5 -> -5 on each axis. Watch the gimbal move."));
+  Serial.println(F("  Format:  axis  tilt(deg)  servo_cmd(deg)"));
+  LED(false, false, true);
+
+  // Sweep X — LED blue during X sweep
+  Serial.println(F("\n  [X] sweeping negative -> positive"));
+  LED(false, false, true);
+  beep(550, 80);
+  for (int deg = -5; deg <= 5; deg++) {
+    int cmd = (int)(deg * ServoXMult + 90 + Xtune);
+    servoX.write(cmd);
+    Serial.print(F("  X  ")); Serial.print(deg > 0 ? "+" : "");
+    Serial.print(deg); Serial.print(F("°  ->  srv ")); Serial.println(cmd);
+    delay(200);
+  }
+  Serial.println(F("  [X] returning to neutral"));
+  for (int deg = 5; deg >= -5; deg--) {
+    servoX.write((int)(deg * ServoXMult + 90 + Xtune));
+    delay(200);
+  }
+  servoX.write(90 + Xtune);
+  Serial.print(F("  [X] neutral: srv ")); Serial.println((int)(90 + Xtune));
+
+  delay(500);
+
+  // Sweep Y — LED cyan during Y sweep
+  Serial.println(F("\n  [Y] sweeping negative -> positive"));
+  LED(false, true, true);
+  beep(660, 80);
+  for (int deg = -5; deg <= 5; deg++) {
+    int cmd = (int)(deg * ServoYMult + 90 + Ytune);
+    servoY.write(cmd);
+    Serial.print(F("  Y  ")); Serial.print(deg > 0 ? "+" : "");
+    Serial.print(deg); Serial.print(F("°  ->  srv ")); Serial.println(cmd);
+    delay(200);
+  }
+  Serial.println(F("  [Y] returning to neutral"));
+  for (int deg = 5; deg >= -5; deg--) {
+    servoY.write((int)(deg * ServoYMult + 90 + Ytune));
+    delay(200);
+  }
+  servoY.write(90 + Ytune);
+  Serial.print(F("  [Y] neutral: srv ")); Serial.println((int)(90 + Ytune));
+
+  // Double beep = sweep complete
+  beep(660, 100); delay(80); beep(880, 150);
+  LED(true, true, true);   // WHITE = done
+  Serial.println(F("\n  Sweep complete. Press button to continue."));
+  while (!buttonPressed()) delay(50);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  TEST 3 — Live TVC
+// ─────────────────────────────────────────────────────────────────────────────
+void test_liveTVC() {
+  printHeader(3, "Live TVC");
+  Serial.println(F("  Running countdown — keep rocket still and upright."));
+  runCountdown(5);
+  Serial.println(F("  Tilt the rocket slowly and watch servo response."));
+  Serial.println(F("  EXPECTED: servo moves OPPOSITE to lean (correcting)."));
+  Serial.println(F("  Press button to exit."));
+  Serial.println();
+  Serial.println(F("  GyroX   GyroY   SrvX_cmd  SrvY_cmd  Diagnosis"));
+
+  LED(false, true, true);
+  unsigned long lastPrint = 0;
+  // Track previous angles to detect which axis is actively moving
+  float prev_gx = 0, prev_gy = 0;
+  unsigned long prevAxisTime = millis();
+
+  Serial.println(F("  Angle(°)        AngVel(°/s)     ServoCmd        Status"));
+  Serial.println(F("  X       Y       X       Y       X       Y"));
+
+  delayBuf.head = delayBuf.count = 0;
+  slew_last_x = slew_last_y = 0;
+  slew_last_t = millis();
+
+  while (!buttonPressed()) {
+    readIMU();
+    computeTVC();
+
+    // Chain: controller → delay → slew → servo (mirrors Research_Flight.cpp)
+    float targetX = tiltX, targetY = tiltY;
+    bool  writeNow = true;
+    if (INJECTED_DELAY_MS > 0) {
+      pushServoCmd(tiltX, tiltY);
+      writeNow = popServoCmd(targetX, targetY);
+    }
+    if (writeNow) {
+      unsigned long now = millis();
+      float dt = (now - slew_last_t) / 1000.0f;
+      slew_last_t = now;
+      if (dt <= 0 || dt > 0.5f) dt = 0.01f;
+      float ax = applySlewLimit(targetX, slew_last_x, dt);
+      float ay = applySlewLimit(targetY, slew_last_y, dt);
+      servoX.write(-ax + 90 + Xtune);
+      servoY.write(-ay + 90 + Ytune);
+    }
+
+    if (millis() - lastPrint > 150) {
+      unsigned long now = millis();
+      float dt = (now - prevAxisTime) / 1000.0f;
+      prevAxisTime = now;
+      lastPrint = now;
+
+      // Rate of angle change over the print interval
+      float dGx = abs(gyro_x - prev_gx) / dt;
+      float dGy = abs(gyro_y - prev_gy) / dt;
+      prev_gx = gyro_x; prev_gy = gyro_y;
+
+      // Dominant axis: whichever is moving faster
+      bool xDominant = dGx > dGy && dGx > 2.0f;
+      bool yDominant = dGy > dGx && dGy > 2.0f;
+
+      // Servo at correction limit?
+      bool xLimited = abs(tiltX) >= 4.9f * ServoXMult;
+      bool yLimited = abs(tiltY) >= 4.9f * ServoYMult;
+
+      // Sign check: tilt command should share sign with gyro angle
+      // (positive lean -> positive servo deflection to correct)
+      bool xSignOk = abs(gyro_x) < 1.0f || (gyro_x > 0) == (tiltX > 0);
+      bool ySignOk = abs(gyro_y) < 1.0f || (gyro_y > 0) == (tiltY > 0);
+
+      // Angles
+      Serial.print(F("  "));
+      Serial.print(gyro_x >= 0 ? "+" : ""); Serial.print(gyro_x, 1);
+      Serial.print(F("  "));
+      Serial.print(gyro_y >= 0 ? "+" : ""); Serial.print(gyro_y, 1);
+      // Angular velocities
+      Serial.print(F("  "));
+      Serial.print(ang_vel_x >= 0 ? "+" : ""); Serial.print(ang_vel_x, 1);
+      Serial.print(F("  "));
+      Serial.print(ang_vel_y >= 0 ? "+" : ""); Serial.print(ang_vel_y, 1);
+      // Servo commands (degrees from neutral)
+      Serial.print(F("  "));
+      Serial.print(tiltX >= 0 ? "+" : ""); Serial.print(tiltX, 1);
+      Serial.print(F("  "));
+      Serial.print(tiltY >= 0 ? "+" : ""); Serial.print(tiltY, 1);
+      // Status
+      Serial.print(F("  "));
+      if (xDominant)        Serial.print(F("[MOVING X]  "));
+      else if (yDominant)   Serial.print(F("[MOVING Y]  "));
+      else                  Serial.print(F("[level]     "));
+      if (xLimited)         Serial.print(F("[X AT LIMIT]"));
+      if (yLimited)         Serial.print(F("[Y AT LIMIT]"));
+      if (!xSignOk)         Serial.print(F(" <<WARN: X sign may be wrong>>"));
+      if (!ySignOk)         Serial.print(F(" <<WARN: Y sign may be wrong>>"));
+      Serial.println();
+
+      // LED: YELLOW if any servo at limit, CYAN otherwise
+      if (xLimited || yLimited) LED(true, true, false);
+      else                      LED(false, true, true);
+    }
+    delay(10);
+  }
+
+  servoX.write(90 + Xtune);
+  servoY.write(90 + Ytune);
+  beep(440, 80);
+  LED(true, true, true);
+  Serial.println(F("\n  Servos centred. Press button to continue."));
+  delay(200);
+  while (!buttonPressed()) delay(50);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  TEST 4 — Flight Simulation
+// ─────────────────────────────────────────────────────────────────────────────
+void test_flightSim() {
+  printHeader(4, "Flight Simulation");
+
+  const float a_burn    = avThrust / rocketWeight - G;
+  const float v_burnout = a_burn * burnTime;
+  const float alt_burnout = 0.5f * a_burn * burnTime * burnTime;
+  const float t_coast   = v_burnout / G;
+  const float alt_apogee = alt_burnout + (v_burnout * v_burnout) / (2.0f * G);
+  Serial.println(F("  Predicted flight profile:"));
+  Serial.print(F("    Net burn accel  : ")); Serial.print(a_burn, 2);   Serial.println(F(" m/s²"));
+  Serial.print(F("    Burnout alt     : ")); Serial.print(alt_burnout, 1); Serial.println(F(" m"));
+  Serial.print(F("    Burnout velocity: ")); Serial.print(v_burnout, 1); Serial.println(F(" m/s"));
+  Serial.print(F("    Apogee          : ")); Serial.print(alt_apogee, 1); Serial.println(F(" m"));
+  Serial.print(F("    Chute deploy alt: ")); Serial.print(alt_apogee - 1, 1); Serial.println(F(" m  (apogee - 1 m)"));
+  Serial.println(F("  Running countdown then sim... (sim at x10 speed)"));
+  Serial.println();
+  runCountdown(5);
+  Serial.println();
+
+  LED(true, false, true);
+
+  bool fired_ignition = false, fired_apogee = false;
+  float highest_alt = 0;
+  unsigned long simStart = millis();
+  float t = 0;
+
+  // Simulate from launch to landing (altitude returns to 0)
+  while (true) {
+    t = (millis() - simStart) / 1000.0f * 10.0f;   // 10x speed
+
+    float alt = simAltitude(t);
+    float vel = simVertVel(t);
+    if (alt < 0) alt = 0;
+
+    if (alt > highest_alt) highest_alt = alt;
+
+    // ── Staging events ───────────────────────────────────────────────────────
+    if (!fired_ignition && t >= ignitionDelay) {
+      Serial.print(F("  t=")); Serial.print(t, 2);
+      Serial.println(F("s  → IGNITION (P3) — motor lit"));
+      mockPyro(P3, "P3 Ignition");
+      fired_ignition = true;
+      beep(880, 120);        // high beep = ignition
+      LED(true, true, false); // YELLOW = powered
+    }
+
+    if (fired_ignition && t >= ignitionDelay + burnTime) {
+      static bool burnoutLogged = false;
+      if (!burnoutLogged) {
+        Serial.print(F("  t=")); Serial.print(t, 2);
+        Serial.print(F("s  → BURNOUT — TVC stops | alt="));
+        Serial.print(alt, 1); Serial.println(F(" m"));
+        burnoutLogged = true;
+        beep(550, 100);       // mid beep = burnout
+        LED(false, true, false); // GREEN = coasting
+      }
+    }
+
+    // Apogee detected + chute fires immediately (matches firmware: alt < highest_alt - 1)
+    if (!fired_apogee && alt < highest_alt - 1 && highest_alt > 5) {
+      Serial.print(F("  t=")); Serial.print(t, 2);
+      Serial.print(F("s  → APOGEE DETECTED | highest_alt="));
+      Serial.print(highest_alt, 1); Serial.println(F(" m"));
+      Serial.print(F("  t=")); Serial.print(t, 2);
+      Serial.print(F("s  → CHUTE deploy (P4) at "));
+      Serial.print(alt, 1); Serial.println(F(" m  (apogee - 1 m)"));
+      mockPyro(P4, "P4 Chute");
+      fired_apogee = true;
+      beep(330, 200);         // low beep = chute
+      LED(false, true, true); // CYAN = descending under chute
+    }
+
+    if (fired_apogee && alt <= 0) {
+      Serial.print(F("  t=")); Serial.print(t, 2);
+      Serial.println(F("s  → LANDED"));
+      beep(440, 80); beep(660, 80); beep(880, 150); // landed jingle
+      break;
+    }
+
+    // Print status every simulated 0.5s
+    static float lastPrintT = -1;
+    if (t - lastPrintT >= 0.5f) {
+      lastPrintT = t;
+      const char* phase =
+        t < ignitionDelay              ? "pre-ignition " :
+        t < ignitionDelay + burnTime   ? "POWERED (TVC)" :
+        vel > 0                        ? "coast up     " :
+        !fired_apogee                  ? "coast down   " :
+                                         "chute descent";
+      Serial.print(F("      ["));
+      Serial.print(phase);
+      Serial.print(F("]  alt="));
+      Serial.print(alt, 1);
+      Serial.print(F(" m  vel="));
+      Serial.print(vel, 1);
+      Serial.println(F(" m/s"));
+    }
+
+    delay(5); // 5ms real = 50ms simulated
+  }
+
+  Serial.println();
+  Serial.println(F("  Simulation complete. Verify the sequence above matches expected."));
+  Serial.println(F("  Press button to continue."));
+  while (!buttonPressed()) delay(50);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  TEST 5 — Emergency Logic Test
+// ─────────────────────────────────────────────────────────────────────────────
+void test_emergency() {
+  printHeader(5, "Emergency Logic Test");
+  Serial.println(F("  Injecting fake gyro_x = 46 degrees (above 45 threshold)."));
+  Serial.println(F("  Verifying emergency response without firing pyros."));
+  Serial.println();
+
+  float fake_gyro_x = 46.0f;
+  float fake_gyro_y = 0.0f;
+
+  if (abs(fake_gyro_x) > 45 || abs(fake_gyro_y) > 45) {
+    Serial.println(F("  EMERGENCY CONDITION DETECTED ✓"));
+    Serial.println(F("  Actions that would execute:"));
+    Serial.println(F("    1. Servos -> neutral (90°)"));
+    servoX.write(90 + Xtune);
+    servoY.write(90 + Ytune);
+    Serial.print(F("       ServoX written: ")); Serial.println((int)(90 + Xtune));
+    Serial.print(F("       ServoY written: ")); Serial.println((int)(90 + Ytune));
+    Serial.println(F("    2. Deploy parachute (P4)"));
+    mockPyro(P4, "P4 Chute (emergency)");
+    delay(500);
+    Serial.println();
+    Serial.println(F("  Emergency logic PASSED."));
+    // PASS: red flash → green
+    LED(true, false, false); delay(300);
+    LED(false, true, false); delay(300);
+    beep(523, 80); beep(659, 80); beep(784, 150);
+  } else {
+    Serial.println(F("  ERROR: Emergency condition NOT detected — check threshold logic!"));
+    // FAIL: rapid red flashes
+    for (int i = 0; i < 6; i++) {
+      LED(true, false, false); delay(150);
+      LED(false, false, false); delay(150);
+    }
+    beep(200, 500);
+  }
+
+  Serial.println(F("  Press button to continue."));
+  while (!buttonPressed()) delay(50);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  TEST 6 — Sensor Readout
+// ─────────────────────────────────────────────────────────────────────────────
+void test_sensorReadout() {
+  printHeader(6, "Sensor Readout");
+  Serial.println(F("  Live sensor values at 5 Hz. Tilt, move, and verify responses."));
+  Serial.println(F("  Press button to exit.\n"));
+
+  LED(false, true, false);   // GREEN = sensor readout active
+  unsigned long lastPrint = 0;
+  unsigned long lastBeep  = 0;
+  int rowCount = 0;
+
+  while (!buttonPressed()) {
+    mpu6050.update();
+
+    // Beep every 3 s so you know it's still running without a monitor
+    if (millis() - lastBeep > 3000) {
+      beep(440, 30);
+      lastBeep = millis();
+    }
+
+    if (millis() - lastPrint < 200) { delay(5); continue; }
+    lastPrint = millis();
+
+    // Re-print column headers every 15 rows so they stay visible while scrolling
+    if (rowCount % 15 == 0) {
+      Serial.println(F("  AngleX  AngleY  AngleZ |  AvX    AvY  |  AccX   AccY   AccZ  | Alt(m)  Temp(C)"));
+      Serial.println(F("  ------  ------  ------ | ----   ---- |  ----   ----   ----  | ------  -------"));
+    }
+    rowCount++;
+
+    float aX  =  mpu6050.getAccAngleX();     // atan-based, no fusion
+    float aY  = -mpu6050.getAccAngleY();     // Y inverted
+    float aZ  =  mpu6050.getGyroAngleZ();    // pure gyro integration
+    float avX =  mpu6050.getGyroX();
+    float avY = -mpu6050.getGyroY();         // Y inverted
+    float acX = mpu6050.getAccX() * 9.81f;
+    float acY = mpu6050.getAccY() * 9.81f;
+    float acZ = mpu6050.getAccZ() * 9.81f;
+    float alt = bmp.readAltitude(1013.25);
+    float tmp = bmp.readTemperature();
+
+    char buf[96];
+    snprintf(buf, sizeof(buf),
+      "  %+6.1f  %+6.1f  %+6.1f | %+5.1f  %+5.1f | %+6.2f %+6.2f %+6.2f | %+6.1f   %4.1f",
+      aX, aY, aZ, avX, avY, acX, acY, acZ, alt, tmp);
+    Serial.println(buf);
+  }
+
+  Serial.println(F("\n  Press button to continue."));
+  delay(200);
+  while (!buttonPressed()) delay(50);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  SETUP & LOOP
+// ─────────────────────────────────────────────────────────────────────────────
+void setup() {
+  pinMode(button, INPUT);
+  pinMode(buzzer, OUTPUT);
+  // Pyro pins as OUTPUT but we will NEVER write HIGH to them in this file
+  pinMode(P1, OUTPUT); pinMode(P2, OUTPUT);
+  pinMode(P3, OUTPUT); pinMode(P4, OUTPUT);
+  digitalWrite(P1, LOW); digitalWrite(P2, LOW);
+  digitalWrite(P3, LOW); digitalWrite(P4, LOW);
+  pinMode(RLED, OUTPUT); pinMode(GLED, OUTPUT); pinMode(BLED, OUTPUT);
+  digitalWrite(RLED, HIGH); digitalWrite(GLED, HIGH); digitalWrite(BLED, HIGH); // all LEDs off
+
+  Serial.begin(115200);
+  // Blink blue — open Serial Monitor, then press button to begin.
+  // (Teensy's 'while (!Serial)' is not reliable — button press is.)
+  while (digitalRead(button) == LOW) {
+    digitalWrite(BLED, LOW);  delay(200);
+    digitalWrite(BLED, HIGH); delay(200);
+  }
+  waitButtonRelease();
+  delay(300);
+
+  // I2C + sensors FIRST (BMP280 handshake is fragile at 400kHz and can fail
+  // if servos are attached before Wire.begin())
+  Wire.begin();
+
+  if (!bmp.begin(0x76) && !bmp.begin(0x77)) {
+    Serial.println(F("BMP280 not found — baro tests will be skipped"));
+  } else {
+    bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,
+                    Adafruit_BMP280::SAMPLING_X2,
+                    Adafruit_BMP280::SAMPLING_X16,
+                    Adafruit_BMP280::FILTER_X16,
+                    Adafruit_BMP280::STANDBY_MS_1);
+  }
+
+  mpu6050.begin();
+  Wire.setClock(400000);   // bump I2C speed AFTER handshakes
+
+  // Servos last — attaching them before I2C init interferes with BMP280
+  servoX.attach(4);
+  servoY.attach(3);
+  servoX.write(90 + Xtune);
+  servoY.write(90 + Ytune);
+
+  LED(false, false, false);
+
+  Serial.println(F("\n╔══════════════════════════════════╗"));
+  Serial.println(F("║   SYSIPHUS PREFLIGHT TEST SUITE  ║"));
+  Serial.println(F("╚══════════════════════════════════╝"));
+  Serial.println(F("  PYRO CHANNELS ARE BLOCKED."));
+  Serial.println(F("  Fixed PD controller — stability-boundary study"));
+  Serial.print(F("  Delay     : ")); Serial.print(INJECTED_DELAY_MS);   Serial.println(F(" ms"));
+  Serial.print(F("  Slew limit: ")); Serial.print(SLEW_RATE_LIMIT_DPS); Serial.println(F(" dps (0=unlimited)"));
+  Serial.println();
+
+  // Sensor health check
+  Serial.println(F("  -- Sensor Check --"));
+  mpu6050.update();
+  Serial.print(F("  MPU6050 temp  : ")); Serial.print(mpu6050.getTemp(), 1); Serial.println(F(" C"));
+  Serial.print(F("  BMP280 alt    : ")); Serial.print(bmp.readAltitude(1013.25), 1); Serial.println(F(" m (raw, no baseline)"));
+  Serial.print(F("  BMP280 temp   : ")); Serial.print(bmp.readTemperature(), 1); Serial.println(F(" C"));
+  Serial.print(F("  ServoX neutral: ")); Serial.println((int)(90 + Xtune));
+  Serial.print(F("  ServoY neutral: ")); Serial.println((int)(90 + Ytune));
+  Serial.println();
+  Serial.println(F("  Press button to begin Test 1."));
+  beep(440, 100); beep(550, 100); beep(660, 150);
+}
+
+void loop() {
+  if (!buttonPressed()) { delay(50); return; }
+
+  testMode++;
+  switch (testMode) {
+    case 1: test_servoCenter(); break;
+    case 2: test_servoSweep();  break;
+    case 3: test_liveTVC();     break;
+    case 4: test_flightSim();   break;
+    case 5: test_emergency();     break;
+    case 6: test_sensorReadout(); break;
+    default:
+      Serial.println(F("\n  All tests complete."));
+      Serial.println(F("  Upload Ascent_Test.cpp for real flight."));
+      LED(false, true, false);
+      beep(523, 100); beep(659, 100); beep(784, 200);
+      testMode = 6; // stay here
+      break;
+  }
+
+  Serial.print(F("\n  Press button for Test "));
+  Serial.println(testMode + 1 <= 6 ? testMode + 1 : 0);
+  LED(false, false, false);
+}

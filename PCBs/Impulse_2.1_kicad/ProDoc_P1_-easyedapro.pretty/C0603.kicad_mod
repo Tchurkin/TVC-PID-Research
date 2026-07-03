@@ -1,0 +1,10 @@
+(footprint "C0603"
+	(version 20240108)
+	(generator "altium_convert")
+    (layer "F.Cu")
+    (uuid "78b20cd9-a65f-435b-9608-5a41461777e4")
+    (property "Reference" "REF**" (at 0 0 0) (layer "F.SilkS") (uuid "e43c6eb1-31d4-405e-bca3-da181d5f4c24") (effects (font (size 1 1) (thickness 0.15))))
+    (property "Value" "C0603" (at 0 1 0) (layer "F.Fab") (hide yes) (uuid "1f294d7c-4e0d-41fe-b42d-f9cca8ffc5c6") (effects (font (size 1 1) (thickness 0.15))))
+    (pad "2" smd rect (at -0.7010 0.0000 180) (size 0.8001 0.8992) (layers "F.Cu" "F.Paste" "F.Mask") (uuid "b5926103-81c9-4ac8-b0a2-f99cc7a2e0c7"))
+    (pad "1" smd rect (at 0.6985 0.0000 180) (size 0.8001 0.8992) (layers "F.Cu" "F.Paste" "F.Mask") (uuid "89cc1e5c-6ab9-4fd8-8993-51f66ad1e389"))
+  )

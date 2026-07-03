@@ -1,0 +1,10 @@
+(footprint "CAP-SMD_BD6.3-L6.6-W6.6-LS7.2-R-RD"
+	(version 20240108)
+	(generator "altium_convert")
+    (layer "B.Cu")
+    (uuid "4463999f-81b1-4709-996a-1f2517fedf34")
+    (property "Reference" "REF**" (at 0 0 0) (layer "F.SilkS") (uuid "78770e91-dbee-4fae-8d0b-92864d37dcf9") (effects (font (size 1 1) (thickness 0.15))))
+    (property "Value" "CAP-SMD_BD6.3-L6.6-W6.6-LS7.2-R-RD" (at 0 1 0) (layer "F.Fab") (hide yes) (uuid "7740fd3d-a631-4583-a483-e50d4f908965") (effects (font (size 1 1) (thickness 0.15))))
+    (pad "1" smd rect (at 2.5527 0.0000 180) (size 3.2588 1.1506) (layers "B.Cu" "B.Paste" "B.Mask") (uuid "5a65ab53-3651-4672-aa39-a52be0c0c4a3"))
+    (pad "2" smd rect (at -2.5552 0.0000 180) (size 3.2588 1.1506) (layers "B.Cu" "B.Paste" "B.Mask") (uuid "8ad92b0c-5678-4fd9-ab62-2c84a820ef84"))
+  )

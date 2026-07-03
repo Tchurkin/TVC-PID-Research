@@ -1,0 +1,10 @@
+(footprint "SMA_L4.3-W2.6-LS5.2-RD"
+	(version 20240108)
+	(generator "altium_convert")
+    (layer "B.Cu")
+    (uuid "b6726291-af61-4b70-8c62-6bc8ce0a57e3")
+    (property "Reference" "REF**" (at 0 0 0) (layer "F.SilkS") (uuid "82859225-e98d-465c-a908-d92758f2e989") (effects (font (size 1 1) (thickness 0.15))))
+    (property "Value" "SMA_L4.3-W2.6-LS5.2-RD" (at 0 1 0) (layer "F.Fab") (hide yes) (uuid "e0754542-d617-4ede-8f5f-2e5694eaa2be") (effects (font (size 1 1) (thickness 0.15))))
+    (pad "2" smd rect (at -2.2022 0.0000) (size 1.9990 1.9990) (layers "B.Cu" "B.Paste" "B.Mask") (uuid "b96e9bfe-af9e-4755-aa70-f77ba5e03cfe"))
+    (pad "1" smd rect (at 2.1996 0.0000) (size 1.9990 1.9990) (layers "B.Cu" "B.Paste" "B.Mask") (uuid "71a58da8-d994-48b5-bae6-2204bee7f781"))
+  )

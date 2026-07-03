@@ -1,0 +1,12 @@
+(footprint "LED-SMD_4P-L3.2-W2.8-LS3.5-BL-CW"
+	(version 20240108)
+	(generator "altium_convert")
+    (layer "F.Cu")
+    (uuid "666fd758-ab32-4832-8240-ecf792638873")
+    (property "Reference" "REF**" (at 0 0 0) (layer "F.SilkS") (uuid "fc30a399-a2a6-4220-923f-faba4d2d416f") (effects (font (size 1 1) (thickness 0.15))))
+    (property "Value" "LED-SMD_4P-L3.2-W2.8-LS3.5-BL-CW" (at 0 1 0) (layer "F.Fab") (hide yes) (uuid "f696452a-881b-4029-8960-735ff242b5a7") (effects (font (size 1 1) (thickness 0.15))))
+    (pad "3" smd rect (at -1.5519 0.7493 270) (size 0.8001 1.0998) (layers "F.Cu" "F.Paste" "F.Mask") (uuid "40e59d2d-3750-46ad-8b34-60e0f39eed53"))
+    (pad "2" smd rect (at 1.5494 0.7493 270) (size 0.8001 1.0998) (layers "F.Cu" "F.Paste" "F.Mask") (uuid "4200cea1-fb70-4508-816f-209ca37b17e2"))
+    (pad "1" smd rect (at 1.5494 -0.7518 270) (size 0.8001 1.0998) (layers "F.Cu" "F.Paste" "F.Mask") (uuid "543afeb0-8624-4bf4-b212-773753cee149"))
+    (pad "4" smd rect (at -1.5519 -0.7518 270) (size 0.8001 1.0998) (layers "F.Cu" "F.Paste" "F.Mask") (uuid "ab147b15-201c-42ba-bec6-df4d40519444"))
+  )

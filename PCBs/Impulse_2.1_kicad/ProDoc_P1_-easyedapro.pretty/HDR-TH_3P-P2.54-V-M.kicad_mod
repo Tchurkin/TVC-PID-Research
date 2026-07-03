@@ -1,0 +1,11 @@
+(footprint "HDR-TH_3P-P2.54-V-M"
+	(version 20240108)
+	(generator "altium_convert")
+    (layer "F.Cu")
+    (uuid "de21b1f2-1a5a-4d07-b9b9-13f6ebdf0926")
+    (property "Reference" "REF**" (at 0 0 0) (layer "F.SilkS") (uuid "3a6bbe23-d672-4708-b8e7-60809f01fdab") (effects (font (size 1 1) (thickness 0.15))))
+    (property "Value" "HDR-TH_3P-P2.54-V-M" (at 0 1 0) (layer "F.Fab") (hide yes) (uuid "0cdd10ed-e478-424d-b8cc-b7bf6832cf35") (effects (font (size 1 1) (thickness 0.15))))
+    (pad "1" thru_hole rect (at 0.0000 -2.5400 90) (size 1.6993 1.6993) (drill 1.100) (layers "*.Cu" "*.Mask") (uuid "a835d890-e8af-44c0-aee8-62eb35248362"))
+    (pad "2" thru_hole circle (at 0.0000 0.0000 90) (size 1.6993 1.6993) (drill 1.100) (layers "*.Cu" "*.Mask") (uuid "e37172b5-037c-46d5-95ad-44915d9b043a"))
+    (pad "3" thru_hole circle (at 0.0000 2.5400 90) (size 1.6993 1.6993) (drill 1.100) (layers "*.Cu" "*.Mask") (uuid "c260af45-6169-488a-8c68-9f26e851459a"))
+  )
