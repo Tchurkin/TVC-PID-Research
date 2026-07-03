@@ -37,3 +37,6 @@ sim/_patch_atlas.py
 
 # MATLAB Drive sync markers
 .MATLABDriveTag
+
+# VSCode Local History auto-backups
+.history/
