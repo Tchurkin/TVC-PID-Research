@@ -120,7 +120,7 @@ HTML = r"""<!doctype html><html><head><meta charset="utf-8"><title>Firmware weak
   <div class="row">t <b id="t"></b>s &middot; phase <b id="ph"></b> &middot; alt <b id="alt"></b> m</div>
   <div class="row">downrange <b id="dr"></b> m &middot; crossrange <b id="cr"></b> m &middot; roll <b id="rl"></b>&deg;</div>
   <div class="row">miss <b id="miss"></b> m &middot; touchdown vz <b id="tvz"></b> m/s &middot; tilt <b id="tilt"></b>&deg;</div>
-  <div class="row">apogee <b id="apo"></b> m &middot; <button id="topv" style="padding:2px 6px;font-size:11px">top view</button> <button id="sidev" style="padding:2px 6px;font-size:11px">side view</button></div>
+  <div class="row">apogee <b id="apo"></b> m &middot; <button id="topv" style="padding:2px 6px;font-size:11px">top view</button> <button id="sidev" style="padding:2px 6px;font-size:11px">side view</button> <button id="focusv" style="padding:2px 6px;font-size:11px">focus rocket</button></div>
   <hr style="border-color:#30363d">
   <div class="row"><b>PASS/FAIL map</b> (rows=target, cols=wind; click a cell). green=soft on-target, red=fail.</div>
   <div class="row" style="color:#d29922;font-size:12px">WIND/TARGET robustness only (nominal build+motor). Robustness to build/motor/timing dispersion is separate &mdash; see montecarlo.py.</div>
@@ -136,9 +136,16 @@ const PHc={BOOST:'#f0883e',COAST:'#58a6ff',BURN:'#f85149',TD:'#3fb950',ABORT:'#f
 // World axes: X = downrange, Y = crossrange, Z = up. Body +Z = the rocket's nose.
 let az=-1.05, el=0.30, zoom=1.0;                      // orbit azimuth/elevation (rad) + zoom
 const zTop=Math.max(APO*1.15,10);
-let WSC=(H-150)/zTop;                                 // world metres -> px (updated by zoom)
-const CEN=[Math.max(XMAX,8)*0.45, 0, zTop*0.42];      // look-at centre (world)
-const RPX=30;                                         // rocket drawn at a fixed pixel size (schematic scale)
+let WSC=(H-150)/zTop;                                 // world metres -> px (constant; zoom applied separately as WSC*zoom)
+const CEN=[Math.max(XMAX,8)*0.45, 0, zTop*0.42];      // default look-at centre (world; full-trajectory view)
+let LOOK=CEN, focus=false;                            // focus mode: camera look-at follows the true rocket position
+const CAMD=Math.max(zTop, XMAX, 2*YMAX, 20)*3.0;      // perspective camera distance (>> scene, so the projection stays well-behaved)
+// Rocket drawn to TRUE physical scale in world metres, so it scales with zoom exactly like the
+// world (zoom out -> rocket shrinks with everything else). model-unit -> metres:
+//   R_AX  : axial   (model bot=-1.0 maps to the nozzle at z=-L_NOZZLE=-0.30 m; total length ~0.67 m)
+//   R_RAD : radial  (model rB=0.16 maps to 0.031 m body radius, from S_REF=0.003 m^2 => r=sqrt(S/pi))
+// Anisotropic (R_AX != R_RAD) because the real airframe is far more slender than the stubby model.
+const R_AX=0.30, R_RAD=0.194;
 function cam(){const ca=Math.cos(az),sa=Math.sin(az),ce=Math.cos(el),se=Math.sin(el);
   return {R:[-sa,ca,0], U:[-se*ca,-se*sa,ce], F:[ce*ca,ce*sa,se]};}   // screen-right, screen-up, toward-camera
 function dot(a,b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];}
@@ -147,15 +154,16 @@ function qrot(q,v){const w=q[0],x=q[1],y=q[2],z=q[3];   // rotate a body vector 
   return [(1-2*(y*y+z*z))*v[0]+2*(x*y-w*z)*v[1]+2*(x*z+w*y)*v[2],
           2*(x*y+w*z)*v[0]+(1-2*(x*x+z*z))*v[1]+2*(y*z-w*x)*v[2],
           2*(x*z-w*y)*v[0]+2*(y*z+w*x)*v[1]+(1-2*(x*x+y*y))*v[2]];}
-function projW(p){const b=cam(),dx=[p[0]-CEN[0],p[1]-CEN[1],p[2]-CEN[2]];   // world point -> [sx,sy,depth]
-  return [W/2+WSC*zoom*dot(dx,b.R), H/2-WSC*zoom*dot(dx,b.U), dot(dx,b.F)];}
-function projB(q,vb){const b=cam(),vw=qrot(q,vb);return [RPX*dot(vw,b.R), -RPX*dot(vw,b.U), dot(vw,b.F)];}  // body vec -> screen offset(px)+depth
+function projW(p){const b=cam(),dx=[p[0]-LOOK[0],p[1]-LOOK[1],p[2]-LOOK[2]];   // world point -> PERSPECTIVE [sx,sy,depth]
+  const zc=Math.max(CAMD-dot(dx,b.F), CAMD*0.15), pf=CAMD/zc;   // foreshortening: pf=1 at the look-at plane, >1 nearer, <1 farther
+  return [W/2+WSC*zoom*pf*dot(dx,b.R), H/2-WSC*zoom*pf*dot(dx,b.U), dot(dx,b.F)];}
+// (rocket vertices go through projW directly now, so the rocket gets the same perspective as the world — see V() below)
 function shade(hex,br){const n=parseInt(hex.slice(1),16),r=(n>>16)&255,g=(n>>8)&255,b=n&255,f=Math.max(0.35,Math.min(1,br));
   return 'rgb('+(r*f|0)+','+(g*f|0)+','+(b*f|0)+')';}
 // build all shaded faces of the rocket at world position `pos`, attitude quaternion `q`
 function rocketFaces(pos,q,dep,rdf,thr,uT,uT2,legF){
   const ps=projW(pos), F=cam().F, faces=[];
-  const V=vb=>{const o=projB(q,vb);return [ps[0]+o[0], ps[1]+o[1], o[2]];};   // vertex -> screen [x,y,localDepth]
+  const V=vb=>{const vw=qrot(q,[vb[0]*R_RAD,vb[1]*R_RAD,vb[2]*R_AX]);return projW([pos[0]+vw[0],pos[1]+vw[1],pos[2]+vw[2]]);};   // body vertex -> world metres -> PERSPECTIVE screen [x,y,depth]
   const face=(vs,col,br,strk)=>{let d=0;for(const v of vs)d+=v[2];faces.push({p:vs,d:d/vs.length,c:col,b:br==null?1:br,s:strk});};
   const rB=0.16, bot=-1.0, top=0.85, tip=1.25, NS=14;
   const facing=a=>{const nw=qrot(q,[Math.cos(a),Math.sin(a),0]);return 0.55+0.45*dot(nw,F);};  // body-surface lighting
@@ -193,6 +201,7 @@ function gline(a,b,col,dash){const A=projW(a),B=projW(b);cx.strokeStyle=col;if(d
   cx.beginPath();cx.moveTo(A[0],A[1]);cx.lineTo(B[0],B[1]);cx.stroke();if(dash)cx.setLineDash([]);}
 function draw(){
   const r=cur(), F=r.f; if(i>=F.length)i=0; const f=F[i];
+  LOOK = focus ? [f[2],f[15],f[3]] : CEN;   // focus mode: recentre the whole scene on the rocket's true position
   cx.clearRect(0,0,W,H);
   // ground grid on z=0 (world), spanning the flight
   const gx0=-4, gx1=Math.max(XMAX,r.T)+4, gyext=Math.max(YMAX,3)+2;
@@ -258,13 +267,15 @@ document.getElementById('play').onclick=function(){playing=!playing;this.innerHT
 document.getElementById('restart').onclick=()=>{i=0;trail=[];};
 document.getElementById('topv').onclick=()=>{az=-1.05;el=1.45;};      // ~top-down (see cross-range spread)
 document.getElementById('sidev').onclick=()=>{az=-1.5708;el=0.02;};   // downrange side profile
+document.getElementById('focusv').onclick=function(){focus=!focus;this.style.background=focus?'#238636':'';   // follow the rocket
+  zoom = focus ? Math.min(30, H*0.33/(WSC*0.675)) : 1.0;};   // on: auto-frame the 0.675 m rocket to ~1/3 canvas; off: back to full view
 // ---- orbit: drag to rotate, wheel to zoom ----
 let drag=false,mx=0,my=0;
 cv.addEventListener('mousedown',e=>{drag=true;mx=e.clientX;my=e.clientY;});
 window.addEventListener('mouseup',()=>drag=false);
 window.addEventListener('mousemove',e=>{if(!drag)return;az-=(e.clientX-mx)*0.008;el+=(e.clientY-my)*0.008;
   el=Math.max(-0.2,Math.min(1.55,el));mx=e.clientX;my=e.clientY;});
-cv.addEventListener('wheel',e=>{e.preventDefault();zoom*=e.deltaY<0?1.1:0.9;zoom=Math.max(0.3,Math.min(4,zoom));},{passive:false});
+cv.addEventListener('wheel',e=>{e.preventDefault();zoom*=e.deltaY<0?1.1:0.9;zoom=Math.max(0.3,Math.min(30,zoom));},{passive:false});  // wide max: rocket is true-scale (small), zoom in to inspect it
 refresh(); requestAnimationFrame(loop);
 </script></body></html>"""
 w0 = WINDS.index(0) if 0 in WINDS else 0
