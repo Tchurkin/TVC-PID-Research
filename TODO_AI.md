@@ -9,13 +9,22 @@ Last updated: 2026-07-03
 ---
 
 ## P1 — Firmware GNC (3-D build, 2026-07-03)
-- [ ] **Estimator aiding for the 3-axis gyro-drift tail.** The 3-D nominal baseline is 81/100; the tail is one
-      bad gyro-random-walk draw: ~2° attitude drift → gravity leaks into the velocity estimates → knife-edge
-      arrests ~0.5 m high (5-6 m/s hops) + ~4 m misses, at every wind incl. calm. Tried and insufficient:
-      Q_BIAS loosening (8 Hz position-only GPS can't identify 3-axis leakage). Real fixes, in order of value:
-      (a) accelerometer gravity-vector attitude aiding while UNPOWERED (coast: sf ≈ drag, small and known
-      direction — near-apogee windows give clean gravity reference), (b) GPS velocity fusion (RMC sentence has
-      ground speed/course; the parser only reads GGA), (c) better gyro (BMI088-class random walk).
+- [~] **Estimator aiding for the tail — MEASURED NOT THE LEVER (2026-07-05), de-scoped.** The 07-03 baseline blamed
+      the vz tail on gyro-drift → gravity-leakage → *velocity-estimate bias*. Measuring est-vs-true velocity at
+      hoverslam ignition (harness logs both) falsified that: **estVz error −0.04..−0.10 m/s, estVx error
+      +0.06..+0.10 m/s in the WORST cell, the median, and the whole seed-2 cluster** — the velocity estimate is
+      already excellent, so GPS velocity fusion (which would correct ~0.1 m/s) cannot move the tail. Full evidence:
+      DESIGN_LOG 2026-07-05. The tail is instead (1) the far-target+headwind corner igniting at ~50° attitude
+      (thrust-cosine + reorient time) and (2) irreducible solid-motor knife-edge scatter under gusts — neither is
+      estimation. There is a small ~2° *attitude* estimate error, but it only costs a sub-gate pointing miss, not
+      vz. **Only revisit velocity/attitude fusion if the FLIGHT IMU drifts materially worse than the SIL gyro model
+      (a hardware-driven trigger), or if pad-accuracy (miss) becomes the objective.** For the vz tail, the levers
+      are hardware (crushable legs, characterized motor) + optionally a tilt-aware `cosT` in predictStopAlt (below).
+- [ ] **(optional, delicate) Tilt-aware `cosT` in `predictStopAlt`.** The ignition predictor floors the thrust
+      vertical-fraction at cos(RETRO_MAX_RAD=35°)=0.82, but the far+headwind corner ignites at ~50° (0.64) → mildly
+      optimistic → under-brake. Using the estimated total tilt (not the velocity-direction cosine) would fix the
+      one far-corner cell (8.69 m/s). LOW yield (1 cell), and the hoverslam timing is delicately tuned
+      (STOP_MARGIN see-sawing, DESIGN_LOG 07-03) — confirm before touching.
 - [ ] **Chute descent is not modeled in the harness.** Aborted flights free-fall ballistically, so an abort's
       "impact speed" is meaningless; montecarlo.py counts aborts separately (1.3% realistic). Add a simple
       chute drag term on P_CHUTE if abort-drift/landing-zone numbers ever matter.

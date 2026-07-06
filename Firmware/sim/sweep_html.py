@@ -67,23 +67,40 @@ for T in TARGETS:
         for seed in SEEDS:
             rows, o = run(["--kick", K, "--target", T, "--wind", W, "--gusts", "--seed", seed] + DISP_OFF)
             trials.append((rows, o))
-        trials.sort(key=lambda t: abs(t[1]["miss"]))
-        rows, o = trials[len(trials)//2]                       # median flight for animation
         misses = [t[1]["miss"] for t in trials]
+        med = sorted(misses)[len(misses)//2]                   # median SIGNED miss = where it TYPICALLY lands
+        trials.sort(key=lambda t: abs(t[1]["miss"] - med))     # animate the REPRESENTATIVE (central) flight, not the
+        rows, o = trials[0]                                    #   sign-skewed one median-|miss| used to cherry-pick short
         o["missMean"] = sum(misses)/len(misses)
         o["missWorst"] = max(misses, key=abs)
         o["passN"] = sum(1 for t in trials if t[1]["pass"])
         o["nSeed"] = len(trials)
         F = []
+        # The firmware logs the RAW fin COMMAND (deploy/rollDef), which chatters during coast; but the physics
+        # drives the fins through a rate+lag SERVO -> the ACTUAL fins are smooth. Prefer the sim's exact logged
+        # servo-limited fin position (depReal/rollDefReal, computed at the 1 kHz physics step -- faithful); if the
+        # sim predates that column, fall back to reconstructing the servo model from the 20 ms command samples
+        # (approx -- aliases fast chatter). Model: a=dt/TAU approach then slew-clamp; TAU=0.03 s, SLEW=150 deg/s.
+        have_real = bool(rows) and ("depReal" in rows[0])
+        mar_real, roll_real, prev_t = 90.0, 90.0, None
         for i, row in enumerate(rows):
-            # keep every logged frame (20 ms sim) -> 50 fps at real-time playback (was every 3rd -> ~17 fps)
             g = lambda k: float(row[k])
-            F.append([round(g("t"),2), row["state"], round(g("px"),2), round(g("pz"),1),
+            t = g("t")
+            if have_real:
+                dep_real, rdf_real = float(row["depReal"]), float(row["rollDefReal"])
+            else:
+                dt = 0.02 if prev_t is None else max(1e-4, t - prev_t); prev_t = t
+                a = min(dt/0.03, 1.0); lim = 150.0*dt
+                mar_real  += max(-lim, min(lim, a*((90.0 + (g("deploy")-0.5)*70.0) - mar_real)))
+                roll_real += max(-lim, min(lim, a*((90.0 +  g("rollDef")*40.0)     - roll_real)))
+                dep_real = max(0.0, min(1.0, 0.5 + (mar_real-90.0)/70.0)); rdf_real = (roll_real-90.0)/40.0
+            # keep every logged frame (20 ms sim) -> 50 fps at real-time playback (viewer interpolates between them)
+            F.append([round(t,2), row["state"], round(g("px"),2), round(g("pz"),1),
                       round(g("th_deg"),1), round(g("thrust"),0), round(g("estX"),2), round(g("estZ"),1),
-                      round(g("thEst_deg"),1), round(g("uTVC"),2), round(g("deploy"),2), round(g("keff"),1),
+                      round(g("thEst_deg"),1), round(g("uTVC"),2), round(dep_real,3), round(g("keff"),1),
                       round(g("vz"),1), int(float(row["legs"])), int(float(row["chute"])),
                       round(g("py"),2), round(g("Qw"),4), round(g("Qx"),4), round(g("Qy"),4), round(g("Qz"),4),
-                      round(g("rollDef"),2), round(g("uTVC2"),2), round(g("estY"),2)])
+                      round(rdf_real,3), round(g("uTVC2"),2), round(g("estY"),2)])
         r.append({"f": F, "o": o, "T": T})
         print(f"  T={T:>3} W={W:>3}: pass {o['passN']}/{o['nSeed']}  miss median={o['miss']:6.2f} mean={o['missMean']:6.2f} worst={o['missWorst']:6.2f}  tilt={o['tilt']:6.1f}")
     grid.append(r)
@@ -183,24 +200,29 @@ function qrot(q,v){const w=q[0],x=q[1],y=q[2],z=q[3];   // rotate a body vector 
 // ================= scene / camera state =================
 // World axes: X = downrange, Y = crossrange, Z = up. Body +Z = the rocket's nose.
 const zTop=Math.max(APO*1.15,10);
-let WSC=(H-150)/zTop;                                 // world metres -> px (recomputed on resize)
+let FOVdeg=50, fovEff=50;                             // vertical field of view (deg); per-mode fovEff set in updateCamera
+function focal(){return (H*0.5)/Math.tan(fovEff*Math.PI/360);}   // px focal length; FOV is FIXED (zoom dollies the eye distance CAMD, it does NOT change the lens)
 const CEN0=[Math.max(XMAX,8)*0.45, 0, zTop*0.42];     // home look-at
 let CEN=CEN0.slice(), CENt=CEN0.slice();              // live + target look-at
 let CAMD=zTop*2.0;                                    // eye distance from CEN along +Fv (set per mode) -> PERSPECTIVE
-const NEAR=0.03;                                      // near plane (m): projW clamp + gclip cull share it (small: onboard cam sits ~cm from the tube)
+const NEAR=0.01;                                      // near plane (m): projW clamp + gclip cull share it (tiny: onboard cam sits ~1-2 cm off the tube)
 const R_AX=0.30, R_RAD=0.194;                         // model-unit -> metres (anisotropic): TRUE physical scale, rocket ~0.675 m long x 0.062 m dia
+const GND_OFF=0.32, PAD_H=0.02;                       // the logged altitude is the CG (body origin); RENDER the rocket raised by GND_OFF so its
+                                                      // nozzle sits on the pad at launch and the deployed legs touch the ground at landing (not the CG sunk in). PAD_H = pad height.
 const SUN=nrm([-0.35,0.5,0.85]);                      // fixed world sun (toward-light) for stable shading
 let az=-1.05, el=0.30, zoom=1.0;                      // orbit azimuth/elevation (rad) + zoom
 let azT=az, elT=el, zoomT=1.0;                        // eased targets (smooth view changes)
-let camMode='free', headingAz=az, rollStab=true, retroLook=false;
+let camMode='follow', headingAz=az, rollStab=true, retroLook=false;   // default: close on the rocket (not the far overview)
+let camSnap=true;                                    // snap the look-at onto the rocket next frame (on follow-enter / flight restart) -> no catch-up lurch
+let velLP=[0,0,0];                                   // low-passed world velocity: drives the camera lead / chase heading smoothly (raw frameVel is stepped -> camera shake)
 let Rv=[0,1,0], Uv=[0,0,1], Fv=[1,0,0];               // cached camera basis (screen-right / up / toward-camera)
 function orbitBasis(){const ca=Math.cos(az),sa=Math.sin(az),ce=Math.cos(el),se=Math.sin(el);
   Rv[0]=-sa;Rv[1]=ca;Rv[2]=0; Uv[0]=-se*ca;Uv[1]=-se*sa;Uv[2]=ce; Fv[0]=ce*ca;Fv[1]=ce*sa;Fv[2]=se;}
 orbitBasis();
 // ================= projection (reads cached basis + CEN + CAMD; eye = CEN + CAMD*Fv, looks along -Fv) =================
 function projW(p){const dx0=p[0]-CEN[0],dx1=p[1]-CEN[1],dx2=p[2]-CEN[2];   // -> [sx,sy,vd(depth-in-front),perspFactor]
-  const vd=CAMD-(dx0*Fv[0]+dx1*Fv[1]+dx2*Fv[2]); const dp=vd<NEAR?NEAR:vd; const pf=CAMD/dp, sc=WSC*zoom*pf;
-  return [W/2+sc*(dx0*Rv[0]+dx1*Rv[1]+dx2*Rv[2]), H/2-sc*(dx0*Uv[0]+dx1*Uv[1]+dx2*Uv[2]), vd, pf];}
+  const vd=CAMD-(dx0*Fv[0]+dx1*Fv[1]+dx2*Fv[2]); const dp=vd<NEAR?NEAR:vd; const sc=focal()/dp;   // pinhole: px per world-metre at depth dp
+  return [W/2+sc*(dx0*Rv[0]+dx1*Rv[1]+dx2*Rv[2]), H/2-sc*(dx0*Uv[0]+dx1*Uv[1]+dx2*Uv[2]), vd, sc];}   // [3]=px per metre here
 function vdOf(p){return CAMD-((p[0]-CEN[0])*Fv[0]+(p[1]-CEN[1])*Fv[1]+(p[2]-CEN[2])*Fv[2]);}
 function clipSeg(a,b){let ax=a,bx=b,vA=vdOf(a),vB=vdOf(b);   // near-plane clip a world segment (behind-eye smear guard)
   if(vA<NEAR&&vB<NEAR)return null;
@@ -242,7 +264,7 @@ function rocketFaces(pos,q,dep,rdf,thr,uT,uT2,legF){
           V([knee[0]-wgt*tan[0],knee[1]-wgt*tan[1],knee[2]]),V([knee[0]+wgt*tan[0],knee[1]+wgt*tan[1],knee[2]])],'#3fb950',0.9);
     face([V([knee[0],knee[1],knee[2]]),V([knee[0]+0.14*rad[0],knee[1]+0.14*rad[1],knee[2]-0.02]),V([knee[0]+0.14*rad[0]+0.02*tan[0],knee[1]+0.14*rad[1],knee[2]+0.03])],'#2f9e42',0.9);}}
   if(thr>0.5){const nvw=qrot(q,[0,0,bot*R_AX]),nw=[pos[0]+nvw[0],pos[1]+nvw[1],pos[2]+nvw[2]];   // exhaust: radial glow (world-scale) + flame polys
-    if(vdOf(nw)>=NEAR){const NP=projW(nw),gl=Math.max(3,Math.min(300,(0.05+Math.min(thr,30)*0.008)*WSC*zoom*NP[3]));   // px per metre = WSC*zoom*pf
+    if(vdOf(nw)>=NEAR){const NP=projW(nw),gl=Math.max(3,Math.min(300,(0.05+Math.min(thr,30)*0.008)*NP[3]));   // NP[3] = px per metre at the nozzle
       const rg=cx.createRadialGradient(NP[0],NP[1],0,NP[0],NP[1],gl);rg.addColorStop(0,'rgba(255,185,80,0.55)');rg.addColorStop(1,'rgba(255,140,40,0)');
       cx.fillStyle=rg;cx.beginPath();cx.arc(NP[0],NP[1],gl,0,2*Math.PI);cx.fill();}
     const dir=nrm([(uT||0)*0.03,(uT2||0)*0.03,-1]), fl=0.55+Math.min(thr,30)*0.02, tipf=[dir[0]*fl,dir[1]*fl,bot+dir[2]*fl];
@@ -262,20 +284,38 @@ const LYR={grid:1,trail:1,shadow:1,target:1,ekf:0,vel:1,hud:1,att:1,gauge:1,map:
 function cur(){return G[ti][wi];}
 function frameVel(F,k){const D=Math.min(5,k);if(D<1)return [0,0,0];const a=F[k],b=F[k-D];let dts=a[0]-b[0];if(dts<=0)dts=D*FRAME_MS/1000;
   return [(a[2]-b[2])/dts,(a[15]-b[15])/dts,(a[3]-b[3])/dts];}   // world velocity from finite-diff (robust to pause)
+// sub-frame interpolation -> smooth motion between 20 ms samples (position, attitude, thrust, fins, gauges)
+function cr(p0,p1,p2,p3,t){return 0.5*(2*p1+(-p0+p2)*t+(2*p0-5*p1+4*p2-p3)*t*t+(-p0+3*p1-3*p2+p3)*t*t*t);}   // Catmull-Rom (C1-continuous)
+function lerpFrame(F,k,frac){const a=F[k],b=F[k+1];if(!b||frac<=0)return a;
+  const p=F[k-1]||a, nx=F[k+2]||b, out=a.slice(), L=j=>a[j]+(b[j]-a[j])*frac;
+  for(const j of [2,3,15,6,7,22])out[j]=cr(p[j],a[j],b[j],nx[j],frac);   // position + EKF pos: C1-smooth (no velocity kink at 20 ms frame boundaries -> no stutter)
+  for(const j of [0,4,5,9,10,11,12,20,21])out[j]=L(j);                   // scalars (thrust, fins, tilt, gauges): linear is fine
+  let d=a[16]*b[16]+a[17]*b[17]+a[18]*b[18]+a[19]*b[19],s=d<0?-1:1;      // quaternion nlerp (shortest arc)
+  let qw=a[16]+(s*b[16]-a[16])*frac,qx=a[17]+(s*b[17]-a[17])*frac,qy=a[18]+(s*b[18]-a[18])*frac,qz=a[19]+(s*b[19]-a[19])*frac;
+  const nn=Math.hypot(qw,qx,qy,qz)||1;out[16]=qw/nn;out[17]=qx/nn;out[18]=qy/nn;out[19]=qz/nn;return out;}   // phase/legs/chute stay stepped
+// world arrow: near-clipped shaft + filled screen-space arrowhead at the tip
+function drawArrow(a,b,col,wd){const s=clipSeg(a,b);if(!s)return;const A=s[0],B=s[1];
+  cx.strokeStyle=col;cx.lineWidth=wd||2;cx.beginPath();cx.moveTo(A[0],A[1]);cx.lineTo(B[0],B[1]);cx.stroke();cx.lineWidth=1;
+  const ang=Math.atan2(B[1]-A[1],B[0]-A[0]),hl=Math.max(8,(wd||2)*3.5),ha=0.45;
+  cx.fillStyle=col;cx.beginPath();cx.moveTo(B[0],B[1]);
+  cx.lineTo(B[0]-hl*Math.cos(ang-ha),B[1]-hl*Math.sin(ang-ha));
+  cx.lineTo(B[0]-hl*Math.cos(ang+ha),B[1]-hl*Math.sin(ang+ha));cx.closePath();cx.fill();}
 // ---- camera update (one place fills Rv/Uv/Fv + CEN + CAMD for the active mode) ----
 function updateCamera(f,velW,dt){
   const kk=RM?1:(1-Math.exp(-dt/0.18));
-  const pos=[f[2],f[15],f[3]], q=[f[16],f[17],f[18],f[19]];
+  const pos=[f[2],f[15],f[3]+GND_OFF], q=[f[16],f[17],f[18],f[19]];   // track the RENDER position (CG raised so base is on the ground)
   if(camMode==='onboard'){
-    CAMD=zTop*0.8;                                       // sets the onboard FOV (focal = WSC*zoom*CAMD ~ 80deg)
+    CAMD=1.0; fovEff=62;                                 // nominal eye->CEN distance (cancels for the pinhole); wider FOV for the FPV
+    zoom+=(zoomT-zoom)*kk;                               // ease zoom first -> smooth dolly below
     const bz=qrot(q,[0,0,1]), bx=qrot(q,[1,0,0]);       // body nose (+Z) and mount side (+X)
-    const mountR=0.08, mountZ=0.10;                      // camera on the SIDE of the ~3.1 cm-radius tube: ~5 cm standoff, 10 cm up (m)
-    const eye=[pos[0]+bx[0]*mountR+bz[0]*mountZ, pos[1]+bx[1]*mountR+bz[1]*mountZ, pos[2]+bx[2]*mountR+bz[2]*mountZ];
+    const mountR=0.046, mountZ=0.17;                     // camera on the SIDE of the ~3.1 cm-radius tube: ~1.5 cm off the wall, ~70% up the length (m)
     // look DOWN the body (-Z) tilted slightly INWARD (-X, toward the tube) so the body wall + legs + ground fill the frame;
     // 'retro look' instead aims down the velocity vector (watch the pad rise during the burn)
     const sp=Math.hypot(velW[0],velW[1],velW[2]);
     const viewDir=(retroLook&&sp>0.8)?nrm([-velW[0],-velW[1],-velW[2]])
                                      :nrm([-bz[0]-0.3*bx[0],-bz[1]-0.3*bx[1],-bz[2]-0.3*bx[2]]);
+    const bo=clamp((1.0/zoom-1.0)*1.5,-0.3,3.0);         // zoom DOLLIES the eye back (zoom out) / forward (zoom in) along -viewDir
+    const eye=[pos[0]+bx[0]*mountR+bz[0]*mountZ-viewDir[0]*bo, pos[1]+bx[1]*mountR+bz[1]*mountZ-viewDir[1]*bo, pos[2]+bx[2]*mountR+bz[2]*mountZ-viewDir[2]*bo];
     Fv[0]=-viewDir[0];Fv[1]=-viewDir[1];Fv[2]=-viewDir[2];
     let upH=rollStab?bz:bx;                              // screen-up toward the nose (world-up is degenerate looking straight down)
     let d=upH[0]*Fv[0]+upH[1]*Fv[1]+upH[2]*Fv[2];
@@ -283,14 +323,21 @@ function updateCamera(f,velW,dt){
     const u=nrm([upH[0]-d*Fv[0],upH[1]-d*Fv[1],upH[2]-d*Fv[2]]);Uv[0]=u[0];Uv[1]=u[1];Uv[2]=u[2];
     const rrv=cross(Uv,Fv);Rv[0]=rrv[0];Rv[1]=rrv[1];Rv[2]=rrv[2];                        // R = U x F handedness
     CEN[0]=eye[0]+CAMD*viewDir[0];CEN[1]=eye[1]+CAMD*viewDir[1];CEN[2]=eye[2]+CAMD*viewDir[2]; // so projW eye = CEN+CAMD*Fv = eye
-    zoom+=(zoomT-zoom)*kk; return;
+    return;                                              // zoom already eased above
   }
-  if(camMode==='chase'){CAMD=zTop*0.9;const vh=Math.hypot(velW[0],velW[1]);if(vh>0.5)headingAz=Math.atan2(velW[1],velW[0]);azT=headingAz+Math.PI;elT=0.34;}
-  else{CAMD=zTop*2.0;}
+  fovEff=FOVdeg;
+  if(camMode==='chase'){CAMD=4.0/zoom;const vh=Math.hypot(velW[0],velW[1]);if(vh>0.5)headingAz=Math.atan2(velW[1],velW[0]);azT=headingAz+Math.PI;elT=0.34;}   // eye ~4 m behind (zoom dollies)
+  else{CAMD=(camMode==='follow'?2.0:zTop*1.3)/zoom;}   // follow: eye ~2 m off the rocket (close); free: whole scene. zoom scales the eye distance -> dolly
   let da=azT-az;da=Math.atan2(Math.sin(da),Math.cos(da));az+=da*kk;   // ease az the short way
   el+=(elT-el)*kk;zoom+=(zoomT-zoom)*kk;el=clamp(el,-0.25,1.55);orbitBasis();
-  if(camMode==='follow'||camMode==='chase'){CENt[0]=pos[0];CENt[1]=pos[1];CENt[2]=pos[2];}
-  CEN[0]+=(CENt[0]-CEN[0])*kk;CEN[1]+=(CENt[1]-CEN[1])*kk;CEN[2]+=(CENt[2]-CEN[2])*kk;
+  const fol=(camMode==='follow'||camMode==='chase');
+  if(fol){                                            // track the rocket EXACTLY -- the interpolated pos is already smooth,
+    CEN[0]=pos[0];CEN[1]=pos[1];CEN[2]=pos[2];camSnap=false;   // so the rocket sits dead-centre with zero lag AND zero shake (no lead needed)
+  } else if(camSnap){                                 // free: snap to the home look-at on (re)entry, else ease smoothly
+    CEN[0]=CENt[0];CEN[1]=CENt[1];CEN[2]=CENt[2];camSnap=false;
+  } else {
+    CEN[0]+=(CENt[0]-CEN[0])*kk;CEN[1]+=(CENt[1]-CEN[1])*kk;CEN[2]+=(CENt[2]-CEN[2])*kk;
+  }
 }
 // ---- overlays ----
 function drawTrail(arr,fade){if(arr.length<2)return;cx.lineWidth=2;
@@ -366,13 +413,27 @@ function updateReadouts(f){setT('t',f[0].toFixed(2));setT('ph',f[1]);setT('alt',
 // ================= main draw =================
 function draw(){
   const cnow=performance.now();let cdt=(cnow-lastCam)/1000;lastCam=cnow;if(cdt>0.05)cdt=0.05;
-  const r=cur(),F=r.f;if(i>=F.length)i=F.length-1;if(i<0)i=0;const f=F[i],pos=[f[2],f[15],f[3]];
-  const velW=frameVel(F,i);
+  const r=cur(),F=r.f;if(i>=F.length)i=F.length-1;if(i<0)i=0;
+  const frac=(playing&&i<F.length-1)?clamp(acc/FRAME_MS,0,1):0;   // sub-frame fraction -> smooth motion between 20 ms samples
+  const f=frac>0?lerpFrame(F,i,frac):F[i], pos=[f[2],f[15],f[3]+GND_OFF];   // RENDER position: CG raised so the base sits on the ground
+  const velRaw=frameVel(F,i);                        // stepped (integer-frame finite diff), noisy/rotating near apogee
+  if(camSnap){velLP[0]=velRaw[0];velLP[1]=velRaw[1];velLP[2]=velRaw[2];}   // no lag transient on snap/restart
+  else{const va=1-Math.exp(-cdt/0.09);for(let j=0;j<3;j++)velLP[j]+=va*(velRaw[j]-velLP[j]);}   // low-pass -> smooth lead (no camera shake)
+  const velW=velLP;
   updateCamera(f,velW,cdt);
   cx.clearRect(0,0,W,H);
   if(LYR.grid){const gx0=-4,gx1=Math.max(XMAX,r.T)+4,gyext=Math.max(YMAX,3)+2;
     for(let gx=Math.ceil(gx0/5)*5;gx<=gx1;gx+=5)gclip([gx,-gyext,0],[gx,gyext,0],'#22314a');
     for(let gyv=-Math.floor(gyext/5)*5;gyv<=gyext;gyv+=5)gclip([gx0,gyv,0],[gx1,gyv,0],'#22314a');}
+  // small launch pad at the origin -- the rocket rests ON it (nozzle at z=PAD_H) instead of sinking into the ground
+  {const NP=10;
+   for(let k=0;k<NP;k++){const a0=k/NP*6.2832,a1=(k+1)/NP*6.2832;
+     const A=[0.16*Math.cos(a0),0.16*Math.sin(a0),0],B=[0.16*Math.cos(a1),0.16*Math.sin(a1),0],C=[0.11*Math.cos(a1),0.11*Math.sin(a1),PAD_H],D=[0.11*Math.cos(a0),0.11*Math.sin(a0),PAD_H];
+     if(vdOf(A)>=NEAR&&vdOf(B)>=NEAR&&vdOf(C)>=NEAR&&vdOf(D)>=NEAR){const pa=projW(A),pb=projW(B),pc=projW(C),pd=projW(D);
+       cx.fillStyle=k%2?'#333c47':'#3b4550';cx.beginPath();cx.moveTo(pa[0],pa[1]);cx.lineTo(pb[0],pb[1]);cx.lineTo(pc[0],pc[1]);cx.lineTo(pd[0],pd[1]);cx.closePath();cx.fill();}}
+   cx.fillStyle='#48525e';cx.beginPath();let st=false;
+   for(let k=0;k<=NP;k++){const a=k/NP*6.2832,pt=[0.11*Math.cos(a),0.11*Math.sin(a),PAD_H];if(vdOf(pt)<NEAR){st=false;continue;}const P=projW(pt);st?cx.lineTo(P[0],P[1]):cx.moveTo(P[0],P[1]);st=true;}
+   cx.closePath();cx.fill();}
   if(LYR.target){gclip([-1,0,0],[1,0,0],'#8b949e');gclip([0,-1,0],[0,1,0],'#8b949e');
     const TR=1.2;cx.strokeStyle='#3fb950';cx.lineWidth=2;cx.beginPath();let started=false;
     for(let k=0;k<=24;k++){const a=k/24*2*Math.PI,pt=[r.T+TR*Math.cos(a),TR*Math.sin(a),0];
@@ -380,14 +441,14 @@ function draw(){
     cx.stroke();cx.lineWidth=1;
     if(vdOf([r.T,0,0])>=NEAR){const tp=projW([r.T,0,0]);cx.fillStyle='#3fb950';cx.font='11px monospace';cx.fillText('target '+r.T+'m',tp[0]+6,tp[1]-4);}}
   if(LYR.shadow&&camMode!=='onboard'){const gp0=[f[2],f[15],0];
-    if(vdOf(gp0)>=NEAR){const Gp=projW(gp0),rx=Math.max(2,Math.min(400,0.22*WSC*zoom*Gp[3])),ry=Math.max(1,rx*(0.25+0.75*Math.abs(Math.sin(el))));
+    if(vdOf(gp0)>=NEAR){const Gp=projW(gp0),rx=Math.max(2,Math.min(400,0.22*Gp[3])),ry=Math.max(1,rx*(0.25+0.75*Math.abs(Math.sin(el))));
       cx.save();cx.globalAlpha=clamp(0.4/(1+f[3]*0.04),0.06,0.4);cx.fillStyle='#000';cx.beginPath();cx.ellipse(Gp[0],Gp[1],rx,ry,0,0,2*Math.PI);cx.fill();cx.restore();}
-    gclip([f[2],f[15],f[3]],[f[2],f[15],0],'rgba(180,200,230,0.25)',[4,4]);}
+    gclip(pos,[f[2],f[15],0],'rgba(180,200,230,0.25)',[4,4]);}   // drop-line from the (raised) rocket to its ground shadow
   if(LYR.trail)drawTrail(trail,true);
-  if(LYR.ekf){drawTrail(trailE,false);gclip(pos,[f[6],f[22],f[7]],'#8b949e',[2,2]);
-    if(vdOf([f[6],f[22],f[7]])>=NEAR){const gpx=projW([f[6],f[22],f[7]]);cx.strokeStyle='#8b949e';cx.setLineDash([3,3]);cx.beginPath();cx.arc(gpx[0],gpx[1],5,0,2*Math.PI);cx.stroke();cx.setLineDash([]);}}
+  if(LYR.ekf){drawTrail(trailE,false);const ekf=[f[6],f[22],f[7]+GND_OFF];gclip(pos,ekf,'#8b949e',[2,2]);   // raise the EKF belief the same as the rocket
+    if(vdOf(ekf)>=NEAR){const gpx=projW(ekf);cx.strokeStyle='#8b949e';cx.setLineDash([3,3]);cx.beginPath();cx.arc(gpx[0],gpx[1],5,0,2*Math.PI);cx.stroke();cx.setLineDash([]);}}
   if(LYR.vel){const sp=Math.hypot(velW[0],velW[1],velW[2]);if(sp>0.4){const L=clamp(sp*0.2,0.6,Math.max(3,zTop*0.12)),vh=nrm(velW);
-    gclip(pos,[pos[0]+vh[0]*L,pos[1]+vh[1]*L,pos[2]+vh[2]*L],'#e3b341',null,2);}}
+    drawArrow(pos,[pos[0]+vh[0]*L,pos[1]+vh[1]*L,pos[2]+vh[2]*L],'#e3b341',2.5);}}
   {
     let legs=false,chute=false,legFire=-1;for(let k=0;k<=i;k++){if(F[k][13]){legs=true;if(legFire<0)legFire=k;}if(F[k][14])chute=true;}
     const legF=legFire<0?0:Math.max(0,Math.min(1,(i-legFire)/25));
@@ -426,7 +487,7 @@ function refresh(){const o=cur().o;
   setT('miss',o.miss.toFixed(2)+' (median; mean '+o.missMean.toFixed(2)+', worst '+o.missWorst.toFixed(2)+')');
   setT('tvz',o.vz.toFixed(2));setT('tilt',o.tilt.toFixed(1));setT('apo',o.apogee.toFixed(0));
   document.getElementById('ti').value=ti;document.getElementById('wi').value=wi;
-  i=0;runs=computeRuns(cur().f);rebuildTrail();drawMap();}
+  i=0;camSnap=true;runs=computeRuns(cur().f);rebuildTrail();drawMap();}
 function drawMap(){let h='<tr><th>t\\w</th>';for(const w of WINDS)h+='<th>'+w+'</th>';h+='</tr>';
   for(let t=0;t<TARGETS.length;t++){h+='<tr><th>'+TARGETS[t]+'</th>';
     for(let w=0;w<WINDS.length;w++){const o=G[t][w].o,allp=o.passN===o.nSeed,c=allp?'#196c2e':(o.passN>0?'#8a6d1a':'#8b1a1a'),sel=(t===ti&&w===wi)?'outline:2px solid #58a6ff;':'';
@@ -438,7 +499,7 @@ function drawMap(){let h='<tr><th>t\\w</th>';for(const w of WINDS)h+='<th>'+w+'<
 function syncPlay(){const b=document.getElementById('play');if(b)b.innerHTML=playing?'&#10073;&#10073; Pause':'&#9658; Play';}
 function loop(now){const dt=now-last;last=now;const F=cur().f;
   if(playing){acc+=dt*speed;let guard=0;while(acc>FRAME_MS&&guard++<2000){
-    i++;if(i>=F.length){if(loopMode){i=0;trail=[];trailE=[];}else{i=F.length-1;playing=false;syncPlay();acc=0;break;}}
+    i++;if(i>=F.length){if(loopMode){i=0;trail=[];trailE=[];camSnap=true;}else{i=F.length-1;playing=false;syncPlay();acc=0;break;}}
     const ph=F[i][1];
     if(autopause&&(ph==='TD'||ph==='ABORT')&&prevPh!=='TD'&&prevPh!=='ABORT'){playing=false;syncPlay();acc=0;prevPh=ph;break;}   // stop ON the transition
     prevPh=ph;
@@ -448,14 +509,13 @@ function loop(now){const dt=now-last;last=now;const F=cur().f;
   draw();requestAnimationFrame(loop);}
 // ================= camera controls =================
 function hlMode(){['free','follow','chase','onboard'].forEach(m=>{const b=document.getElementById('m_'+m);if(b)b.classList.toggle('on',camMode===m);});}
-function setMode(m){const fz=Math.min(30,Math.max(2,(H*0.33)/(WSC*0.675)));   // zoom that frames the true-scale (~0.68 m) rocket to ~1/3 canvas
-  if(m==='free'){CENt=CEN0.slice();zoomT=1.0;}if(m==='follow')zoomT=fz;if(m==='chase')zoomT=fz*0.6;if(m==='onboard')zoomT=1.0;camMode=m;hlMode();}
+function setMode(m){if(m==='free')CENt=CEN0.slice();zoomT=1.0;camMode=m;camSnap=true;hlMode();}   // framing is the per-mode eye distance CAMD; zoom=1 -> default FOV; snap onto target
 function preset(a,e,z){camMode='free';hlMode();azT=a;elT=e;if(z)zoomT=z;}
 function resetCam(){camMode='free';hlMode();CENt=CEN0.slice();azT=-1.05;elT=0.30;zoomT=1.0;}
 function frameAll(){const F=cur().f;let a=[1e9,1e9,1e9],b=[-1e9,-1e9,-1e9];
   for(const fr of F){const p=[fr[2],fr[15],fr[3]];for(let j=0;j<3;j++){a[j]=Math.min(a[j],p[j]);b[j]=Math.max(b[j],p[j]);}}
   camMode='free';hlMode();CENt=[(a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2];CEN=CENt.slice();
-  const ext=Math.max(b[0]-a[0],b[1]-a[1],b[2]-a[2],4);zoomT=clamp((zTop*0.9)/ext,0.3,3);}
+  const ext=Math.max(b[0]-a[0],b[1]-a[1],b[2]-a[2],4);zoomT=clamp((1.2*zTop)/ext,0.2,2);}   // widen (zoom<1) if the flight is bigger than the default free frame
 // ================= input wiring =================
 document.getElementById('ti').oninput=function(){ti=+this.value;refresh();};
 document.getElementById('wi').oninput=function(){wi=+this.value;refresh();};
@@ -486,14 +546,10 @@ let drag=false,mx=0,my=0,panning=false;
 cv.addEventListener('mousedown',e=>{drag=true;panning=(e.button===2||e.shiftKey);mx=e.clientX;my=e.clientY;});
 window.addEventListener('mouseup',()=>{drag=false;panning=false;});
 window.addEventListener('mousemove',e=>{if(!drag)return;const dx=e.clientX-mx,dy=e.clientY-my;mx=e.clientX;my=e.clientY;
-  if(camMode==='free'&&panning){const a=dx/(WSC*zoom),b=dy/(WSC*zoom);for(let j=0;j<3;j++)CENt[j]-=a*Rv[j]-b*Uv[j];return;}   // screen-down = -Uv: grab-pan both axes
+  if(camMode==='free'&&panning){const s=CAMD/focal(),a=dx*s,b=dy*s;for(let j=0;j<3;j++)CENt[j]-=a*Rv[j]-b*Uv[j];return;}   // metres per px at the look-at = CAMD/focal; screen-down = -Uv
   if(camMode==='free'||camMode==='follow'){az-=dx*0.008;el+=dy*0.008;el=clamp(el,-0.25,1.55);azT=az;elT=el;}});
 cv.addEventListener('contextmenu',e=>e.preventDefault());
-cv.addEventListener('wheel',e=>{e.preventDefault();const k=e.deltaY<0?1.1:0.9;
-  if(camMode==='free'){const sx=e.offsetX-W/2,sy=e.offsetY-H/2,a=sx/(WSC*zoom),b=-sy/(WSC*zoom);
-    zoom=clamp(zoom*k,0.2,30);zoomT=zoom;const a2=sx/(WSC*zoom),b2=-sy/(WSC*zoom);
-    for(let j=0;j<3;j++)CENt[j]+=(a-a2)*Rv[j]+(b-b2)*Uv[j];CEN=CENt.slice();}
-  else zoomT=clamp(zoomT*k,0.2,30);},{passive:false});
+cv.addEventListener('wheel',e=>{e.preventDefault();const k=e.deltaY<0?1.1:0.9;zoomT=clamp(zoomT*k,0.03,3.0);},{passive:false});   // wheel DOLLIES the eye (CAMD=base/zoom); up=closer. min 0.03 -> pull way out (follow eye ~67 m)
 // ---- keyboard ----
 window.addEventListener('keydown',e=>{const ae=document.activeElement;if(ae&&/INPUT|SELECT|TEXTAREA/.test(ae.tagName))return;
   const F=cur().f;let handled=true;
@@ -506,8 +562,8 @@ window.addEventListener('keydown',e=>{const ae=document.activeElement;if(ae&&/IN
     case 'r':case 'R':i=0;rebuildTrail();break;
     case '[':speed=Math.max(0.2,speed-0.2);document.getElementById('spd').value=speed*100;setT('spdv',speed.toFixed(1)+'x');break;
     case ']':speed=Math.min(4,speed+0.2);document.getElementById('spd').value=speed*100;setT('spdv',speed.toFixed(1)+'x');break;
-    case '+':case '=':zoomT=clamp(zoomT*1.1,0.2,30);break;
-    case '-':case '_':zoomT=clamp(zoomT*0.9,0.2,30);break;
+    case '+':case '=':zoomT=clamp(zoomT*1.1,0.03,3.0);break;   // dolly in (closer)
+    case '-':case '_':zoomT=clamp(zoomT*0.9,0.03,3.0);break;   // dolly out (farther)
     case '1':setMode('free');break;
     case '2':setMode('follow');break;
     case '3':setMode('chase');break;
@@ -528,12 +584,12 @@ function syncChip(k){const b=document.querySelector('.chip[data-l="'+k+'"]');if(
 function resize(){DPR=Math.min(window.devicePixelRatio||1,2);
   const cw=Math.max(200,cv.clientWidth),ch=Math.max(200,cv.clientHeight);
   cv.width=Math.round(cw*DPR);cv.height=Math.round(ch*DPR);cx.setTransform(DPR,0,0,DPR,0,0);
-  W=cw;H=ch;WSC=Math.max(1,(H-150)/zTop);
+  W=cw;H=ch;   // focal() derives from H + fovEff, no scene-scale term to recompute
   const tw=Math.max(200,tl.clientWidth);tl.width=Math.round(tw*DPR);tl.height=Math.round(34*DPR);tlx.setTransform(DPR,0,0,DPR,0,0);TLW=tw;TLH=34;}
 new ResizeObserver(resize).observe(document.getElementById('view'));
 window.addEventListener('resize',resize);
 // ---- go ----
-resize();hlMode();syncPlay();refresh();requestAnimationFrame(loop);
+resize();setMode('follow');zoom=zoomT;hlMode();syncPlay();refresh();requestAnimationFrame(loop);   // start close on the rocket
 </script></body></html>"""
 w0 = WINDS.index(0) if 0 in WINDS else 0
 HTML = (HTML.replace("__DATA__", data).replace("__TARGETS__", json.dumps(TARGETS)).replace("__WINDS__", json.dumps(WINDS))

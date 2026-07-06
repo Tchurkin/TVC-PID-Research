@@ -9,6 +9,50 @@ files remain authoritative for the full detail. New decisions go here going forw
 
 ---
 
+## 2026-07-05 — Estimator-tail diagnosis: the velocity estimate is NOT the bottleneck (falsifies the "gravity-leakage → velocity bias" hypothesis)
+- **Context.** The 07-03 baseline blamed the vz tail on "seed-2 gyro random walk → ~2° attitude drift → gravity
+  leakage → velocity-estimate bias → hoverslam arrests ~0.5 m high." TODO_AI P1 scoped GPS velocity fusion (RMC)
+  + accel attitude aiding to fix it. **Before building either, I MEASURED the est-vs-true velocity error at
+  ignition** (the harness logs both true and estimated state) — falsify before confirm.
+- **Finding (measured; validate grid + the seed-2 cluster).** The velocity estimate at hoverslam ignition is
+  EXCELLENT everywhere: **estVz error −0.04..−0.10 m/s, estVx error +0.06..+0.10 m/s** — identical in the WORST
+  cell (T=24 W=−4, vz=8.69), the MEDIAN cell (vz=2.89), and the entire seed-2 5.3–5.6 cluster. There is no
+  velocity bias to fix. GPS velocity fusion would correct ~0.1 m/s → **it cannot move the tail. Premise falsified.**
+- **What the tail actually is.** (1) WORST cell (8.69) = the far-target + headwind corner igniting at ~50° attitude
+  (true roll +42.8°, tiltX −49.6°): the thrust vertical fraction is cos(~50°)≈0.64 while `predictStopAlt`'s `cosT`
+  floors at cos(RETRO_MAX_RAD=35°)=0.82 → the ignition predictor is mildly optimistic → under-brake, compounded by
+  reorient time inside the ~2 s burn. This is the known far+headwind authority wall (TODO_AI). (2) seed-2 cluster
+  (5.3–5.6, across many cells) = the irreducible solid-motor knife-edge: a gust near ignition perturbs the
+  pre-committed, un-cuttable, un-throttleable burn; the vehicle KNOWS its velocity but cannot re-plan. Not estimation.
+- **There IS a small ~2° ATTITUDE estimate error** (estTilt vs true tiltX) from gyro drift — but it costs only a
+  small pointing miss during the burn (misses stay <5 m, passing), NOT the headline vz. Attitude aiding would buy
+  a tighter pad, not a softer landing.
+- **Redirect.** De-scope GPS velocity fusion / attitude aiding as the *tail* fix — they target a non-problem for
+  this plant + SIL. The real vz levers are unchanged and hardware-side: crushable ~10 m/s legs + a characterized
+  landing motor. Firmware candidates that DO target the measured mechanism (both delicate, confirm first, low
+  yield): a tilt-aware `cosT` in `predictStopAlt` for the far corner (1 cell), or bigger margin fins / boostback
+  for the far+headwind authority wall. **Caveat:** if the FLIGHT IMU drifts materially worse than the SIL gyro
+  model, revisit velocity fusion as insurance — but that's a hardware-driven decision, not today's bottleneck.
+- **Files:** none (measurement only). Diagnostic script kept in the session scratchpad; TODO_AI P1 reframed.
+
+## 2026-07-05 — Coast margin-fin controller: damped-LS fin inversion + servo-bandwidth low-pass (replaces the on/off authority gate)
+- **Change (`ctrlCoast`, firmware).** Replaced the discontinuous authority gate (`if bmag2<B0_COAST_MIN² hold
+  neutral, else project (a·b)/bmag2`) with a DAMPED least-squares fin inversion `deploy = dep* +
+  (a·b)/(bmag2 + LAMBDA_COAST)` (LAMBDA_COAST=2.0), followed by a low-pass `deploy += DEPLOY_LP_BETA·(cmd−deploy)`
+  (β=0.09, τ≈0.11 s @100 Hz).
+- **Why.** (1) The hard gate switched at B0_COAST_MIN and could limit-cycle as the sensed authority crossed the
+  threshold; damped-LS is continuous and, as aero authority → 0, the numerator (a·b) → 0 too, so the command eases
+  to the neutral trim dep* with no switch. (2) The margin servo is SLOW (~0.5 s full travel); the accel-noise-driven
+  raw command chatters faster than the fin can move, so the servo lowpasses it toward neutral = lost authority.
+  Matching the command to the fin's real bandwidth gives a smooth, efficient fin that tracks the slew, not the noise.
+- **Validation.** validate.py **27/36 (75%, floor 70%), vz p50 2.89 (was 3.2) / p90 5.47 / max 8.69** — no
+  regression, p50 slightly better (smoother coast fin). MC realistic N=150: soft 21%, legs-8 63%, legs-10 82% —
+  unchanged from the 07-03 baseline, as expected (the coast fin is not a touchdown-vz lever; see the diagnosis above).
+- **Viewer.** Harness logs two new columns depReal/rollDefReal (the ACTUAL servo-limited fin positions) so the 3-D
+  sweep viewer shows the real smooth fin instead of the raw chattering command.
+- **Files:** `Firmware/Sysiphus_Landing.cpp` (ctrlCoast), `Firmware/sim/sim_main.cpp` (log cols),
+  `Firmware/sim/sweep_html.py` + `sweep.html` (viewer).
+
 ## 2026-07-03 (pm) — 3-D sweep RENDERER; body-frame control refactor attempted + reverted (co-located IMU/TVC)
 - **3-D render of the sweep animation (user request).** Replaced the 2-D side-view canvas in `sweep_html.py`
   with a self-contained (no external libs) 3-D renderer: orbit camera (drag/wheel + top/side buttons),

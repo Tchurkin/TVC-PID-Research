@@ -672,9 +672,19 @@ void ctrlBoost(){                                  // TVC, hold gravity-turn/kic
 // airflow (ground-retrograde in a strong headwind) costs NOTHING here -- unlike a stability bias, which
 // would let the flow CAPTURE the vehicle onto the wind-tilted aero equilibrium (that capture, then a slow
 // sin(aoa)-limited escape arriving at ignition with huge rate, was the headwind failure mode). Where the
-// authority is unreadable (aoa ~ 0/180 or apogee airspeed: sensed side force below B0_COAST_MIN) just hold
-// dep*: no disturbance to fight there is exactly what neutral gives.
-constexpr float B0_COAST_MIN=0.5f;               // rad/s^2/unit below which we hold neutral trim
+// authority is unreadable (aoa ~ 0/180 or apogee airspeed: sensed side force weak) the DAMPED-LS inversion
+// below drives deploy -> dep* smoothly -- no disturbance to fight there is exactly what neutral gives.
+constexpr float LAMBDA_COAST=2.0f;               // damped-least-squares regularizer, (rad/s^2/unit)^2: caps the
+                                                 // fin-inversion gain when aero authority is weak (near apogee /
+                                                 // low aoa) so the command can't blow up to the rails (thrash fix).
+                                                 // NOTE the coast retro-slew "overshoot" in a headwind is NOT a gain
+                                                 // issue: the vehicle captures toward the AIR-relative retrograde
+                                                 // because the fin's authority is only ~0.9x the aero weathercock
+                                                 // (thin margin -> bigger fins); the landing TVC recovers it.
+constexpr float DEPLOY_LP_BETA=0.09f;            // coast fin command low-pass (tau ~0.11 s @100 Hz). The margin fin
+                                                 // is a SLOW actuator (~0.5 s full travel); the accel-noise-driven
+                                                 // command chatters faster than it can move, so filter to the fin's
+                                                 // real bandwidth -> smooth, efficient fin that tracks the slew, not noise.
 void ctrlCoast(){                                  // MARGIN FINS, slew to & hold retrograde
   // Speed-blended + cone-limited 3-D retro target: near apogee atan2 is ill-conditioned; hold vertical until
   // there's real descent speed, then ease in <=35 deg total.
@@ -691,12 +701,12 @@ void ctrlCoast(){                                  // MARGIN FINS, slew to & hol
   float uAwx,uAwy; b2w(bvx*dAct, bvy*dAct, uAwx, uAwy);   // realized world accels for anti-windup
   float aXw=adrcAlphaDes(esoX, tiltX, thRetro,  uAwx, WC_COAST, W0_COAST);
   float aYw=adrcAlphaDes(esoY, tiltY, thRetroY, uAwy, WC_COAST, W0_COAST);
-  if(bmag2<B0_COAST_MIN*B0_COAST_MIN){
-    deploy = depN;                                 // torque-free trim: hold attitude, damp rates
-  } else {
-    float aXb,aYb; w2b(aXw,aYw,aXb,aYb);
-    deploy=constrain(depN+(aXb*bvx+aYb*bvy)/bmag2,0.0f,1.0f);   // project the desired accel onto the fin authority vector
-  }
+  float aXb,aYb; w2b(aXw,aYw,aXb,aYb);
+  // DAMPED least-squares fin inversion: dividing by (bmag2+LAMBDA_COAST) instead of bmag2 caps the gain when the
+  // aero authority is weak (near apogee / low aoa) so the command can't blow up to the rails; as authority -> 0
+  // the numerator (a.b) -> 0 too, so the target -> the neutral trim dep* smoothly (no on/off gate).
+  float depCmd=constrain(depN+(aXb*bvx+aYb*bvy)/(bmag2+LAMBDA_COAST),0.0f,1.0f);   // damped-LS projection onto the fin authority vector
+  deploy += DEPLOY_LP_BETA*(depCmd-deploy);        // low-pass to the fin's real bandwidth -> smooth, chatter-free fin
   deploy_act+=constrain((deploy-deploy_act)/0.05f,
                         -SERVO_SLEW_DPS/(2.0f*MARGIN_DEG_RANGE),SERVO_SLEW_DPS/(2.0f*MARGIN_DEG_RANGE))*DT_CTRL;
   u_tvc=0; u_tvc2=0;                               // (logged) TVC is neutral during coast

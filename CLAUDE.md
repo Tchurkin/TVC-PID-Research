@@ -6,9 +6,22 @@
 > specific historical result. This file covers the **current phase**.
 
 ## ▶ JUMP-IN STATE (short-term — a new chat should read this first)
-**Updated: 2026-07-03.** *(Keep this block current — it's the "resume here" pointer.)*
-- **Goal right now:** flight-readiness. The 3-D gap is CLOSED (below); remaining needle-movers are HARDWARE
-  (crushable legs, motor characterization, build alignment) and an estimator-aiding upgrade for the sensor-drift tail.
+**Updated: 2026-07-05.** *(Keep this block current — it's the "resume here" pointer.)*
+- **Goal right now:** flight-readiness. The 3-D gap is CLOSED (below). Remaining needle-movers are HARDWARE
+  (crushable ~10 m/s legs, landing-motor characterization, build alignment). NOTE (2026-07-05): the long-assumed
+  "estimator-aiding for the sensor-drift tail" was MEASURED and is NOT the lever — the velocity estimate is already
+  ±0.1 m/s at ignition; the vz tail is the far+headwind ignition-tilt corner + irreducible solid-motor scatter
+  (see LATEST + DESIGN_LOG 2026-07-05). Firmware is not the touchdown-vz bottleneck.
+- **LATEST (2026-07-05): landing-quality session — one code change, one earned-negative that redirects the roadmap.**
+  (1) Coast margin-fin controller upgraded to a DAMPED-LS fin inversion + servo-bandwidth low-pass (removes the old
+  discontinuous on/off authority gate; validate 27/36 = 75%, vz p50 3.2→2.89, no regression, MC unchanged).
+  (2) Before building the TODO'd GPS-velocity-fusion / attitude-aiding, MEASURED est-vs-true velocity at hoverslam
+  ignition: the estimate is already **±0.1 m/s** in the WORST cell (8.69), the median (2.89), AND the whole seed-2
+  cluster → velocity fusion cannot move the vz tail (**premise falsified, de-scoped**). The tail is the
+  far-target+headwind corner igniting at ~50° attitude (predictStopAlt's cosT floored at RETRO_MAX_RAD=35° → mildly
+  optimistic) + the irreducible solid-motor knife-edge under gusts. Firmware is not the bottleneck; hardware is.
+  Full detail: DESIGN_LOG 2026-07-05; TODO_AI P1 reframed. Verdict unchanged: NOT a near-zero soft-lander (solid
+  floor), IS a viable controlled-descent-to-crushable-legs lander.
 - **LATEST (2026-07-03): FULL 3-D BUILD DONE — quaternion GNC, 2-axis TVC, roll control, CG-misalignment roll
   coupling.** Full detail: DESIGN_LOG 2026-07-03. Harness is 6DOF (quaternion, Euler eqs WITH gyroscopic
   roll-lateral coupling at IZZ≈IYY/65, 2-axis gimbal at the nozzle with lateral CG offset → **M_roll =

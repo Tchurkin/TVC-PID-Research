@@ -369,7 +369,7 @@ static void serviceButton(){
 static void logRow(){
   // legacy 2-D columns first (existing tools keep working), 3-D columns appended after windTrue
   printf("%.3f,%d,%s,%.3f,%.3f,%.3f,%.3f,%.2f,%.3f,%.3f,%.3f,%.3f,%.3f,%.2f,%.3f,%.3f,%.3f,%.2f,%d,%d,%.3f,%.3f,"
-         "%.3f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.3f,%.2f,%.5f,%.5f,%.5f,%.5f\n",
+         "%.3f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.3f,%.2f,%.5f,%.5f,%.5f,%.5f,%.4f,%.4f\n",
     g_micros/1e6,(int)state,stN(state),
     px,pz,vx,vz, th_t*180.0/M_PI, q_t*180.0/M_PI,
     estX,estZ,estVx,estVz, th*180.0/M_PI, u_tvc, deploy, keff_est,
@@ -377,7 +377,11 @@ static void logRow(){
     windEst, windAt(pz)+wTurb,
     py, vy, estY, rollTwist*180.0/M_PI, wbz*180.0/M_PI, u_tvc2, rollDef, windEstY,
     2.0*atan2(Qz,Qw)*180.0/M_PI,     // TRUE twist: est-vs-true roll comparison
-    Qw,Qx,Qy,Qz);                    // TRUE attitude quaternion (for the 3-D renderer)
+    Qw,Qx,Qy,Qz,                     // TRUE attitude quaternion (for the 3-D renderer)
+    // ACTUAL servo-limited fin positions (the fins the physics actually uses) -> the viewer shows the real
+    // smooth fin, not the chattering raw command (deploy/rollDef). marRealDeg/rollRealDeg are slew+lag limited.
+    fmax(0.0,fmin(1.0, 0.5+(marRealDeg-MARGIN_NEUTRAL)/(2.0*MARGIN_DEG_RANGE))),
+    (rollRealDeg-ROLL_NEUTRAL)/(2.0*ROLL_DEG_RANGE));
 }
 
 void sim_advance(unsigned long ms){
@@ -438,7 +442,7 @@ int main(int argc, char** argv){
   updateSensors();                          // pad readings ready for the first loop()
   setup();                                  // firmware setup()
   printf("t,st,state,px,pz,vx,vz,th_deg,q_dps,estX,estZ,estVx,estVz,thEst_deg,uTVC,deploy,keff,thrust,legs,chute,windEst,windTrue,"
-         "py,vy,estY,roll_deg,rollrate_dps,uTVC2,rollDef,windEstY,rollTrue_deg,Qw,Qx,Qy,Qz\n");
+         "py,vy,estY,roll_deg,rollrate_dps,uTVC2,rollDef,windEstY,rollTrue_deg,Qw,Qx,Qy,Qz,depReal,rollDefReal\n");
 
   const uint64_t TMAX = 90ULL*1000000ULL;
   uint64_t termAt = 0;
