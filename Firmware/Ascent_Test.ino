@@ -303,8 +303,8 @@ void TVC() {
   sensors();
   tiltX = constrain(P_GAIN * gyro_x + D_GAIN * ang_vel_x, -MAX_TILT, MAX_TILT) * SERVO_X_MULT;
   tiltY = constrain(P_GAIN * gyro_y + D_GAIN * ang_vel_y, -MAX_TILT, MAX_TILT) * SERVO_Y_MULT;
-  servoX.write(-tiltX + 90 + XTUNE);
-  servoY.write(-tiltY + 90 + YTUNE);
+  servoX.write(tiltX + 90 + XTUNE);   // sign flipped 2026-07-06 (bench: -tiltX drove the WRONG way, both axes)
+  servoY.write(tiltY + 90 + YTUNE);
 }
 
 // ── Descent (disabled — landing legs not yet tested) ─────────────────────────

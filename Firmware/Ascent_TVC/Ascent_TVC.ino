@@ -44,8 +44,8 @@ constexpr int SERVO_X_PIN = 4, SERVO_Y_PIN = 3;
 
 // -- TVC / control (PD; identical form to the flown Ascent_Test) ---------------
 constexpr float XTUNE = 0, YTUNE = 0;         // servo neutral trim (deg) -- set so 90+trim points the nozzle straight
-constexpr int   SERVO_X_SIGN = -1;            // <<< BENCH-SET: sign so the gimbal corrects the tilt (was -tiltX)
-constexpr int   SERVO_Y_SIGN = -1;            // <<< BENCH-SET
+constexpr int   SERVO_X_SIGN = +1;            // BENCH-CONFIRMED 2026-07-06: both axes drove the WRONG way at -1 -> +1
+constexpr int   SERVO_Y_SIGN = +1;            // re-verify on the bench that the gimbal now CORRECTS the tilt (BENCH_MODE)
 // PD POLE-PLACED on the measured plant (theta_ddot = keff*delta; keff = T*L/IYY = 14.34*0.14/0.0078 ~= 257 rad/s^2
 // per rad TVC, L = CG->TVC-axis = 0.14 m MEASURED). Target zeta=1.0 (critically damped, no overshoot), wn=8 rad/s:
 //   Kp = wn^2/keff = 64/257 = 0.249 ;  Kd = 2*zeta*wn/keff = 16/257 = 0.062

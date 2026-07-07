@@ -357,8 +357,8 @@ void test_liveTVC() {
       if (dt <= 0 || dt > 0.5f) dt = 0.01f;
       float ax = applySlewLimit(targetX, slew_last_x, dt);
       float ay = applySlewLimit(targetY, slew_last_y, dt);
-      servoX.write(-ax + 90 + Xtune);
-      servoY.write(-ay + 90 + Ytune);
+      servoX.write(ax + 90 + Xtune);   // sign flipped 2026-07-06 (bench: -ax drove the WRONG way, both axes)
+      servoY.write(ay + 90 + Ytune);
     }
 
     if (millis() - lastPrint > 150) {
