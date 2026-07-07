@@ -7,7 +7,7 @@ class MPU6050 {
 public:
   MPU6050(TwoWire&){}
   void begin(){}
-  void calcGyroOffsets(bool){}     // real bias removal is done by the firmware's padCalibrate()
+  void calcGyroOffsets(bool, unsigned=0, unsigned=0){}   // real bias removal is done by the firmware's padCalibrate()
   void update(){}
   float getGyroX(){ return (float)g_imu_gyroX; }   // deg/s, body X (pitch plane)
   float getGyroY(){ return (float)g_imu_gyroY; }   // deg/s, body Y (yaw plane)
@@ -19,4 +19,8 @@ public:
   float getAccAngleY(){ return 0.0f; }
   float getGyroAngleX(){ return 0.0f; }
   float getGyroAngleY(){ return 0.0f; }
+  // complementary-filter angles (tockn API). Shim: accel tilt on X/Y (adequate for a compile / static pad check), 0 roll.
+  float getAngleX(){ return atan2f((float)g_imu_accY,(float)g_imu_accZ)*180.0f/(float)M_PI; }
+  float getAngleY(){ return atan2f((float)g_imu_accX,(float)g_imu_accZ)*180.0f/(float)M_PI; }
+  float getAngleZ(){ return 0.0f; }
 };
