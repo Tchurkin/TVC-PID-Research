@@ -117,16 +117,18 @@ void createUniqueLogFile(){
   int idx=0; do{ sprintf(logFilename,"ASC%03d.CSV",idx++); } while(SD.exists(logFilename)&&idx<1000);
   logFile=SD.open(logFilename,FILE_WRITE);
   if(logFile){ Serial.print(F("Logging to: ")); Serial.println(logFilename);
-    logFile.println(F("Time(ms),Altitude(m),VertVel(m/s),GyroX,GyroY,GyroZ,AngVelX,AngVelY,AccelX,AccelY,AccelZ,ServoX,ServoY"));
+    logFile.println(F("Time(ms),Altitude(m),VertVel(m/s),GyroX,GyroY,GyroZ,AngVelX,AngVelY,AccelX,AccelY,AccelZ,TVCx(deg),TVCy(deg),Phase"));
     logFile.close();
   } else Serial.println(F("Failed to create log file!"));
 }
 void logData(){
   logFile=SD.open(logFilename,FILE_WRITE); if(!logFile) return;
-  char buf[128];
-  snprintf(buf,sizeof(buf),"%lu,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f",
+  char buf[160];
+  // TVCx/TVCy = the COMMANDED TVC angle in deg (tilt/ MULT recovers it from the servo-offset value); Phase 0=pad 1=boost 2=coast 3=descent
+  int phase = poweredFlight ? 1 : (inFlight ? 2 : (highest_alt>2.0f ? 3 : 0));
+  snprintf(buf,sizeof(buf),"%lu,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d",
     millis(),altitude,vert_vel,gyro_x,gyro_y,gyro_z,ang_vel_x,ang_vel_y,accel_x,accel_y,accel_z,
-    constrain(tiltX,-MAX_TILT,MAX_TILT),constrain(tiltY,-MAX_TILT,MAX_TILT));
+    tiltX/SERVO_X_MULT, tiltY/SERVO_Y_MULT, phase);
   logFile.println(buf); logFile.close();
 }
 
