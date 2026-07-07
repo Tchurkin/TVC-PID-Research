@@ -41,3 +41,6 @@ sim/_patch_atlas.py
 
 # VSCode Local History auto-backups
 .history/
+
+# ascent SIL build artifact
+Firmware/sim_ascent/ascent_sim.exe
