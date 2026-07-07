@@ -15,7 +15,7 @@ if not exist "%ZDIR%\ziglang\zig.exe" (
 set ZIG_GLOBAL_CACHE_DIR=%ZDIR%\cache
 set ZIG_LOCAL_CACHE_DIR=%ZDIR%\cache
 echo Building sim.exe (first build compiles libc++, be patient) ...
-"%ZDIR%\ziglang\zig.exe" c++ -std=c++17 -O0 -w -I shims -include shims/Arduino.h sim_main.cpp ..\Sysiphus_Landing.cpp -o sim.exe
+"%ZDIR%\ziglang\zig.exe" c++ -std=c++17 -O0 -w -I shims -include shims/Arduino.h sim_main.cpp -x c++ ..\Sysiphus_Landing.ino -o sim.exe
 if errorlevel 1 ( echo BUILD FAILED & exit /b 1 )
 echo.
 echo Built sim.exe

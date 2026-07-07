@@ -1,7 +1,7 @@
 /*
   sim_main.cpp — Software-In-the-Loop (SIL) harness for Sysiphus_Landing.cpp
   ==========================================================================
-  Runs the EXACT flight firmware (../Sysiphus_Landing.cpp) on the host:
+  Runs the EXACT flight firmware (../Sysiphus_Landing.ino, compiled -x c++) on the host:
    - defines the Arduino/Teensy core the shims declare (clock, pins, Serial)
    - simulates a DEFAULT ROCKET (2D: pitch plane + vertical), feeds synthetic
      IMU/baro/GPS into the firmware, captures its servo + pyro outputs, and
