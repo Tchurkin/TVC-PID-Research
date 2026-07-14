@@ -124,6 +124,44 @@ bool  poweredFlight = false;   // true only during motor burn -> gates emergency
 bool  inFlight      = false;   // true launch..apogee -> gates the angle source
 unsigned long launchTime = 0;
 
+// -- In-flight motor characterization ("static fire in the sky") ---------------------------------------
+// High-rate axial specific force (imu_az ~ (thrust - drag)/mass, m/s^2) + ignition lag, buffered in RAM
+// during the burn and dumped to MTR###.CSV at recovery. Lets you (1) compare the FLOWN motor's thrust
+// curve + ignition lag against the bench static fire, and (2) validate the landing firmware's in-flight
+// sys-ID (which identifies exactly this T/m scale) on real motors. Reconstruct thrust offline:
+//   T(t) = imu_az(t)*m(t) + drag,   m(t) = dry + prop*(1 - t/BURN_TIME).
+constexpr int   MOTOR_BUF_N    = 1000;         // 100 Hz -> ~10 s of headroom; 1000*8 B = 8 KB RAM
+constexpr float THRUST_ONSET_G = 1.5f;         // g; axial accel above this = motor lit / lifting off
+uint32_t motorT[MOTOR_BUF_N];                  // ms since the ignition COMMAND (P3)
+float    motorAz[MOTOR_BUF_N];                 // axial specific force (m/s^2) at that time
+int      motorN = 0;                           // samples captured
+uint32_t ignCmdMs = 0, thrustOnsetMs = 0;      // P3-command time / first-thrust time (millis)
+void captureMotor(){                           // called each burn cycle: detect thrust onset + sample at 100 Hz
+  if(thrustOnsetMs==0 && imu_az > THRUST_ONSET_G*G) thrustOnsetMs = millis();   // onset: full-rate for precision
+  static uint32_t lastCap=0;
+  if(millis()-lastCap < 10) return;            // ~100 Hz cap on the buffered curve
+  lastCap=millis();
+  if(motorN < MOTOR_BUF_N){ motorT[motorN]=millis()-ignCmdMs; motorAz[motorN]=imu_az; motorN++; }
+}
+void dumpMotorLog(){                           // write the buffered thrust curve + summary once, at recovery
+  char fn[20]; int idx=0; do{ sprintf(fn,"MTR%03d.CSV",idx++); } while(SD.exists(fn)&&idx<1000);
+  File f=SD.open(fn,FILE_WRITE); if(!f){ Serial.println(F("MTR log failed")); return; }
+  uint32_t lag = (thrustOnsetMs>ignCmdMs)? thrustOnsetMs-ignCmdMs : 0;
+  float peak=0; double sum=0; int nb=0;
+  for(int i=0;i<motorN;i++){ if(motorAz[i]>peak)peak=motorAz[i];
+    if(motorAz[i]>THRUST_ONSET_G*G){ sum+=motorAz[i]; nb++; } }
+  char b[64];   // format with snprintf then print a plain string (portable: Teensy File AND the SIL shim)
+  snprintf(b,sizeof(b),"# ignition_lag_ms=%lu",(unsigned long)lag);              f.println(b);
+  snprintf(b,sizeof(b),"# peak_axial_mps2=%.2f",peak);                           f.println(b);
+  snprintf(b,sizeof(b),"# mean_burn_axial_mps2=%.2f",nb?(float)(sum/nb):0.0f);   f.println(b);
+  snprintf(b,sizeof(b),"# rocket_mass_kg=%.3f",ROCKET_WEIGHT);                    f.println(b);
+  f.println("t_since_ign_cmd_ms,axial_accel_mps2");
+  for(int i=0;i<motorN;i++){ snprintf(b,sizeof(b),"%lu,%.3f",(unsigned long)motorT[i],motorAz[i]); f.println(b); }
+  f.close();
+  snprintf(b,sizeof(b),"MOTOR -> %s  ign_lag_ms=%lu  peak_ax=%.2f  n=%d",fn,(unsigned long)lag,peak,motorN);
+  Serial.println(b);
+}
+
 // forward declarations (Arduino auto-prototypes; declared explicitly so it also builds in plain C++)
 void sensors(); void emergency(); void TVC();
 
@@ -313,6 +351,7 @@ bool countdown(){
     return false;
   }
   Serial.println(F("LAUNCH"));
+  ignCmdMs=millis();               // stamp the ignition COMMAND time -> the in-flight motor ignition-lag measurement
   triggerPyro(P3);
   return true;
 }
@@ -384,6 +423,7 @@ void loop(){
   while(!apogee){
     if(millis()-launchTime < (unsigned long)((BURN_TIME+IGN_DELAY)*1000.0f)){
       TVC();
+      captureMotor();              // in-flight motor characterization: sample axial thrust/mass + detect onset
     } else {
       poweredFlight=false;                 // burnout: no thrust -> no control authority; emergency deploy off
       neutralServos();
@@ -402,6 +442,7 @@ void loop(){
   LED(false,true,true);
   triggerPyro(P4);                         // PARACHUTE (primary recovery)
   triggerPyro(P1);                         // LANDING LEGS -- deploy now so touchdown loads the legs, not the TVC
+  dumpMotorLog();                          // write the flown motor's thrust curve + ignition lag -> MTR###.CSV
 
   // RECOVERED
   LED(true,true,true);
