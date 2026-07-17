@@ -162,6 +162,32 @@ void dumpMotorLog(){                           // write the buffered thrust curv
   Serial.println(b);
 }
 
+// -- PASSIVE vertical Kalman (baro + IMU fusion) -------------------------------------------------------
+// Verbatim port of the Sysiphus_Landing kfZ (3-state: position, velocity, accel-bias; strapdown predict on
+// the world-vertical accel, baro update with velocity lag-compensation). Runs PASSIVE here: estZ/estVz are
+// LOGGED ONLY, never used for control -- so an ascent flight validates the hoverslam's altitude/velocity
+// estimator on real sensor data (vibration, baro transients) against the crude finite-difference vert_vel,
+// with ZERO risk to the flown PD controller. NOTE: ascent regime only -- a clean result here does NOT
+// validate the landing (descent / near-ground baro / retrograde) regime. Declared here (before logData).
+struct KF{ float s[3]; float P[9]; };
+KF kfZ; float estZ=0, estVz=0;
+constexpr float ACCEL_NOISE=0.05f, BARO_NOISE=0.30f, Q_BIAS=1e-7f, BARO_LAG_S=0.040f;
+static void m3mul(const float*A,const float*B,float*C){
+  for(int i=0;i<3;i++)for(int j=0;j<3;j++){ float s=0; for(int k=0;k<3;k++)s+=A[i*3+k]*B[k*3+j]; C[i*3+j]=s; } }
+void kfInit(KF&k,float p0){ k.s[0]=p0;k.s[1]=0;k.s[2]=0; for(int i=0;i<9;i++)k.P[i]=0; k.P[0]=0.04f; k.P[4]=0.04f; k.P[8]=0.01f; }
+void kfPredict(KF&k,float a,float dt){             // dt = ACTUAL elapsed step (sensor rate), not a fixed nominal
+  k.s[0]+=k.s[1]*dt; k.s[1]+=(a-k.s[2])*dt;
+  const float F[9]={1,dt,0,0,1,-dt,0,0,1}, Ft[9]={1,0,0,dt,1,0,0,-dt,1};
+  float FP[9],Pn[9]; m3mul(F,k.P,FP); m3mul(FP,Ft,Pn); for(int i=0;i<9;i++)k.P[i]=Pn[i];
+  k.P[0]+=1e-7f; k.P[4]+=(ACCEL_NOISE*dt)*(ACCEL_NOISE*dt); k.P[8]+=Q_BIAS;
+}
+void kfUpdate(KF&k,int hi,float meas,float R){
+  float PHt[3]={k.P[hi],k.P[3+hi],k.P[6+hi]}, S=PHt[hi]+R, K[3]={PHt[0]/S,PHt[1]/S,PHt[2]/S}, in=meas-k.s[hi];
+  k.s[0]+=K[0]*in; k.s[1]+=K[1]*in; k.s[2]+=K[2]*in;
+  float IKH[9]={1,0,0,0,1,0,0,0,1}; IKH[hi]-=K[0]; IKH[3+hi]-=K[1]; IKH[6+hi]-=K[2];
+  float Pn[9]; m3mul(IKH,k.P,Pn); for(int i=0;i<9;i++)k.P[i]=Pn[i];
+}
+
 // forward declarations (Arduino auto-prototypes; declared explicitly so it also builds in plain C++)
 void sensors(); void emergency(); void TVC();
 
@@ -185,7 +211,7 @@ void createUniqueLogFile(){
   int idx=0; do{ sprintf(logFilename,"ASC%03d.CSV",idx++); } while(SD.exists(logFilename)&&idx<1000);
   logFile=SD.open(logFilename,FILE_WRITE);
   if(logFile){ Serial.print(F("Logging to: ")); Serial.println(logFilename);
-    logFile.println(F("Time(ms),Altitude(m),VertVel(m/s),GyroX,GyroY,GyroZ,AngVelX,AngVelY,AccelX,AccelY,AccelZ,TVCx(deg),TVCy(deg),Phase"));
+    logFile.println(F("Time(ms),Altitude(m),VertVel(m/s),GyroX,GyroY,GyroZ,AngVelX,AngVelY,AccelX,AccelY,AccelZ,TVCx(deg),TVCy(deg),Phase,estZ(m),estVz(m/s)"));
     logFile.close();
   } else Serial.println(F("Failed to create log file!"));
 }
@@ -194,9 +220,9 @@ void logData(){
   char buf[160];
   // TVCx/TVCy = the COMMANDED TVC angle in deg (tilt/ MULT recovers it from the servo-offset value); Phase 0=pad 1=boost 2=coast 3=descent
   int phase = poweredFlight ? 1 : (inFlight ? 2 : (highest_alt>2.0f ? 3 : 0));
-  snprintf(buf,sizeof(buf),"%lu,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d",
+  snprintf(buf,sizeof(buf),"%lu,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d,%.2f,%.2f",
     millis(),altitude,vert_vel,gyro_x,gyro_y,gyro_z,ang_vel_x,ang_vel_y,accel_x,accel_y,accel_z,
-    tiltX/SERVO_X_MULT, tiltY/SERVO_Y_MULT, phase);
+    tiltX/SERVO_X_MULT, tiltY/SERVO_Y_MULT, phase, estZ, estVz);
   logFile.println(buf); logFile.close();
 }
 
@@ -278,6 +304,15 @@ void sensors(){
   altitude = bmp.readAltitude(SEA_LEVEL_HPA) - initial_alt;
   if(altitude>highest_alt) highest_alt=altitude;
 
+  // PASSIVE vertical Kalman (logged, NOT used for control). aWz = world-vertical accel = (body specific force
+  // rotated up) - g; (ubx,uby,ubz) IS the strapdown rotation's 3rd row, so reuse it. Baro update lead-compensated.
+  if(dt>0 && dt<0.1f){
+    float aWz = ubx*imu_ax + uby*imu_ay + ubz*imu_az - G;
+    kfPredict(kfZ, aWz, dt);
+    kfUpdate(kfZ, 0, altitude + estVz*BARO_LAG_S, BARO_NOISE*BARO_NOISE);
+    estZ=kfZ.s[0]; estVz=kfZ.s[1];
+  }
+
   unsigned long now=millis(), elapsed=now-prevTime;
   if(elapsed>=50){
     float raw_vel=(altitude-prev_alt)/(elapsed/1000.0f);
@@ -336,7 +371,7 @@ bool countdown(){
   // sensors() call, so the quaternion -- not a hard-zeroed angle -- carries the initial attitude: launch starts
   // from the TRUE measured pad tilt, not an assumed vertical.
   unsigned long flush=millis(); while(millis()-flush<1000) readIMU();
-  quatFromAccel(); gyro_z=ang_vel_x=ang_vel_y=0; iTermX=iTermY=0;
+  quatFromAccel(); gyro_z=ang_vel_x=ang_vel_y=0; iTermX=iTermY=0; kfInit(kfZ,0); estZ=estVz=0;
 
   // pre-launch sanity: bad tilt (>45) or drift (>10 dps) -> abort, no ignition
   for(int i=0;i<10;i++){ readIMU(); delay(20); }
