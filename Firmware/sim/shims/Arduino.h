@@ -64,6 +64,8 @@ class HardwareSerial {
   bool echo;                       // mirror writes to stderr (firmware status messages)
 public:
   HardwareSerial(bool e=false):echo(e){}
+  explicit operator bool() const { return true; }   // mock the Teensy USB "monitor connected" flag: always true
+                                                     // in the SIL so `while(!Serial && millis()<t)` waits are skipped
   void begin(unsigned long){}
   void feed(const char* s){ while(*s){ int n=(rt+1)&511; if(n!=rh){ rb[rt]=*s; rt=n; } s++; } }
   int  available(){ return (rt-rh+512)&511; }

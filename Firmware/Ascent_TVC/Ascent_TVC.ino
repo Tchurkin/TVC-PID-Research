@@ -34,6 +34,13 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BMP280.h>
 
+// -- Types --------------------------------------------------------------------
+// Defined before ALL functions: the Arduino IDE auto-generates function prototypes and HOISTS them above the
+// first function, so a prototype taking 'KF&' (kfInit/kfPredict/kfUpdate) would otherwise reference KF before
+// it is declared -> "'KF' was not declared in this scope". (The SIL builds .ino as plain C++ with no hoisting,
+// so it did not catch this -- verify in the Arduino IDE too.)
+struct KF{ float s[3]; float P[9]; };   // vertical Kalman: state s=[pos,vel,accel-bias], covariance P (3x3)
+
 // -- Pins (verify against your wiring) ----------------------------------------
 constexpr int BUTTON = 14;
 constexpr int BUZZER = 13;
@@ -168,8 +175,8 @@ void dumpMotorLog(){                           // write the buffered thrust curv
 // LOGGED ONLY, never used for control -- so an ascent flight validates the hoverslam's altitude/velocity
 // estimator on real sensor data (vibration, baro transients) against the crude finite-difference vert_vel,
 // with ZERO risk to the flown PD controller. NOTE: ascent regime only -- a clean result here does NOT
-// validate the landing (descent / near-ground baro / retrograde) regime. Declared here (before logData).
-struct KF{ float s[3]; float P[9]; };
+// validate the landing (descent / near-ground baro / retrograde) regime. (struct KF is defined at the top,
+// before all functions, so the Arduino IDE's hoisted prototypes can see the type; kfZ/estZ/estVz live here.)
 KF kfZ; float estZ=0, estVz=0;
 constexpr float ACCEL_NOISE=0.05f, BARO_NOISE=0.30f, Q_BIAS=1e-7f, BARO_LAG_S=0.040f;
 static void m3mul(const float*A,const float*B,float*C){
@@ -419,7 +426,11 @@ void setup(){
   servoX.attach(SERVO_X_PIN); servoY.attach(SERVO_Y_PIN);
   neutralServos();
   LED(false,false,false);
-  Serial.begin(115200); Wire.begin();
+  Serial.begin(115200);
+  while(!Serial && millis()<3000);   // wait up to 3 s for the USB monitor so the setup prints (MPU range) are
+                                     // visible on the bench; times out -> on the pad with NO monitor it proceeds
+                                     // after 3 s (never hangs). Pure startup timing; no control/safety effect.
+  Wire.begin();
   if(!bmp.begin(0x76)){ Serial.println(F("BMP280 not found")); while(true); }
   bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,Adafruit_BMP280::SAMPLING_X2,
                   Adafruit_BMP280::SAMPLING_X16,Adafruit_BMP280::FILTER_X16,Adafruit_BMP280::STANDBY_MS_1);
