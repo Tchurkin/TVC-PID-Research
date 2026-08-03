@@ -180,12 +180,19 @@ def main() -> None:
     pop = pop.assign(keff=14.4 * pop.motor_scale * 0.25 / pop.Iyy)
 
     # Stratify over keff x latency so the two predictors are not collinear.
-    pop["_kt"] = pd.qcut(np.log(pop.keff), 4, labels=False, duplicates="drop")
-    rng = np.random.default_rng(909)
-    cells = list(pop.groupby(["_kt", "latency_steps"]))
-    per = max(1, args.n // max(len(cells), 1))
-    parts = [g.sample(min(per, len(g)), random_state=int(rng.integers(1e9))) for _, g in cells]
-    designs = pd.concat(parts).drop(columns="_kt").reset_index(drop=True)
+    # --n 0 (or >= population size) means "use every design", which is what you want when the
+    # designs file is already a curated set. Without this guard, per = max(1, 0 // n_cells) = 1
+    # and the run silently collapses to one design per stratification cell.
+    if args.n <= 0 or args.n >= len(pop):
+        designs = pop.reset_index(drop=True)
+    else:
+        pop["_kt"] = pd.qcut(np.log(pop.keff), 4, labels=False, duplicates="drop")
+        rng = np.random.default_rng(909)
+        cells = list(pop.groupby(["_kt", "latency_steps"]))
+        per = max(1, args.n // max(len(cells), 1))
+        parts = [g.sample(min(per, len(g)), random_state=int(rng.integers(1e9)))
+                 for _, g in cells]
+        designs = pd.concat(parts).drop(columns="_kt").reset_index(drop=True)
 
     print("=== ceiling with Kd FREE vs FROZEN (paired, same designs and seeds) ===")
     print(f"  designs={len(designs)}  Kp grid={len(KP_GRID)}  Kd grid={len(KD_GRID)}  "

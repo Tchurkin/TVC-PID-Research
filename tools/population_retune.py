@@ -173,10 +173,32 @@ def main() -> None:
           f"search seeds={len(SEARCH_SEEDS)}  eval seeds={len(EVAL_SEEDS)}")
     print(f"  ~{len(pop)*per:,} sims")
 
-    out = pd.DataFrame(Parallel(n_jobs=args.jobs, verbose=5)(
-        delayed(retune)(r) for r in pop.to_dict("records")))
+    # Run in chunks and append after each, so an interrupted run keeps its completed work.
+    # This job has been killed three times (machine sleep, host process exit, failed nohup
+    # detach); losing a full multi-hour run to the fourth is not acceptable. Re-running with
+    # the same OUT_CSV present resumes: already-finished rocket_ids are skipped.
     OUT_CSV.parent.mkdir(parents=True, exist_ok=True)
-    out.to_csv(OUT_CSV, index=False)
+    done: set[str] = set()
+    if OUT_CSV.exists():
+        try:
+            done = set(pd.read_csv(OUT_CSV).rocket_id)
+            print(f"  resuming: {len(done)} designs already complete in {OUT_CSV}")
+        except Exception:
+            done = set()
+
+    rows = [r for r in pop.to_dict("records") if r["rocket_id"] not in done]
+    print(f"  {len(rows)} designs to run")
+    CHUNK = 100
+    for i in range(0, len(rows), CHUNK):
+        batch = rows[i:i + CHUNK]
+        res = pd.DataFrame(Parallel(n_jobs=args.jobs, verbose=0)(
+            delayed(retune)(r) for r in batch))
+        header = not OUT_CSV.exists()
+        res.to_csv(OUT_CSV, mode="a", header=header, index=False)
+        print(f"  chunk {i//CHUNK + 1}/{-(-len(rows)//CHUNK)} written "
+              f"({min(i+CHUNK, len(rows))}/{len(rows)})", flush=True)
+
+    out = pd.read_csv(OUT_CSV)
     print(f"\nSaved {len(out)} rows -> {OUT_CSV}")
 
     print("\n=== 1. were the original gains in-sample? ===")
