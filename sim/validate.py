@@ -113,9 +113,18 @@ def test_stability_physics():
                               sensor_latency_steps=1)
     dis_ideal = DisturbanceParams(det_amp=0.0, det_freq_hz=0.0, gust_std=0.0, gust_tau=0.4)
 
-    # Use large theta0_bias_std to guarantee non-trivial IC; with seed=1 this gives ~0.087 rad
-    # Use p=1.5 so growth in 3s is e^(1.5*3)=e^4.5~90x — will clearly exceed initial angle
-    plant_unstable = PlantParams(p_unstable=1.5, control_eff=8.0, dt=0.005)
+    # Uncontrolled unstable plant must diverge.
+    #
+    # NOTE (2026-08-03): this test previously set only p_unstable=1.5 and asserted divergence.
+    # It never diverged — theta_true was CONSTANT for all 601 samples — because p_unstable is
+    # legacy and the EOM does not read it (plant_dynamics.py:102 "legacy, kept for
+    # compatibility"; the moment term at :179 is `lambda_aero * theta`). Hand-constructing
+    # PlantParams left lambda_aero at its 0.0 default, so there were no aero dynamics at all
+    # and the test silently asserted nothing for as long as it has existed.
+    # lambda_aero > 0 is the diverging case, and equals p_unstable^2 by the convention at :104.
+    p_div = 1.5
+    plant_unstable = PlantParams(p_unstable=p_div, lambda_aero=p_div**2,
+                                 control_eff=8.0, dt=0.005)
     sc_diverge = ScenarioParams(t_end=3.0, theta_ref=0.0, theta0_bias_std=np.deg2rad(5.0))
     r_div = simulate(zero_pid, plant_unstable, act_ideal, sen_ideal, dis_ideal, sc_diverge, seed=1)
 
@@ -123,7 +132,8 @@ def test_stability_physics():
     theta_final   = abs(np.degrees(r_div.theta_true[-1]))
     diverges = theta_final > max(theta_initial * 5.0, 10.0)
     report(
-        f"Uncontrolled (p=1.5): |theta| grew from {theta_initial:.1f} to {theta_final:.1f} deg",
+        f"Uncontrolled (lambda_aero={p_div**2:.2f}): |theta| grew from "
+        f"{theta_initial:.1f} to {theta_final:.1f} deg",
         diverges,
     )
 
@@ -161,18 +171,39 @@ def test_component_isolation():
     report(f"Noiseless sensor: max |-_meas - -_true_prev| = {max_delta:.4f} rad (expect < 0.1)",
            max_delta < 0.1)
 
-    # 3c. No disturbance: trajectory should be smoother (lower RMS)
+    # 3c. Disturbance should raise RMS — but ONLY on a linear actuator.
+    #
+    # NOTE (2026-08-03): this test used to run on the REF actuator (deadband=0.05,
+    # backlash=0.10) and failed, reporting off=4.12 / on=0.82. That is not a simulator
+    # fault, it is DITHER LINEARISATION: with no disturbance the vehicle parks at a steady
+    # 3.83 deg offset trapped inside the actuator dead zone, while the disturbance shakes it
+    # out and the loop converges to 0.14 deg. Real, well-known, and correct. The component-
+    # isolation claim only holds for a linear actuator, so this test now uses one; the dither
+    # effect itself is locked in as its own check below.
     plant3, act3, sen3, dis3, sc3 = default_config(zero_noise=True)
+    act3_lin = ActuatorParams(u_max=act3.u_max, slew_max=act3.slew_max,
+                              tau_act=0.05, deadband=0.0, backlash=0.0)
     dis_off = DisturbanceParams(det_amp=0.0, det_freq_hz=0.0, gust_std=0.0, gust_tau=0.4)
     dis_on  = build_disturbance(dict(REF, wind_strength=0.3))
     sc3b    = ScenarioParams(t_end=3.0, theta_ref=0.0, theta0_bias_std=np.deg2rad(5.0))
 
-    r_no_dist  = simulate(pid, plant3, act3, sen3, dis_off, sc3b, seed=1)
-    r_yes_dist = simulate(pid, plant3, act3, sen3, dis_on,  sc3b, seed=1)
+    r_no_dist  = simulate(pid, plant3, act3_lin, sen3, dis_off, sc3b, seed=1)
+    r_yes_dist = simulate(pid, plant3, act3_lin, sen3, dis_on,  sc3b, seed=1)
 
-    report(f"Disturbance increases RMS (off={r_no_dist.rms_error_deg:.2f}, "
-           f"on={r_yes_dist.rms_error_deg:.2f})",
+    report(f"Disturbance increases RMS on a LINEAR actuator "
+           f"(off={r_no_dist.rms_error_deg:.2f}, on={r_yes_dist.rms_error_deg:.2f})",
            r_yes_dist.rms_error_deg >= r_no_dist.rms_error_deg)
+
+    # 3c-bis. Dither linearisation: with a dead zone, disturbance should IMPROVE steady error.
+    # This is the behaviour that used to make 3c look broken; asserting it prevents anyone
+    # "fixing" the simulator to match the naive expectation.
+    r_dz_off = simulate(pid, plant3, act3, sen3, dis_off, sc3b, seed=1)
+    r_dz_on  = simulate(pid, plant3, act3, sen3, dis_on,  sc3b, seed=1)
+    end_off  = abs(np.degrees(r_dz_off.theta_true[-1]))
+    end_on   = abs(np.degrees(r_dz_on.theta_true[-1]))
+    report(f"Dither linearises the dead zone (final |theta| off={end_off:.2f} deg, "
+           f"on={end_on:.2f} deg)",
+           end_on < end_off)
 
     # 3d. Backlash=0 should not be worse than backlash=0.2
     plant4, act4, sen4, dis4, sc4 = default_config(zero_noise=True)
