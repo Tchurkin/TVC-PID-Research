@@ -62,7 +62,8 @@ constexpr int FB_Y_PIN    = A1;
 
 // ---- Mechanical / linkage convention ----
 constexpr int   SERVO_NEUTRAL_DEG                = 90;
-constexpr float LINKAGE_SERVO_DEG_PER_GIMBAL_DEG = 4.0f;
+constexpr float LINKAGE_SERVO_DEG_PER_GIMBAL_DEG = 4.5f;   // physical linkage, bench-corrected 2026-08-04
+// (was 4.0, never measured; a 5.5 measurement on 2026-08-03 was itself a mis-measurement)
 constexpr float GIMBAL_SWEEP_HALF_SPAN_DEG       = 5.0f;
 constexpr int   SERVO_HALF_SPAN_DEG =
     (int)(LINKAGE_SERVO_DEG_PER_GIMBAL_DEG * GIMBAL_SWEEP_HALF_SPAN_DEG + 0.5f);

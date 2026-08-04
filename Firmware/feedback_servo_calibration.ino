@@ -50,7 +50,8 @@ constexpr int FB_Y_PIN = A1;
 // Define the test range in gimbal angle and convert to servo angle using
 // the linkage mechanical advantage (servo_deg / gimbal_deg).
 constexpr int SERVO_NEUTRAL_DEG = 90;
-constexpr float LINKAGE_SERVO_DEG_PER_GIMBAL_DEG = 4.0f;
+constexpr float LINKAGE_SERVO_DEG_PER_GIMBAL_DEG = 4.5f;   // physical linkage, bench-corrected 2026-08-04
+// (was 4.0, never measured; a 5.5 measurement on 2026-08-03 was itself a mis-measurement)
 constexpr float GIMBAL_SWEEP_HALF_SPAN_DEG = 5.0f; // requested +/-5 deg gimbal
 constexpr int SERVO_SWEEP_HALF_SPAN_DEG =
   (int)(LINKAGE_SERVO_DEG_PER_GIMBAL_DEG * GIMBAL_SWEEP_HALF_SPAN_DEG + 0.5f);

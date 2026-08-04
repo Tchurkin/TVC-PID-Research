@@ -25,13 +25,15 @@
     delay before each step so the reported dead time is a DISTRIBUTION. Report the mean
     for tau, and the max when you want the conservative case.
 
-  *** CALIBRATION WARNING -- RESOLVE BEFORE TRUSTING ANY OUTPUT ***
-    This file and the other two bench sketches assume LINKAGE_SERVO_DEG_PER_GIMBAL_DEG
-    = 4.0, but Ascent_TVC.ino flies SERVO_X_MULT = SERVO_Y_MULT = 5.0. They disagree.
-    Everything reported in GIMBAL degrees scales by this ratio, so a 25% linkage error
-    becomes a ~56% error in Pi. Measure the real ratio (command a known servo deflection,
-    measure the nozzle angle with a protractor or photo) and set it here AND in the
-    flight firmware before using any of these numbers.
+  LINKAGE CALIBRATION -- RESOLVED 2026-08-04, but read this before trusting older output.
+    The physical linkage is 1:4.5 (servo deg per gimbal deg), corrected by Braxton on
+    2026-08-04. Two earlier values were wrong: the 4.0 this file used to carry was never
+    measured, and a 1:5.5 taken on the bench 2026-08-03 was a mis-measurement. All four
+    files -- this sketch, gimbal_characterization, feedback_servo_calibration, and
+    Ascent_TVC.ino's SERVO_*_MULT -- now agree at 4.5, as does the SIL.
+    Everything reported in GIMBAL degrees scales by this ratio, and it is SQUARED in Pi,
+    so any gimbal-deg figure produced by these sketches before 2026-08-04 is stale and
+    should be recomputed rather than trusted.
 
   HARDWARE: same wiring as feedback_servo_calibration.ino / gimbal_characterization.ino.
     Servo X cmd = pin 4, Y cmd = pin 3; feedback X = A2, Y = A3.
@@ -62,7 +64,9 @@ constexpr int FB_X_PIN = A0,   FB_Y_PIN = A1;
 
 // ---- Linkage / travel (SEE CALIBRATION WARNING ABOVE) -----------------------
 constexpr int   SERVO_NEUTRAL_DEG = 90;
-constexpr float LINKAGE_SERVO_DEG_PER_GIMBAL_DEG = 4.0f;   // <<< flight firmware says 5.0
+constexpr float LINKAGE_SERVO_DEG_PER_GIMBAL_DEG = 4.5f;   // physical linkage, bench-corrected 2026-08-04.
+// Now agrees with Ascent_TVC.ino's SERVO_*_MULT and with the SIL. The earlier 4.0 here and the
+// 5.5 measured on 2026-08-03 were both wrong; gimbal-deg conversions from before this date are stale.
 constexpr float GIMBAL_HALF_SPAN_DEG = 5.0f;               // matches MAX_TILT in flight code
 constexpr int   SERVO_HALF_SPAN_DEG =
     (int)(LINKAGE_SERVO_DEG_PER_GIMBAL_DEG * GIMBAL_HALF_SPAN_DEG + 0.5f);
