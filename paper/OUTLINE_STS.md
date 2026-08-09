@@ -195,6 +195,12 @@ Simulator and the 10 fidelity modules; the 2,400-design LHS space with parameter
 gain-search protocols (this matters — the whole paper turns on tuning method, so both the stale-D
 and ratio-preserving tuners need describing precisely, in terms of what each does to D when P moves); disjoint seed ranges per experiment.
 
+**Name the two tuners separately and say which section uses which** — this is what lets §4 defend
+itself against §6. `autotune_grid`: joint 5 × 5 Kp × Kd grid, 2 search seeds, used for the §4/§5
+population labels. `autotune_continuous`: Kd probed once at Kp = 40 then frozen while Kp sweeps to 320,
+used for §6's sim-to-real arms and the source of the artifact. A reader must be able to tell, from §3
+alone, that the failure map was never tuned the way §6 shows to be dangerous.
+
 **Two discipline items that belong here and are worth the space:**
 - **One success criterion, stated once.** SR ≥ 0.80 throughout. Where the earlier work reported
   against the 0.35 INFEASIBLE gate, say so explicitly — this is the SR<0.50 vs SR<0.80 inconsistency
@@ -218,6 +224,20 @@ T·L/(1/Iyy) = 1.18 where keff requires 1.00). Do not claim thrust is protective
 C-FRONTIER: §4.0.3's performance frontier, ρ = −0.692 against authority×delay (p=3.4e-10, n=63),
 measured under per-design optimal tuning with fresh evaluation seeds — so it is *not* contaminated by
 the frozen-Kd metric. Say that explicitly — it is why this survived when the window sections did not.
+
+**⚠ THE SHARPEST REVIEWER QUESTION, AND IT HAS A GOOD ANSWER — put it in the text, do not wait to be
+asked.** *"§6 shows your tuning protocol manufactured spurious hardware-indexed structure. Why should I
+believe §4's inertia result isn't the same artifact?"* Because **the two sections use different
+tuners, and §4's is immune by construction**:
+
+- §6's artifact comes from `autotune_continuous` — probe Kd **once** at Kp = 40, freeze it, sweep Kp
+  to 320. Decoupled, and that is exactly the mechanism.
+- §4's labels come from `autotune_grid` — a **nested double loop over Kp × Kd**, 5 × 5 = 25 combinations
+  scored jointly, 2 search seeds each (`experiment_runner.py:205`, `KP_GRID`/`KD_GRID` at :69). **D is
+  never held stale while P moves**, so the mismatch that generates the artifact cannot arise.
+
+Corroborating, not load-bearing: re-tuning the whole population on the restored simulator moved the
+labels **1.9%**. State the structural argument first — it is the one that actually settles it.
 
 **Honest limit that must appear here:** the failing-design *label* is soft. 29 of its 36 positives
 are flagged uncertain by the project's own Wilson-interval check, and a four-number screen trained on
