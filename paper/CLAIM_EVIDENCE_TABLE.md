@@ -57,6 +57,23 @@ AUC **0.954** [0.907, 0.989] on 7-seed means; **0.907** mean for a single flight
   prediction the flight campaign checks.
 - **Evidence:** `experiments/results/flight_sig_final_py.csv` (72 designs × 7 seeds)
 
+## C3b — The signature survives a pre-registered retrospective hardware test  *(new 2026-08-09)*
+
+| pass | result | p (one-sided exact) |
+|---|---|---|
+| **roll-aware replay (primary)** | **5 of 5** — TP 3, FN 0, FP 0, TN 2 | **0.100** *(= the archive's ceiling, declared before running)* |
+| as-logged (secondary) | 2 of 5 — TP 2, FN 1, FP 1, TN 1 | 0.700 |
+
+Threshold **5.62°** carried from simulation with **zero parameters refit**; grey zone [5.37, 5.62]
+declared in advance. Flown healthy 3.61 / 5.08° vs simulated EASY 3.8 ± 2.7 — **calibration transfers**.
+Flown failures 9.61 / 58.4 / 90.0° vs simulated FRAGILE 13.3 ± 5.2 (max ≈ 25) — **it does not**.
+
+- **Must state:** the p = 0.100 ceiling in the same sentence as the 5/5; that ASC031 clears the grey
+  floor by only 0.29°; that the diagnostic inherits its estimator's failure modes (2/5 as-logged); and
+  that a no-motor ground test scores 7.6°, so the rule is valid only inside a powered boost.
+- **Evidence:** `tools/retro_flight_signature.py` → `paper/retro_flight_signature.csv`;
+  pre-registration `paper/RETRO_FLIGHT_SIG_SPEC.md` committed at `5f49641` *before* the run; Fig 13.
+
 ## C4 — Self-correction record  *(methods chapter, not the thesis)*
 
 | item | number |
@@ -116,7 +133,9 @@ sentence in §9. **No longer the highest-value item; G2/G3 now lead.**
 **G2 — Measure τ on the vehicle.** `Firmware/Bench_Latency/`. Every hardware prediction is indexed on
 it and currently uses an assumed 0.035 s. Half a day.
 
-**G3 — Fly the C3 prediction.** Converts the one falsifiable hardware claim from proposed to tested.
+**G3 — [PARTLY DONE 2026-08-09] Fly the C3 prediction.** The *retrospective* half is done (C3b): 5/5
+on archived flights, p = 0.100, calibration transfer measured. What a new flight would add is an
+out-of-sample case at a known gain with a sound estimator — worth having, no longer the gating item.
 
 **G4 — Iyy / ballast sweep.** Inertia is the largest single coefficient in every fit, and ballast is
 the cheapest controlled manipulation available. Note the rebuild already moved keff 257 → 130.

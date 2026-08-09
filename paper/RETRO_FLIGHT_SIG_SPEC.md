@@ -120,19 +120,18 @@ reader to compare it to 0.954 would be misleading.
 | **ASC031** | 2026-07-12 | 20.0 | 125 | full | SUCCESS | test, **HEALTHY** |
 | **ASC007** | 2026-07-07 | 19.2 | 46 | full | FAILURE — self-aborted | test, **FAILING** |
 | **LOG001** | ≤2026-06-28 | 19.2 | 70 | no Phase col | FAILURE — diverged | test, **FAILING** |
-| ASC037 | *unlogged* | 19.2 | 134 | full + estZ | **STATIC FIRE** — see below | pipeline control only |
+| ASC037 | *unlogged* | 19.2 | 134 | full + estZ | **GROUND TEST, NO MOTOR** — corrected, see Results | pipeline control only |
 | RES005 | ≤2026-04-19 | 20.0 | 126 | TVC off | passive | pipeline control only |
 | MTR000 | 2026-07-20 | — | 343 | motor only | no ignition | excluded |
 
 **n = 5: two controlled, three uncontrolled.**
 
-**⚠ `ASC037.CSV` is on the card and in no log.** Characterized 2026-08-09 (metadata only, no signature
-quantity computed): 134 rows, 6.96 s, thrust present (peak axial 22.24 m/s² against 8.7 at rest), TVC
-commanded on every row, Phase advancing 1 → 2 — but **maximum altitude 0.78 m**. It never left the
-ground. Almost certainly the static fire matching the untracked `Firmware/StaticFire/`. **It needs a
-`FLIGHT_LOG.md` row with a `[CONFIRM]` on its purpose**, independently of this test. It is excluded
-from the signature test (a clamped vehicle has no attitude dynamics) but is a *useful pipeline control*:
-thrust is real, so the boost-window detector must find a burn, and attitude RMS must come out small.
+**⚠ `ASC037.CSV` is on the card and in no log.** ⟪CORRECTED — see Results⟫ It is a **ground handling
+test with no motor**: acceleration magnitude median 8.89 m/s² (= 1 g; a real flight reads 11.96), one
+single sample above 1.5 g, altitude max 0.78 m, but real hand-scale body rates up to 76 °/s. An earlier
+draft of this document called it a static fire with thrust present, which was wrong. **It needs a
+`FLIGHT_LOG.md` row with a `[CONFIRM]` on its purpose**, independently of this test. Excluded from the
+signature test; retained as a pipeline control, where it turned out to carry the specificity warning.
 
 **Labels are pre-assigned from documented outcome only** — recovered-and-controlled vs not — taken from
 `FLIGHT_LOG.md` as written before this test existed. They are **not** derived from tilt, saturation, or
@@ -236,6 +235,119 @@ had*, which is correct for this purpose but worth a note.
 *distribution* but not run-for-run on today's simulator (§1 grey zone). Aggregate results from that era
 stand; any analysis that needs a specific design-seed value must regenerate it rather than read it from
 the old CSV.
+
+---
+
+# RESULTS — run 2026-08-09, `tools/retro_flight_signature.py`
+
+Rule was frozen and committed (`5f49641`) before this ran. Nothing below was adjusted afterwards.
+
+## The numbers
+
+| flight | truth | as-logged RMSx / RMSy | verdict | **roll-aware replay** | **verdict** |
+|---|---|---|---|---|---|
+| ASC036 | controlled | 2.68 / 3.56 | HEALTHY ✔ | 2.69 / **3.61** | **HEALTHY ✔** |
+| ASC031 | controlled | 6.86 / 3.55 | FAILING ✘ | **5.08** / 3.92 | **HEALTHY ✔** |
+| ASC007 | failed | 8.20 / 14.99 | FAILING ✔ | 3.68 / **9.61** | **FAILING ✔** |
+| LOG001 | failed | 7.49 / 10.64 | FAILING ✔ | 88.72 / **89.98** | **FAILING ✔** |
+| ASC038 | failed | 0.17 / 2.42 | HEALTHY ✘ | 52.87 / **58.43** | **FAILING ✔** |
+
+**PRIMARY (roll-aware replay): 5 of 5 correct.** TP 3, FN 0, FP 0, TN 2, no indeterminates.
+One-sided exact **p = 0.100 — exactly the ceiling declared before running.** As predicted, the test
+cannot do better than this, and the p-value is not the point.
+
+**SECONDARY (as-logged): 2 of 5.** TP 2, FN 1, FP 1, TN 1, **p = 0.700** — indistinguishable from
+chance.
+
+## What the result actually is
+
+**1. The signature separates real flights — but only when the attitude estimate is sound.** The gap
+between 5/5 and 2/5 is entirely the estimator. This is the finding simulation could not have produced:
+*the diagnostic inherits the failure modes of whatever produces its attitude estimate.* Both errors in
+the as-logged pass are documented estimator faults, and one was pre-declared:
+
+- **ASC038 — the pre-declared miss, and it landed exactly as written.** The `dt < 0.1` guard skipped
+  `quatPropagate()`, so logged tilt froze and the flight scores **2.42° → HEALTHY** on a vehicle that
+  reached ≥161°. Pre-declaring this in §4/T2 is what makes it a result rather than an excuse.
+- **ASC031 — a false positive from the naive estimator's roll inversion.** It rolled 185.8°, past the
+  ~120° where the pre-quaternion estimator inverts. As-logged it scores 6.86° and is called FAILING;
+  replayed roll-aware it scores 5.08° and is correctly called HEALTHY.
+
+**2. ⚠ ASC031 is the fragile point of the whole result, and it must be reported that way.** At 5.08°
+it clears the grey-zone floor of 5.37° by **0.29°, about 5%**. Move the threshold 6% down and the
+headline becomes 4/5-with-one-indeterminate. It is also the one flight whose verdict *flips* between
+the two analysis passes. The primary/secondary choice was pre-registered on physical grounds (the
+estimator provably inverts above ~120° roll, and this flight rolled 186°) — but the honest statement is
+that **one of the five classifications rests on an analysis decision, not on a comfortable margin.**
+
+**3. Calibration transfers for healthy flights and fails completely for failures.** This was flagged in
+§0 as the most likely thing to change the paper, and it did:
+
+| | simulated | flown |
+|---|---|---|
+| healthy | 3.8 ± 2.7° | 3.61°, 5.08° — **squarely inside the simulated distribution** |
+| failing | 13.3 ± 5.2°, max ≈ 25° | 9.61°, **58.4°, 90.0°** |
+
+ASC007 lands inside the simulated failure range. LOG001 and ASC038 land **3–4× beyond anything the
+2,400-design population produces.** The simulation reproduces what a *working* small TVC rocket looks
+like, and substantially understates how bad a *failing* one gets — which makes sense, since every
+simulated design is tuned and merely fragile, while a real vehicle that loses control is unbounded.
+**§7 must say this.** It is a fidelity limit discovered by hardware, and it is more interesting than
+the 5/5.
+
+**4. Robustness checks that were run.**
+- **Integration error is not driving anything.** Re-integrating with 10×, 50× and 200× substeps moves
+  no score by more than 0.01° except LOG001 (89.98 → 89.57). Every verdict is invariant. Worth checking
+  because worst-case single steps reach ω·dt ≈ 22–30° on ASC031/LOG001/ASC038.
+- **The replay does not simply turn roll into a large number.** ASC031 rolled 185.8° and replays to
+  5.08°; LOG001 rolled 498.9° and replays to 90°. A high-roll flight that stays small is the internal
+  control that matters here.
+- **ASC038's replay is a lower bound with no roll information.** The same `dt` guard also skipped
+  `gyro_z += imu_gz*dt`, so logged roll rate peaks at 2 °/s and the replay integrates X/Y rates with
+  zero roll. Its 58.4° is consistent with — and below — the independent replay in `FLIGHT_LOG.md`
+  (≥161°). Fine for classification, useless as a magnitude.
+
+**5. Specificity warning from the controls.** `ASC037` is a **ground handling test with no motor**
+(below) and it scores **7.6°**, above the threshold. Hand motion alone trips the signature. The rule is
+only meaningful *inside a genuine powered boost*, and §7 must say so — otherwise the honest reading of
+"one instrumented flight diagnoses a build" is too generous.
+
+`RES005` — a real flight with **TVC disabled** — scores 9.70° and would be called FAILING. That is
+arguably correct (a vehicle with no active control *is* uncontrolled) and is consistent with the rule,
+but it was **not pre-registered, is not in the confusion table, and does not enter the p-value.**
+Reported as a post-hoc observation only.
+
+## ⚠ Correction — ASC037 is NOT a static fire
+
+An earlier draft of this spec called `ASC037` a static fire with thrust present. **That was wrong.** It
+had **no motor at all**:
+
+- acceleration **magnitude** median **8.89 m/s² = 1 g** (a real flight, ASC036, reads 11.96);
+- exactly **one** sample above 1.5 g in the whole file — a single-sample knock at t = 0.78 s, not a burn;
+- altitude max 0.78 m, vertical velocity max 0.74 m/s;
+- real body rates (up to 76 °/s) and roll drifting to 73°, i.e. **someone moving the vehicle by hand**
+  while the arm/ignition/TVC sequence ran.
+
+The error came from reading a whole-file peak `AccelZ` of 22.24 m/s² as evidence of thrust without
+checking that it was a single sample. The correct test is the acceleration **magnitude** — a clamped or
+hand-held vehicle reads 1 g whatever the motor does, because a static-fire stand reacts the thrust.
+`ASC037` still needs a `FLIGHT_LOG.md` row; it is a ground test, not a flight and not a static fire.
+
+## Verdict on C-FLIGHT
+
+**Not falsified.** The signature separated 5 of 5 archived flights on the pre-registered rule, with a
+threshold carried over from simulation with nothing refit. Given p = 0.100 that is *consistent with*
+C-FLIGHT and cannot confirm it, which is what §0 said before the data was touched.
+
+Three qualifications belong in §7 alongside it, and none of them were foreseeable from simulation:
+the signature is only as good as the attitude estimate feeding it; the healthy calibration transfers
+while the failure calibration does not; and the rule fires on hand motion, so it means something only
+inside a real boost.
+
+**Figure:** `paper/figures/fig13_retro_flight_test.png` — five flights on the simulation's own RMS
+scale, log axis, threshold and grey zone drawn.
+
+---
 
 ## 6. Deliverable
 

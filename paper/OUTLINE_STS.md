@@ -338,9 +338,39 @@ Fig 8 — the two arms overlaid: same designs, same axis, one line each. The pap
 Fig 9 — the mechanism, as a Kp×Kd plane showing where the frozen-Kd choice lands vs the coupled path.*
 
 ### §7 Flight signature and hardware — 2.0 pp
-C-FLIGHT: RMS 13.3° ± 5.2° vs 3.8° ± 2.7°, saturated fraction 0.60 vs 0.14, AUC 0.954
+C-FLIGHT: RMS 13.3° ± 5.2° vs 3.8° ± 2.7°, **slew-rate** saturated fraction 0.60 vs 0.14, AUC 0.954
 [0.907, 0.989]; single flight ≈ 0.907. Note the balanced 36/36 construction inflates AUC relative to
 deployment prevalence.
+
+⚠ **Say "slew-rate saturated fraction", never bare "saturated fraction."** It is the fraction of steps
+where the actuator *rate* limit binds. A builder reads "saturated" as *the gimbal hit its stops*, which
+is a different quantity — and one that is **identically zero across all 504 simulated runs** while the
+real flights hit it constantly (LOG001 100% of boost rows, ASC007 23.9%). The two must never share a
+table. Relabel in the text and in Fig 10's caption.
+
+**RETROSPECTIVE HARDWARE TEST — ran 2026-08-09, pre-registered, `paper/RETRO_FLIGHT_SIG_SPEC.md`.**
+The sim-derived rule (FAILING if boost-window attitude RMS ≥ 5.62°, threshold carried from simulation
+with **nothing refit**) was applied to all five archived flights. **5 of 5 correct**, TP 3 / TN 2,
+one-sided exact **p = 0.100 — which was declared as the archive's ceiling before the run.** State the
+ceiling in the same sentence as the result. Three qualifications belong here, none of them foreseeable
+from simulation, and all three are more interesting than the 5/5:
+
+1. **The signature is only as good as the attitude estimate feeding it.** Same rule on the *as-logged*
+   attitude scores **2 of 5 (p = 0.700)** — chance. Both errors are documented estimator faults:
+   ASC038's estimator froze (pre-declared in the spec before the run) so a vehicle that reached ≥161°
+   scores 2.42° and reads HEALTHY; ASC031's naive estimator inverted past ~120° roll and produced a
+   false positive. **Hardware produced this; simulation cannot.**
+2. **The healthy calibration transfers; the failure calibration does not.** Flown healthy 3.61° and
+   5.08° sit inside the simulated EASY distribution (3.8 ± 2.7). But flown failures reach **58.4° and
+   90.0°** against a simulated FRAGILE population that tops out near 25°. The simulator reproduces a
+   working vehicle well and **substantially understates how bad a failing one gets** — every simulated
+   design is tuned and merely fragile; a real vehicle losing control is unbounded.
+3. **It fires on hand motion.** ASC037, a ground test with no motor, scores 7.6°. The rule means
+   something only inside a genuine powered boost — say so, or "one flight diagnoses a build" overclaims.
+
+**Report ASC031 honestly:** at 5.08° it clears the grey-zone floor (5.37°) by 0.29°, ~5%, and it is the
+one flight whose verdict flips between the two analysis passes. One of the five rests on a
+pre-registered analysis choice, not on a comfortable margin.
 
 **The hardware dataset goes here** — measured τ from the bench (spec posted to the engineer), the
 bifilar Iyy, and whatever flight data exists by the deadline. Even a bench-only τ makes §5 and §6
@@ -352,8 +382,10 @@ inside the control loop — a failure the SIL could not express, because its clo
 file writes cost zero simulated time. This paper's simulation results carry the same qualification.
 Flight record: **2 of 6 attempts controlled.**
 
-*Fig 10 — RMS distributions by class, with the diagnostic threshold.
-Fig 11 — measured bench τ: the dead-time distribution across randomized PWM phase.*
+*Fig 10 — RMS distributions by class, with the diagnostic threshold (caption must say slew-rate).
+Fig 11 — measured bench τ: the dead-time distribution across randomized PWM phase.
+Fig 13 — **the retrospective test**: five flown flights on the simulation's own RMS scale, log axis,
+pre-registered threshold and grey zone drawn. `paper/figures/fig13_retro_flight_test.png`.*
 
 ### §8 Methods audit — 2.0 pp — **a credential, not the story**
 Not an apology, not a limitations section, and — per the emphasis ruling — **not the paper's arc**.

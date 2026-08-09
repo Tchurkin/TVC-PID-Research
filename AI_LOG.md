@@ -492,6 +492,39 @@ flights land anywhere near the simulated RMS scale at all.
 
 **Files touched / code to cite:** `paper/RETRO_FLIGHT_SIG_SPEC.md`, `tools/flight_sig_usat_threshold.py`.
 
+### 2026-08-09 — Running the retrospective flight-signature test
+
+**Tool:** Claude Opus 5 (Claude Code)
+**Categories:** CODE (`tools/retro_flight_signature.py`, Fig 13), STAT (exact test; interpretation mine)
+
+**What AI was asked to do:** run the test it had spec'd — apply the simulation-derived failure
+signature to my archived flight logs under the pre-registered rule.
+
+**What AI actually did:** verified the log column semantics against the firmware before computing
+anything (the columns named `GyroX/GyroY` are actually the tilt estimate in degrees, which would have
+silently wrecked the analysis if assumed), reused the already-validated quaternion port in
+`quat_validate.py` rather than writing a new estimator, and ran both passes. Result: 5 of 5 on the
+roll-aware replay, 2 of 5 on the as-logged attitude. It ran robustness checks I had not asked for —
+re-integrating at 10x/50x/200x substeps (every verdict invariant), and checking that the replay does
+not simply turn roll into a large number (ASC031 rolled 186° and stays at 5.08°).
+
+It also **corrected its own error from earlier the same day**: it had told me ASC037 was a static fire
+with thrust present, and on inspection the file has no motor at all — acceleration magnitude median
+1 g, one single sample above 1.5 g. It had read a whole-file peak as a burn. It fixed the spec, the
+shared board and the flight log, and wrote down the check that should have been run.
+
+**What AI did NOT do:** no prose. It did not touch the frozen threshold, and the two passes and the
+grey zone were all fixed in a committed document before the run.
+
+**Interpretation and decisions (student's):** the 5/5 is the least interesting result here — with two
+controlled flights of five it could never beat p = 0.10, which I knew going in. What I actually take
+from this: my simulator models a *working* rocket well and badly understates a failing one, and any
+on-board health check that reads the attitude estimate goes blind precisely when the estimate is what
+broke. Both are things I could only have learned from flight data.
+
+**Files touched / code to cite:** `tools/retro_flight_signature.py`, `paper/make_sts_figures.py`
+(fig13), `paper/RETRO_FLIGHT_SIG_SPEC.md`, `FLIGHT_LOG.md`, `paper/CLAIM_EVIDENCE_TABLE.md`.
+
 ### Template for future entries
 
 ```

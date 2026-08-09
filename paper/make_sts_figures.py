@@ -336,3 +336,51 @@ if __name__ == "__main__":
             ALL[k]()
         except Exception as e:
             print(f"  fig {k} FAILED: {type(e).__name__}: {e}")
+
+
+# ---- Fig 13: the retrospective flight-signature test ---------------------------
+def fig13():
+    """Five archived flights placed on the simulation's own RMS scale.
+
+    Result of the pre-registered retrospective test (paper/RETRO_FLIGHT_SIG_SPEC.md,
+    tools/retro_flight_signature.py). Log-x because two real failures land an order of
+    magnitude beyond anything the simulated population produces -- which is itself the
+    finding: the healthy scale transfers, the failure scale does not.
+    """
+    sim = pd.read_csv(SCRATCH / "hist/experiments/results/flight_sig_final_py.csv")
+    m   = sim.groupby(["rocket_id", "is_fragile"]).agg(rms=("rms", "mean")).reset_index()
+    fl  = pd.read_csv(ROOT / "paper" / "retro_flight_signature.csv")
+
+    fig, ax = plt.subplots(figsize=(FULL * 0.78, 2.9))
+    rng = np.random.default_rng(4)
+    for cl, color, name in ((0, BLUE, "simulated: tunable"), (1, ORANGE, "simulated: failed")):
+        v = m[m.is_fragile == cl].rms.values
+        y = 0.72 + (0.30 if cl else 0.0) + rng.uniform(-.075, .075, len(v))
+        ax.scatter(v, y, s=11, lw=.35, color=color, edgecolor="white", zorder=3, label=name)
+
+    ax.axvspan(5.37, 5.62, color=MUTED, alpha=.30, zorder=1, lw=0)
+    ax.axvline(5.62, color=INK, lw=.9, ls=(0, (4, 3)), zorder=4)
+    ax.annotate("pre-registered threshold 5.62°\n(band = ±5% reproducibility)",
+                (5.9, 1.24), fontsize=6.4, color=INK, ha="left", va="center")
+
+    # dodge: the two healthy flights sit close together on a log axis
+    dodge = {"ASC036": (0, -14), "ASC031": (-3, 10),
+             "ASC038": (0, 10), "LOG001": (0, -14)}
+    for _, r in fl.iterrows():
+        good = r["lab"] == 0
+        ax.scatter([r["score_rep"]], [0.30], s=52, zorder=6,
+                   marker="o" if good else "X",
+                   color=BLUE if good else ORANGE, edgecolor="white", lw=.8)
+        ax.annotate(r["id"], (r["score_rep"], 0.30), textcoords="offset points",
+                    xytext=dodge.get(r["id"], (0, -14)), fontsize=6.3, ha="center",
+                    color=BLUE if good else ORANGE)
+
+    ax.set_yticks([0.30, 0.72, 1.02])
+    ax.set_yticklabels(["flown\n(n=5)", "simulated\ntunable", "simulated\nfailed"], fontsize=6.8)
+    ax.set_ylim(0.02, 1.40)
+    ax.set_xscale("log")
+    ax.set_xlim(1.2, 260)
+    ax.set_xlabel("attitude RMS over the boost (deg, log scale)")
+    ax.legend(loc="lower center", bbox_to_anchor=(0.5, -0.34), ncol=2, handletextpad=.3,
+              columnspacing=1.4)
+    _finish(fig, ax, "fig13_retro_flight_test")
