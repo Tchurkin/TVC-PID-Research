@@ -327,6 +327,79 @@ quality bar, the go/no-go gate criteria, and the working title were all set by B
 `tools/s2r_replication.py`, `tools/ceiling_kd_free.py`, `tools/population_retune.py`,
 `tools/screen_retest_2x.py`, `tools/s2r_ic_sweep.py` — all AI-written, all committed to this repo.
 
+---
+
+### 2026-08-09 — Simulating a real mid-flight MCU reset; three firmware bugs found
+**Tool:** Claude (Anthropic), via Claude Code.
+**Categories:** `CODE`.
+
+**Prompt (mine):** "is our SIL testing as good as it can possibly get? if not keep building it"
+
+**What AI actually did:**
+- Audited the harness physics against the source and found that `g_brownedOut` was set and never acted
+  on, so `setup()` ran once per flight and `resumeAfterReset()` — the whole brownout-recovery feature —
+  had never executed in flight conditions.
+- Wrote the reset machinery (`CODE`): a `SimState` snapshot (physics + EEPROM + clock + RNG), exit code
+  7, and a relaunch driver, so a simulated reset gives genuinely fresh firmware globals.
+- Modelled the WDOG1 watchdog (previously a no-op off-target), an I²C bus hang, and a firmware lockup
+  with a duration so transient and permanent faults are distinguishable.
+- Found and fixed three firmware bugs: the `looksAirborne()` burnout blind spot (which lost the vehicle
+  outright), the discarded `mpu.getEvent()` return value, and the watchdog not covering `setup()` on an
+  in-flight reboot.
+- Checked `WireIMXRT.cpp` and **retracted** the standing FAILURE_MODES D2 claim that a stuck bus blocks
+  forever. Wrote 25 new regression locks (62 total).
+
+**Corrections I had to make to the AI's work.** It first reported the blind abort as not firing, having
+misread `p4descent=0` (which means "fired while still climbing"). It then added a `Wire.setWireTimeout()`
+call that does not exist on this core, caught only because I have it run the real `arduino-cli` Teensy
+compile. Both are reminders that a SIL PASS is not a compile, and neither is a claim.
+
+**Interpretation and decisions (student's):** that a permanent firmware lockup is an accepted, documented
+limit rather than something to engineer around; and that `WATCHDOG_SECONDS` stays at 4 s until I can
+verify the SD dump paths feed the watchdog, since a spurious reset mid-dump would be worse than the case
+it fixes.
+
+**Verification run:** `regression.py` — 62 locks, 0 failures. Real Teensy 4.1 compile clean.
+
+**Files touched / code to cite:** `Firmware/Ascent_TVC/Ascent_TVC.ino` (`looksAirborne`, `imuReadSource`,
+early `wdtStart`, the SIL `resetCause` and `wdtFeed`/`wdtStart` branches),
+`Firmware/sim_ascent/ascent_sim.cpp` (`SimState`/`stateSave`/`stateLoad`, watchdog, hang knobs),
+`Firmware/sim_ascent/shims/Adafruit_MPU6050.h`, `Firmware/sim_ascent/regression.py` (sections 6b, 6c),
+`FAILURE_MODES.md`, `DESIGN_LOG.md`.
+
+### 2026-08-09 — Renaming the tuning artifact after a domain correction I supplied
+
+**Tool:** Claude Opus 5 (Claude Code)
+**Categories:** IDEA (rejected — see below), CODE (mechanical rename)
+
+**What AI was asked to do:** apply a correction I gave it. The AI had been calling the tuning artifact
+"sequential tuning" and arguing it was standard hobbyist practice. That is wrong and I told it so:
+hobbyists alternate — adjust P, then adjust D, back and forth — which roughly keeps the ratio. Nobody
+sets D once and then just cranks P. I asked for three things: rename the mechanism, turn the
+external-validity claim into a prescription instead of a claim about what builders do, and log the
+ruling so it cannot creep back in when I write in September.
+
+**What AI actually did:** renamed the mechanism to "stale-D"/"decoupled" across `paper/OUTLINE_STS.md`,
+`paper/CLAIM_EVIDENCE_TABLE.md`, `CLAUDE.md`, and the legends of Figures 8 and 9; added a dated
+claims-ledger table to the evidence sheet; downgraded the firmware-survey gap on its own initiative,
+correctly, since that gap only existed to support the claim I had just withdrawn.
+
+**What AI did NOT do:** it did not catch this itself. The "sequential tuning is standard practice" framing
+was the AI's own idea and it had carried it through an outline, a figure set and a shared status board
+before I read it closely enough to notice. It is a domain error a search would not have caught — you have
+to have actually tuned a rocket. Recording it because it is the clearest example in this project of the
+model producing a plausible, confident, well-cited-sounding claim about the real world that is simply
+false, and of a check that only a human with hands-on experience can perform.
+
+**Interpretation and decisions (student's):** the external-validity target is automated tuners and
+simulation campaigns, not hand-tuning builders — that is where D really does get fixed once while P
+sweeps, and it is the protocol that generated the six sections of my own earlier work I had to retire.
+The prescription is: maintain the P:D ratio, and re-tune D after any change to P before judging
+stability. Someone tuning by hand is already doing this correctly.
+
+**Files touched / code to cite:** `paper/OUTLINE_STS.md`, `paper/CLAIM_EVIDENCE_TABLE.md`, `CLAUDE.md`,
+`paper/make_sts_figures.py` (label strings in figs 8 and 9). Commit `d760d0e`.
+
 ### Template for future entries
 
 ```
