@@ -319,19 +319,27 @@ Reported as a post-hoc observation only.
 
 ## ⚠ Correction — ASC037 is NOT a static fire
 
-An earlier draft of this spec called `ASC037` a static fire with thrust present. **That was wrong.** It
-had **no motor at all**:
+An earlier draft of this spec called `ASC037` a static fire with thrust present. **That was wrong.**
+Braxton has since identified it (2026-08-09) as a **launchpad dry run before a launch**, and notes the
+card holds many such test files. It had no motor:
 
-- acceleration **magnitude** median **8.89 m/s² = 1 g** (a real flight, ASC036, reads 11.96);
-- exactly **one** sample above 1.5 g in the whole file — a single-sample knock at t = 0.78 s, not a burn;
-- altitude max 0.78 m, vertical velocity max 0.74 m/s;
-- real body rates (up to 76 °/s) and roll drifting to 73°, i.e. **someone moving the vehicle by hand**
-  while the arm/ignition/TVC sequence ran.
+- **altitude max 0.78 m**, **vertical velocity max 0.74 m/s** (archive flights: 12.75–45.69 m,
+  12.04–32.64 m/s);
+- **exactly one** sample above 1.5 g in 134 rows — a knock at t = 0.78 s (archive flights: 11–62);
+- real body rates up to 76 °/s and roll drifting to 73° — someone handling the vehicle while the
+  arm/ignition/TVC sequence ran.
 
-The error came from reading a whole-file peak `AccelZ` of 22.24 m/s² as evidence of thrust without
-checking that it was a single sample. The correct test is the acceleration **magnitude** — a clamped or
-hand-held vehicle reads 1 g whatever the motor does, because a static-fire stand reacts the thrust.
-`ASC037` still needs a `FLIGHT_LOG.md` row; it is a ground test, not a flight and not a static fire.
+**Two successive mis-tests, both recorded because both are easy to repeat.** The original error read a
+whole-file peak `AccelZ` of 22.24 m/s² as thrust without checking it was a single sample. The fix
+written in its place — median acceleration magnitude — is *also* not decisive: **ASC031 is a real
+flight and reads 8.97 m/s² against ASC037's 8.89**, because a log spanning the coast is near free-fall
+for much of its length. Only altitude, vertical velocity and the count of samples above 1.5 g separate
+the archive cleanly. `tools/triage_card.py` implements those three.
+
+**Consequence for this test's power, and it is the cheapest remaining improvement.** n is what caps the
+p-value, and the card has never been triaged. Every additional *labelled* flight lowers the ceiling:
+2/3 → p_min 0.100 (today), 3/3 → 0.050, 4/4 → 0.014. One more flight of each class would take this
+result below 0.05 with no new hardware, no new launch, and no change to the frozen rule.
 
 ## Verdict on C-FLIGHT
 

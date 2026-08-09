@@ -209,25 +209,34 @@ the linkage-flip date cited in the firmware header — so the copy date is a goo
 Found on the card during the retrospective flight-signature work; it had never been logged. **This is
 not a flight and not a static fire.** Evidence, all computed from `Rocket data/ASC037.CSV`:
 
-| quantity | ASC037 | a real flight (ASC036) | reading |
-|---|---|---|---|
-| acceleration **magnitude**, median | **8.89 m/s²** | 11.96 | 1 g — nothing is accelerating it |
-| samples above 1.5 g | **1 of 134** (t = 0.78 s) | many | a single knock, not a burn |
-| altitude max | **0.78 m** | 21.8 m | never left the ground |
-| vertical velocity max | **0.74 m/s** | 13.7 m/s | ditto |
-| body rates | up to 76 °/s, roll drifting to 73° | — | **someone was moving it by hand** |
-| TVC saturated | 56.5% of the "boost" window | 0.0% | controller winding up against no response |
+**IDENTIFIED (Braxton, 2026-08-09):** a **launchpad dry run before a launch**. He notes the card holds
+many such files from system testing. Recorded as his identification, not derived from the data — the
+log itself cannot distinguish a pad dry run from any other motorless handling test. Consistent with
+everything measured below, so no `[CONFIRM]` remains on *what it was*; the date is still unknown.
 
-So: the full arm → ignition-command → TVC → phase-advance sequence ran, on a vehicle with no motor,
+| quantity | ASC037 | flights in the archive | decisive? |
+|---|---|---|---|
+| **altitude max** | **0.78 m** | 12.75 – 45.69 m | **yes** |
+| **vertical velocity max** | **0.74 m/s** | 12.04 – 32.64 m/s | **yes** |
+| **samples above 1.5 g** | **1 of 134** (t = 0.78 s) | 11 – 62 | **yes** |
+| acceleration magnitude, median | 8.89 m/s² | **8.74 – 19.66** | **NO — see below** |
+| peak `AccelZ` | 22.24 m/s² | 19.62 – 29.16 | **NO — see below** |
+| body rates | up to 76 °/s, roll drifting to 73° | — | hand motion |
+| TVC saturated | 56.5% of the "boost" window | 0.0% on controlled flights | controller winding up against no response |
+
+So: the full arm → ignition-command → TVC → phase-advance sequence ran on a motorless vehicle that was
 being handled. 134 rows, 6.96 s, 19.2 Hz, Phase advancing 1 → 2.
 
-`[CONFIRM]` **what this run was for** — a deliberate handling/response rehearsal, or a dry run that was
-never written up? The data cannot distinguish, and only Braxton knows.
+⚠ **Two things that look like thrust and are not.**
+- **Peak `AccelZ`.** ASC037's 22.24 m/s² is *one sample* — a knock. This log was briefly mis-identified
+  as a static fire on exactly that basis.
+- **Median acceleration magnitude.** This was then written up as the correct test, and it is *also
+  wrong*: **ASC031 is a real flight and reads 8.97 m/s², against ASC037's 8.89.** A log spanning the
+  coast is near free-fall for much of its length, so the median sits near 1 g either way.
 
-⚠ **Do not treat the peak `AccelZ` of 22.24 m/s² as thrust.** It is one sample. This log was briefly
-mis-identified as a static fire on exactly that basis. The correct test is the acceleration
-*magnitude*: a clamped **or** hand-held vehicle reads ~1 g no matter what the motor is doing, because a
-static-fire stand reacts the thrust into the ground.
+**Use altitude, vertical velocity and the count of samples above 1.5 g** — those three agree on every
+file in the archive and separate it cleanly. `tools/triage_card.py` applies them; point it at the SD
+card before copying anything into `Rocket data/`.
 
 **It also produced a real result.** As a control for the flight-signature test it scores **7.6° RMS**,
 above the 5.62° failure threshold — i.e. *hand motion alone trips the signature*. That is the
