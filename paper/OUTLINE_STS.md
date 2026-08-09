@@ -26,6 +26,30 @@ maintains the ratio and therefore sits **outside** the artifact regime. **This p
 manual tuning.** Any sentence implying hobbyists tune the way the autotuner does is unsupported and
 must not appear in §6, §10, or the abstract.
 
+**Prevalence rule (Braxton, 2026-08-09).** **The paper never claims the decoupled protocol is
+common.** Prevalence in other people's tools is **unknown and must be stated as unknown** — there is no
+survey, and the gap that would have provided one (G1) was withdrawn. C-KD is a **conditional** claim:
+*if* a tuner or a simulation campaign decouples the gains, here is what it manufactures, here is the
+diagnostic, here is the fix. A conditional warning does not need prevalence data to be worth
+publishing; it needs the condition to be easy to fall into, and this project is the existence proof.
+
+**And the result is the masquerade, not the crashing.** "Don't freeze D while sweeping P or things
+break" is trivial and would not deserve a section. What is not trivial: stale-D tuning does **not**
+degrade uniformly. It fails *selectively, in proportion to hardware quantities* — 0.087 → 0.700 across
+authority×delay in Arm A versus 0.022 → 0.013 in Arm B, so the bad tuner is ~4× worse at low
+authority×delay and ~56× worse at high. That arrives as a smooth monotone dose-response against
+measurable hardware parameters (ρ = +0.236, p = 1e-31), i.e. **exactly what a physical limit looks
+like**. An inadequate tuning protocol does not add noise to an experiment; it adds **counterfeit
+laws** — thresholds, scaling exponents, regime boundaries — that careful analysis will mistake for
+vehicle physics.
+
+**Say which structure dissolved and which held.** Do not write "it was all an artifact." Under the
+same free-Kd test the window/floor family collapsed (keff exponent −0.803 → +0.196, floor reversing
+sign +0.662 → −0.848) while **C-CEILING survived** (−0.071 at fixed Kd, matching −0.082 measured
+independently, positive control ρ −0.762 vs published −0.74). A diagnostic that kills everything is
+not a diagnostic. One that discriminates is the whole point, and it is why the ceiling is still in
+this paper as a lead finding.
+
 **Emphasis ruling (Braxton, 2026-08-09 — final).** This paper is the **positive characterization**.
 The abstract and §1 lead with **finding 1, the failure map (who fails — inertia, the frontier)** and
 **finding 2, the 1/τ gain ceiling**. The decoupled-tuning result is **finding 3**, and it is presented
@@ -103,8 +127,8 @@ drift back out of order while drafting.
 | 2 | what was done | 2,400-design simulated space, 10 fidelity modules, per-design gain search. | n = 2400 |
 | 3 | **finding 1 — the map** | Failing builds are **low-inertia** builds; achievable performance falls with authority×delay under optimal tuning. | **100%** of 36 failures below the 25th pctile of Iyy; ρ = **−0.692**, p = 3.4e-10 |
 | 4 | **finding 2 — the ceiling** | The usable-gain ceiling is set by loop delay and is **independent of control authority**, at a fixed Kd. | τ exponent **−1.067**; keff **−0.082** CI [−0.21, +0.05]; recalibrated **0.0661/τ** |
-| 5 | **finding 3 — tuning method** | *Then*, and only here: how the gain is searched for changes which designs are found to fail. Freezing D while sweeping P produces a strong authority×delay failure trend; tying D to P removes it. | **56/80 → 1/80**; ρ **+0.236** vs **−0.117** |
-| 6 | the prescription | Maintain the P:D ratio; re-tune D after any change to P before judging stability. Named audience: automated tuners and simulation campaigns. | — |
+| 5 | **finding 3 — tuning method** | *Then*, and only here: a decoupled gain search does not merely add noise — it produces a smooth, hardware-indexed failure trend that reads as a physical law and is not one. Tying D to P removes it. | **56/80 → 1/80**; ρ **+0.236** vs **−0.117** |
+| 6 | the prescription, **conditional** | Maintain the P:D ratio; re-tune D after any change to P before judging stability. Named audience: automated tuners and simulation campaigns. **No prevalence claim** — "if your pipeline does this," never "pipelines do this." | — |
 | 7 | the hardware test | One instrumented flight distinguishes a marginal build. | AUC **0.954** [0.907, 0.989] |
 | 8 | scope | Simulation, with the measured-τ / flight qualification from §7. | — |
 
@@ -124,7 +148,7 @@ Ordered by the emphasis ruling: leads first, tuning method third.
 | **C-FRONTIER** | *(lead 1)* Achievable performance degrades with authority×delay under optimal tuning | ρ = **−0.692** vs authority×delay, p=3.4e-10, n=63 | 4 | 4 |
 | **C-CEILING** | *(lead 2)* The usable-gain ceiling is set by loop delay, not authority — **at a fixed Kd** | keff **−0.082** CI [−0.21,+0.05]; τ **−1.067**; control ρ −0.762 vs −0.74 | 5 | 6 |
 | **C-S2R** | *(finding 3)* A gain tuned in still air fails under full physics, with a monotone dose-response | 6.0% → **78.3%** across authority×delay bins, n=2400 | 6 | 7 |
-| **C-KD** | *(finding 3)* Holding D fixed while P sweeps (stale-D) is what produces that trend; re-tuning D with P removes it | **56/80 → 1/80** at high risk; ρ +0.236 vs −0.117 | 6 | 8, 9 |
+| **C-KD** | *(finding 3)* A decoupled gain search (D fixed while P sweeps) generates **spurious hardware-indexed structure** — it counterfeits a law rather than adding noise; re-tuning D with P removes it. Conditional; prevalence unknown | **56/80 → 1/80** at high risk; ρ +0.236 vs −0.117; ~4× worse at low authority×delay vs ~56× at high | 6 | 8, 9 |
 | **C-FLIGHT** | A failing build is identifiable from one instrumented flight | RMS **13.3°±5.2°** vs **3.8°±2.7°**; AUC **0.954** [0.907,0.989] | 7 | 10, 11 |
 | **C-AUDIT** | The measurement protocol, not the hardware, drove several published effects | pre-registered test **8/8**; floor exponent +1.06→+0.21→−0.20 | 8 | 12 |
 
@@ -134,7 +158,9 @@ Ordered by the emphasis ruling: leads first, tuning method third.
 the `window_ratio` family *as originally measured* · the binary classifier as a headline ·
 "thrust is irrelevant or protective" · "strong p_unstable interaction" ·
 "each correction strengthened the AUC" · **"sequential tuning is what hobbyists do" / any claim that
-common manual practice sits inside the artifact regime** — manual practice is *alternating* and this
+common manual practice sits inside the artifact regime** · **any claim that decoupled tuning is
+*common* in other people's tools — prevalence is unmeasured and must be stated as unknown
+(2026-08-09)** · **"it was all an artifact"** — the ceiling survived the same test — manual practice is *alternating* and this
 project measured no manual tuning at all (Braxton, domain correction, 2026-08-09)
 
 ---
@@ -266,8 +292,11 @@ visually), with both 0.042/τ and the recalibrated fit drawn.*
 
 ### §6 Sim-to-real: what the tuning method does to the result — 3.5 pp — **finding 3**
 
-**Framing (emphasis ruling).** This is a **discovery about tuning methodology**, stated positively:
-*how you search for a gain determines which designs you will find to be failures.* It is not the
+**Framing (emphasis ruling + prevalence rule).** This is a **discovery about tuning methodology**,
+stated positively and in one sentence: **a decoupled gain search generates spurious structure that
+masquerades as vehicle physics.** Not "bad tuning breaks rockets" — that is obvious and would not earn
+a section. The claim is **conditional** (if your pipeline decouples, this is what you will measure) and
+**prevalence elsewhere is stated as unknown.** It is not the
 paper's headline and it is not a retraction. Write it as a finding with a prescription attached — a
 reader who has never seen this project's earlier work should read §6 straight through and take away a
 usable rule, with no sense that anything is being walked back. The audit belongs in §8.
@@ -284,9 +313,12 @@ Build it in this order:
    **Report counts, not a 1-decimal rate:** 1/80 = 1.25%, so "1.3%" and "1.2%" are both rounding
    artifacts of a single event. 95% Wilson CIs are [59.2%, 78.9%] and [0.22%, 6.75%] — non-overlapping
    by a wide margin, which is the honest way to show the effect survives its own uncertainty.
-3. **The mechanism.** `autotune_continuous` probes Kd once at Kp=40, freezes it, sweeps Kp to 320;
-   designs whose best gain lands far from the probe get a mismatched Kd, and the mismatch grows with
-   authority×delay.
+3. **The mechanism, and why it counterfeits a law.** `autotune_continuous` probes Kd once at Kp=40,
+   freezes it, sweeps Kp to 320; designs whose best gain lands far from the probe get a mismatched Kd,
+   and **the mismatch grows with authority×delay**. That last clause is the whole finding: the damage
+   is not uniform, it is *indexed to hardware*, which is why it emerges as a smooth dose-response
+   rather than as scatter. Give the two ratios — stale-D is ~4× worse than ratio-preserving at low
+   authority×delay and ~56× worse at high. **The masquerade is the result, not the failures.**
 4. **External validity — state it as a PRESCRIPTION, not an ethnography.** The paper has no data on
    how humans tune, and manual practice is *alternating* (adjust P, re-adjust D, repeat), which
    roughly preserves the ratio and therefore sits outside the regime measured here. So the claim is
@@ -294,11 +326,12 @@ Build it in this order:
 
    > **Maintain the P:D ratio. Re-tune D after any change to P, before judging stability.**
 
-   Say who this squarely applies to: **automated tuners and simulation campaigns**, where D is
-   commonly fixed once and P is then swept — exactly the protocol that produced six retired sections
-   of this project's own prior work. That is a concrete, checkable audience, and the paper has direct
-   evidence for it. A builder tuning by hand is already doing the right thing; the value to them is
-   knowing *why* the ratio matters and what it costs when it slips.
+   Say who it applies to **conditionally**: any **automated tuner or simulation campaign** that fixes
+   D once and then sweeps P — which is exactly the protocol that produced six retired sections of this
+   project's own prior work, so the paper has direct evidence that the condition is easy to fall into.
+   **State plainly that prevalence in other tools is unknown**: no survey was performed, and the claim
+   is therefore "if your pipeline does this" and not "pipelines do this." A builder tuning by hand is
+   already doing the right thing; the value to them is knowing *why* the ratio matters.
 
 *Fig 7 — failure rate vs authority×delay, the dose-response curve.
 Fig 8 — the two arms overlaid: same designs, same axis, one line each. The paper's key figure.
@@ -343,6 +376,11 @@ Then the cascade: floor exponent +1.06 → +0.21 → −0.20 across protocols; t
 validation check that asserted nothing for its entire existence (`theta_true` constant across 601
 samples); a stored instability column inverted for 1,196 of 2,400 rows.
 
+**The discriminating result belongs here, and it is what makes §8 a credential rather than a mea
+culpa:** the same free-Kd test that dissolved the window/floor family left the gain ceiling standing
+(−0.071 at fixed Kd vs −0.082 measured independently; positive control ρ −0.762 vs published −0.74).
+A test that kills everything is not a test. Say so in one sentence.
+
 Close on the general rule the audit produced: **every experiment needs a positive control**, and a
 result that matches expectation is the one to distrust.
 
@@ -352,13 +390,15 @@ result that matches expectation is the one to distrust.
 No mechanism isolated. No dimensionless invariant; the τ exponent is not identified (1.71 / 1.35 /
 controlled test favored 1). No cross-architecture claim. Simulation-only except where §7 says
 otherwise, with the ASC038 qualification. The failing-design label is soft. **On §6's scope:** this
-project measured no manual tuning, so nothing is claimed about what builders do — the stale-D result
-is about automated gain searches. State it as scope, in one sentence, not as a confession.
+project measured no manual tuning and surveyed no other codebase, so nothing is claimed about what
+builders do *or* about how common the decoupled protocol is elsewhere — §6 is a conditional result
+plus a documented case study of one pipeline. State it as scope, in one sentence, not as a confession.
 
 ### §10 Impact for builders — 0.5 pp
 **Impact paragraph, not the thesis.** Maintain the P:D ratio — re-tune D after any change to P
-before judging stability. Aim this at autotuners and sim campaigns; do NOT imply hand-tuners are
-doing it wrong, since alternating manual practice already preserves the ratio. Screen a
+before judging stability. Aim this at autotuners and sim campaigns, **conditionally** ("if your
+pipeline does this"), with no claim about how widespread that is; do NOT imply hand-tuners are doing
+it wrong, since alternating manual practice already preserves the ratio. Screen a
 design before cutting metal from four measurable numbers. Use 0.042/τ as a conservative gain limit.
 One instrumented flight at a known gain diagnoses a marginal build.
 

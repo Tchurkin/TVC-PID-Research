@@ -93,6 +93,15 @@ regime. This project measured no manual tuning. External validity is a **prescri
 the P:D ratio; re-tune D after any change to P before judging stability* — aimed at **autotuners and
 simulation campaigns**, not a claim about what builders do.
 
+⚠ **PREVALENCE + FRAMING (2026-08-09).** Never say the decoupled protocol is *common* — prevalence in
+other people's tools is **unmeasured** and is stated as unknown. The claim is **conditional**: *if* a
+pipeline decouples the gains, this is what it manufactures. And the result is the **masquerade, not
+the crashing**: stale-D fails *selectively, in proportion to hardware* (~4× worse than ratio-preserving
+at low authority×delay, ~56× at high), so it emerges as a smooth dose-response that reads as a physical
+law. "Bad tuning breaks rockets" is trivial; "an inadequate protocol counterfeits laws" is the finding.
+Never write "it was all an artifact" — the ceiling survived the same test, and that contrast is what
+shows the diagnostic discriminates.
+
 Same cause, four independent appearances: the `window_ratio` family (floor inflated 1.8–2.9×, keff
 exponent +1.06 → +0.21 → −0.20), the gain ceiling (**8.8× higher** with Kd free), sim-to-real
 (above), and Braxton's own pre-registered `frozen_kd_artifact_test` (8/8 past its own bar, 2026-06-22).

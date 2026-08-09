@@ -427,6 +427,36 @@ the audit would bury two results that are independently worth reporting and woul
 
 **Files touched / code to cite:** `paper/OUTLINE_STS.md`, `paper/CLAIM_EVIDENCE_TABLE.md`, `CLAUDE.md`.
 
+### 2026-08-09 — Catching a prevalence overclaim, and restating what finding 3 actually is
+
+**Tool:** Claude Opus 5 (Claude Code)
+**Categories:** CODE (document restructuring only)
+
+**What AI was asked to do:** I pushed back on two things. First, that the automated tuner we used is
+not obviously common — nobody surveyed other people's code. Second, that "if you don't adapt D the
+rocket crashes" is obvious and does not deserve a section. I asked for the outline to state prevalence
+as unknown, make the claim conditional, and reframe the finding around the masquerade.
+
+**What AI actually did:** struck the word "commonly" from §6 (it had left it there), made C-KD
+conditional in §6, §9 and §10, added a prevalence rule to the outline's standing rules, and rewrote
+the framing around selectivity — the point being that stale-D is ~4× worse than ratio-preserving at
+low authority×delay but ~56× worse at high, so the damage is indexed to hardware and arrives as a
+smooth dose-response rather than as scatter. It also added, on its own, that the paper must not say
+"it was all an artifact," since the gain ceiling survived the same free-Kd test that killed the
+window/floor family — and that the survives/dies contrast is what shows the test discriminates.
+
+**What AI did NOT do:** it did not catch the prevalence overclaim. That is the second time in one day
+its summary drifted toward a stronger claim than the data supports, in the same direction both times,
+and both were caught by me rather than by it.
+
+**Interpretation and decisions (student's):** the honest scope of finding 3 is a documented case study
+— the tuning protocol is part of the experiment, and a decoupled one generates spurious structure that
+careful analysis will mistake for vehicle physics; caught by pre-registration, ships with a diagnostic
+and a fix, prevalence elsewhere unknown and stated as unknown. That is smaller than a warning about
+common practice and it is still the most distinctive thing in the paper.
+
+**Files touched / code to cite:** `paper/OUTLINE_STS.md`, `paper/CLAIM_EVIDENCE_TABLE.md`, `CLAUDE.md`.
+
 ### Template for future entries
 
 ```
