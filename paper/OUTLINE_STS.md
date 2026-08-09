@@ -32,8 +32,8 @@ is not deferred to October.
 |---|---|---|---|
 | 1 | Introduction — the builder's problem | 1.5 | motivation, the four numbers, the question |
 | 2 | Background — what is already known | 0.75 | delay-margin theory; what is NOT new here |
-| 3 | Methods — simulator, design space, protocols | 3.0 | credibility; the seed/threshold discipline |
-| 4 | The failure map — who fails | 3.25 | **C-INERTIA**, **C-FRONTIER** |
+| 3 | Methods — simulator, design space, protocols | 2.5 | credibility; the seed/threshold discipline |
+| 4 | The failure map — who fails (incl. 0.5 pp surprise sidebar) | 3.75 | **C-INERTIA**, **C-FRONTIER** |
 | 5 | The gain ceiling — why they fail | 2.5 | **C-CEILING** |
 | 6 | Sim-to-real — the tuning method is the cause | 3.5 | **C-S2R**, **C-KD** (the headline) |
 | 7 | Flight signature — the hardware test | 2.0 | **C-FLIGHT** + measured τ dataset |
@@ -42,10 +42,11 @@ is not deferred to October.
 | 10 | Impact for builders | 0.5 | impact paragraph, NOT the thesis |
 | | **total** | **20.0** | |
 
-**If the rerun says the window sections LIVE**, §5 grows to 3.5 and **§3 drops to 2.0** — still 20.0.
-Methods is the right donor: it is the section where figure captions can carry the most load.
+**Conditional resolved 2026-08-09:** the rerun cut the window sections, so this is the live budget.
+§3 gave up 0.5 pp to fund §4's surprise sidebar — Methods is the right donor because its figure
+captions carry the most load.
 
-**What was cut to get from 21 to 20, and why these four:**
+**What was cut to get from 21 to 20, and why:**
 - §2 Background 1.0 → 0.75. STS guidelines forbid a long literature history anyway.
 - §4 3.5 → 3.25, by dropping **Fig 5** (the coefficient plot). It was already flagged first-cut; the
   same coefficients read fine as a table inline.
@@ -58,21 +59,6 @@ Methods is the right donor: it is the section where figure captions can carry th
 
 Figure count drops to **11** with Fig 5 cut.
 
----|---|---|---|
-| 1 | Introduction — the builder's problem | 1.5 | motivation, the four numbers, the question |
-| 2 | Background — what is already known | 1.0 | delay-margin theory; what is NOT new here |
-| 3 | Methods — simulator, design space, protocols | 3.0 | credibility; the seed/threshold discipline |
-| 4 | The failure map — who fails | 3.5 | **C-INERTIA**, **C-FRONTIER** |
-| 5 | The gain ceiling — why they fail | 2.5 | **C-CEILING** (+ window sections, conditional) |
-| 6 | Sim-to-real — the tuning method is the cause | 3.5 | **C-S2R**, **C-KD** (the headline) |
-| 7 | Flight signature — the hardware test | 2.0 | **C-FLIGHT** + measured τ dataset |
-| 8 | Methods audit — how the measurements were checked | 2.5 | **C-AUDIT** (methodology highlight) |
-| 9 | Limitations and what is not claimed | 0.75 | the negative space |
-| 10 | Impact for builders | 0.75 | hobbyist usefulness — impact para, NOT the thesis |
-| | **total** | **21.0** | trim 1 page in §3 or §4 after first draft |
-
-Budget deliberately runs 1 page long. First drafts overshoot; cut from Methods (§3) once the figure
-captions are carrying their weight, or drop Fig 5 if §4 is tight.
 
 ---
 
@@ -114,7 +100,7 @@ reviewer. Note the absence of hobby-scale TVC in the literature. STS guidelines 
 literature history: keep it short.
 *No figure.*
 
-### §3 Methods — 3.0 pp
+### §3 Methods — 2.5 pp
 Simulator and the 10 fidelity modules; the 2,400-design LHS space with parameter ranges; the
 gain-search protocols (this matters — the whole paper turns on tuning method, so both the sequential
 and coupled tuners need describing precisely); disjoint seed ranges per experiment.
@@ -130,7 +116,7 @@ and coupled tuners need describing precisely); disjoint seed ranges per experime
 Fig 2 — the two tuning protocols side by side, as a diagram. This figure does a lot of work in §6;
 put it here so §6 can just refer back.*
 
-### §4 The failure map — who fails — 3.5 pp
+### §4 The failure map — who fails — 3.75 pp (3.25 body + 0.5 sidebar)
 The paper's title section. Which builds fail, as a map over the measurable numbers.
 
 C-INERTIA: 100% of the 36 failing designs sit below the population 25th percentile of Iyy; median
@@ -147,6 +133,29 @@ the frozen-Kd metric. Say that explicitly; it is why this survives when the wind
 are flagged uncertain by the project's own Wilson-interval check, and a four-number screen trained on
 it scores AUC 0.985 against that label but **0.57** against an independent harsher probe. The map is
 real; the binary line drawn on it is not sharp.
+
+**SIDEBAR — "What surprised a builder" (0.5 pp, boxed, inside §4).** Expectation / measurement /
+implication, one row each. A **communication device, not new claims** — every row below is already
+established in the corpus and carries its citation. Four things a builder expects to matter that do
+not, then the one that does.
+
+| a builder expects | what was measured | implication |
+|---|---|---|
+| **A faster servo buys control.** Rate limit is the thing you upgrade. | Servo speed does not mark a failing design: r = **+0.037** (p = 0.071, n = 2400) across 60–200 °/s. Removing the rate limit *entirely* moves success **+0.005** (Wilcoxon p = 0.128, n = 142). | Spend the money elsewhere. **Nuance that must stay:** failing designs *do* saturate — 0.597 of the burn vs 0.089 — so saturation is a **symptom worth watching** (it is what §7's flight signature detects) but not the cause. |
+| **Wind is the enemy.** Gusts are what you tune against. | Wind strength does not mark a failing design: r = **−0.000** (p = 1.0) over a 9× range (0.05–0.45), and it does not predict still-air-tuning failure either (ρ = +0.017, p = 0.4, n = 2400). | Wind sets *how hard* the job is, not *which builds* fail. Screening on the four numbers is unaffected by the day's weather. |
+| **An aerodynamically unstable airframe is harder to fly.** | Stability margin does not mark a failing design: r(static margin) = **+0.011** (p = 0.6), r(Cm_alpha) = **−0.004** (p = 0.86). | Under active TVC at this scale, fin/CG stability is not the discriminator. **Scope this narrowly** — see the rejected row below. |
+| **A more powerful rocket needs a gentler gain.** | The gain ceiling is set by loop delay and is independent of authority — keff exponent **−0.005**, **−0.071**, **−0.082** across three independent measurements, every CI spanning zero. | The ceiling formula needs your loop rate, not your thrust. A powerful rocket is not automatically a twitchy one. |
+| **Build it light.** | Light means low pitch inertia, and **all 36** failing designs sit below the population 25th percentile of Iyy (median 0.19× the population). | The one intuition that *should* change behaviour: mass at the ends is control authority you already paid for. |
+
+**Two candidates vetted and REJECTED — do not ship:**
+- *"Aerodynamics contributes almost nothing at this scale."* Supported only in the **narrow** form
+  above (stability margin does not predict failure). The broad claim is contradicted by the
+  minimal-physics study, which found aerodynamic coupling **necessary** to generate the disturbance
+  environment at all — direct wind alone was 10–100× too weak. Ship the narrow row, not the slogan.
+- *"Adding wind makes the vehicle settle better"* (dead-zone dither). Real and locked in
+  `sim/validate.py`, but the magnitude moves ~5× with sensor-noise configuration and the linear
+  actuator improves too, so the "it is the dead zone" story does not hold up. Not robust enough for
+  a builder-facing row.
 
 *Fig 3 — the failure map itself: Iyy × latency, 2,400 designs, failures marked. Title figure.
 Fig 4 — performance frontier, peak achievable SR vs authority×delay.
