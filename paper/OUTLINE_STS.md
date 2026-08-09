@@ -15,8 +15,9 @@ paper that axis is called **authority×delay** and is presented as a *plotting c
 never named Π, never described as dimensionless, invariant, or a discovered parameter. The screen is
 stated in terms of the four measurable numbers (thrust, nozzle arm, Iyy, loop delay), not a composite.
 
-**One entry is conditional:** §5 depends on the Kd-free window rerun (`tools/window_kd_free.py`).
-Both branches are budgeted below — see §5. Everything else is decided.
+**All sections are decided.** The one conditional — §5's window sections — was resolved 2026-08-09 by
+`tools/window_kd_free.py`: the control passed and the window narrowing did not survive a free Kd, so
+those sections are cut. See §5.
 
 ---
 
@@ -68,7 +69,7 @@ Figure count drops to **11** with Fig 5 cut.
 |---|---|---|---|---|
 | **C-KD** | Sequential tuning (P then D) causes the failures; coupling Kd to Kp removes them | **56/80 → 1/80** at high risk; ρ +0.236 vs −0.117 | 6 | 8, 9 |
 | **C-S2R** | A gain tuned in still air fails under full physics, with a monotone dose-response | 6.0% → **78.3%** across authority×delay bins, n=2400 | 6 | 7 |
-| **C-CEILING** | The usable-gain ceiling is set by loop delay, not authority — **at a fixed Kd** | keff **−0.082** CI [−0.21,+0.05]; τ **−1.067**; control ρ −0.762 vs −0.74 | 5 | 5, 6 |
+| **C-CEILING** | The usable-gain ceiling is set by loop delay, not authority — **at a fixed Kd** | keff **−0.082** CI [−0.21,+0.05]; τ **−1.067**; control ρ −0.762 vs −0.74 | 5 | 6 |
 | **C-INERTIA** | Failing builds are low-inertia builds | **100%** of the 36 failing designs below the 25th pctile of Iyy | 4 | 3 |
 | **C-FRONTIER** | Achievable performance degrades with authority×delay under optimal tuning | ρ = **−0.692** vs authority×delay, p=3.4e-10, n=63 | 4 | 4 |
 | **C-FLIGHT** | A failing build is identifiable from one instrumented flight | RMS **13.3°±5.2°** vs **3.8°±2.7°**; AUC **0.954** [0.907,0.989] | 7 | 10, 11 |
@@ -92,7 +93,7 @@ delay, can you tell whether this build will be tunable? State the four numbers e
 they are the paper's spine. Close on what the paper measures, not what it discovers.
 *No figure.*
 
-### §2 Background — 1.0 pp
+### §2 Background — 0.75 pp
 What is already known: the delay-margin gain ceiling is classical (Ziegler–Nichols; standard
 sequential PID tuning is P-then-D by construction). Say plainly that **C-CEILING is a re-derivation
 in a new domain, not a discovery** — claiming otherwise is the fastest way to lose a controls
@@ -127,7 +128,7 @@ T·L/(1/Iyy) = 1.18 where keff requires 1.00). Do not claim thrust is protective
 
 C-FRONTIER: §4.0.3's performance frontier, ρ = −0.692 against authority×delay (p=3.4e-10, n=63),
 measured under per-design optimal tuning with fresh evaluation seeds — so it is *not* contaminated by
-the frozen-Kd metric. Say that explicitly; it is why this survives when the window sections may not.
+the frozen-Kd metric. Say that explicitly — it is why this survived when the window sections did not.
 
 **Honest limit that must appear here:** the failing-design *label* is soft. 29 of its 36 positives
 are flagged uncertain by the project's own Wilson-interval check, and a four-number screen trained on
