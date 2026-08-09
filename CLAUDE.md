@@ -70,7 +70,8 @@ same designs:
 
 Arm A reproduces the published curve **bin by bin**; Arm B is identical except the tuner ties Kd to
 Kp. ρ(log Π, fail): A = +0.236 (p = 1e-31), B = −0.117 (wrong sign). Failure at high Π drops
-**70% → 1.3%**.
+**56 of 80 → 1 of 80** designs (95% Wilson CIs [59.2%, 78.9%] vs [0.22%, 6.75%], non-overlapping).
+Report counts rather than a 1-decimal rate — 1/80 = 1.25%, so "1.3%" was a rounding artifact.
 
 Mechanism: `autotune_continuous` probes Kd once at Kp = 40, freezes it, then sweeps Kp to 320, so
 designs whose best gain lands far from the probe get a mismatched Kd — and the mismatch grows with

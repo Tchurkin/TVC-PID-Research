@@ -80,7 +80,7 @@ captions are carrying their weight, or drop Fig 5 if §4 is tight.
 
 | tag | claim | strongest number | § | fig |
 |---|---|---|---|---|
-| **C-KD** | Sequential tuning (P then D) causes the failures; coupling Kd to Kp removes them | 70% → **1.3%** at high risk; ρ +0.236 vs −0.117 | 6 | 8, 9 |
+| **C-KD** | Sequential tuning (P then D) causes the failures; coupling Kd to Kp removes them | **56/80 → 1/80** at high risk; ρ +0.236 vs −0.117 | 6 | 8, 9 |
 | **C-S2R** | A gain tuned in still air fails under full physics, with a monotone dose-response | 6.0% → **78.3%** across authority×delay bins, n=2400 | 6 | 7 |
 | **C-CEILING** | The usable-gain ceiling is set by loop delay, not authority — **at a fixed Kd** | keff **−0.082** CI [−0.21,+0.05]; τ **−1.067**; control ρ −0.762 vs −0.74 | 5 | 5, 6 |
 | **C-INERTIA** | Failing builds are low-inertia builds | **100%** of the 36 failing designs below the 25th pctile of Iyy | 4 | 3 |
@@ -181,7 +181,10 @@ Build it in this order:
 2. **The cause (C-KD).** Two arms on the same 2,400 designs, differing only in the tuner. Arm A
    (sequential, the standard method) reproduces the published curve **bin by bin** — quote
    0.120/0.120 and 0.238/0.238 as the exact hits. Arm B (Kd tied to Kp) gives 0.022 → 0.013.
-   ρ vs authority×delay: **+0.236** (p=1e-31) vs **−0.117** (wrong sign). Failure at high risk **70% → 1.3%**.
+   ρ vs authority×delay: **+0.236** (p=1e-31) vs **−0.117** (wrong sign). Failure at high risk **56 of 80 → 1 of 80** designs.
+   **Report counts, not a 1-decimal rate:** 1/80 = 1.25%, so "1.3%" and "1.2%" are both rounding
+   artifacts of a single event. 95% Wilson CIs are [59.2%, 78.9%] and [0.22%, 6.75%] — non-overlapping
+   by a wide margin, which is the honest way to show the effect survives its own uncertainty.
 3. **The mechanism.** `autotune_continuous` probes Kd once at Kp=40, freezes it, sweeps Kp to 320;
    designs whose best gain lands far from the probe get a mismatched Kd, and the mismatch grows with
    authority×delay.
