@@ -7,7 +7,47 @@ Recover the sim-phase CSVs first: `git archive bb22d36^ experiments/results tool
 
 ---
 
-## C1 — Stale-D tuning fails; preserving the P:D ratio fixes it  *(the headline)*
+## C0 — The failure map: who fails  *(LEAD FINDING, §4 — added 2026-08-09 per the emphasis ruling)*
+
+This section did not exist while C1 was "the headline." It is now what the paper leads with.
+
+**C-INERTIA — failing builds are low-inertia builds.**
+
+| quantity | value |
+|---|---|
+| failing designs below the population 25th pctile of Iyy | **36 of 36 = 100%** |
+| median Iyy of failing designs | **0.19×** the population median |
+| unregularized joint fit, standardized, bootstrap 95% CIs | log(1/Iyy) **+2.37** [1.94, 3.14] · log(T·L) **+1.77** [1.30, 2.45] · log(τ) **+2.90** [2.24, 3.92] |
+
+All three coefficients positive with CIs excluding zero — **do not claim thrust is protective**. An
+earlier "it is inertia, not authority" reading came from L2 regularization penalising a manually-added
+intercept column and was retracted.
+
+**C-FRONTIER — achievable performance degrades with authority×delay.** ρ = **−0.692**, p = 3.4e-10,
+n = 63, under per-design optimal tuning with fresh evaluation seeds.
+
+### ⚠ The protocol defence — the single most load-bearing sentence in the paper
+
+A reviewer who has read §6 will ask: *you showed your tuning protocol manufactures spurious
+hardware-indexed structure; why is the inertia result not the same artifact?* The answer is
+**structural, not statistical**, and it settles the question outright:
+
+| section | tuner | does D go stale while P moves? |
+|---|---|---|
+| §6 (the artifact) | `autotune_continuous` — probe Kd once at Kp = 40, freeze, sweep Kp to 320 | **yes — that is the mechanism** |
+| §4 / §5 (population labels) | `autotune_grid` — nested double loop over Kp × Kd, **5 × 5 = 25 combinations scored jointly**, 2 search seeds each | **no — impossible by construction** |
+
+`sim/experiment_runner.py:205`, grids at `:69`. Because `autotune_grid` never holds D fixed while P
+sweeps, the mismatch that generates the artifact cannot arise in the data behind C-INERTIA or
+C-FRONTIER. Corroborating but *not* load-bearing: re-tuning the whole population on the restored
+simulator moved the labels **1.9%**.
+
+**State the structural argument first, in §3 and again in §4.** It was documented nowhere until
+2026-08-09 — the paper could not previously defend its own lead claim.
+
+**Evidence:** `exp1_final_population_py.csv`; §4.0.3 frontier data; `tools/population_retune.py`
+
+## C1 — Stale-D tuning fails; preserving the P:D ratio fixes it  *(finding 3, §6 — NOT the headline; see the emphasis ruling)*
 
 | | auth×delay < 300 | auth×delay ≥ 300 | ρ vs auth×delay |
 |---|---|---|---|
