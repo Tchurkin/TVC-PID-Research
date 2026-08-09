@@ -20,10 +20,45 @@ Both branches are budgeted below — see §5. Everything else is decided.
 
 ---
 
-## Page budget
+## Page budget — lands at exactly 20, both branches
+
+**Sep 7 means "20 pages, formatted."** One page over cap is not a finished deliverable; the page
+limit is a disqualification-class rule, not a style preference. The trim below is already made — it
+is not deferred to October.
+
+**Base case — the §5 window sections are CUT** (see §5):
 
 | § | Section | pp | Carries |
 |---|---|---|---|
+| 1 | Introduction — the builder's problem | 1.5 | motivation, the four numbers, the question |
+| 2 | Background — what is already known | 0.75 | delay-margin theory; what is NOT new here |
+| 3 | Methods — simulator, design space, protocols | 3.0 | credibility; the seed/threshold discipline |
+| 4 | The failure map — who fails | 3.25 | **C-INERTIA**, **C-FRONTIER** |
+| 5 | The gain ceiling — why they fail | 2.5 | **C-CEILING** |
+| 6 | Sim-to-real — the tuning method is the cause | 3.5 | **C-S2R**, **C-KD** (the headline) |
+| 7 | Flight signature — the hardware test | 2.0 | **C-FLIGHT** + measured τ dataset |
+| 8 | Methods audit — how the measurements were checked | 2.5 | **C-AUDIT** (methodology highlight) |
+| 9 | Limitations and what is not claimed | 0.5 | the negative space |
+| 10 | Impact for builders | 0.5 | impact paragraph, NOT the thesis |
+| | **total** | **20.0** | |
+
+**If the rerun says the window sections LIVE**, §5 grows to 3.5 and **§3 drops to 2.0** — still 20.0.
+Methods is the right donor: it is the section where figure captions can carry the most load.
+
+**What was cut to get from 21 to 20, and why these four:**
+- §2 Background 1.0 → 0.75. STS guidelines forbid a long literature history anyway.
+- §4 3.5 → 3.25, by dropping **Fig 5** (the coefficient plot). It was already flagged first-cut; the
+  same coefficients read fine as a table inline.
+- §9 Limitations 0.75 → 0.5. A tight list is more credible than a discursive one.
+- §10 Impact 0.5. Braxton's own instruction: hobbyist usefulness is the impact paragraph, not the
+  thesis — a paragraph is half a page.
+
+**Protected at full budget:** §6 (headline), §8 (the pre-registered test), §4 (title section), §3
+(rigor is what Top 300 judges). Do not raid these.
+
+Figure count drops to **11** with Fig 5 cut.
+
+---|---|---|---|
 | 1 | Introduction — the builder's problem | 1.5 | motivation, the four numbers, the question |
 | 2 | Background — what is already known | 1.0 | delay-margin theory; what is NOT new here |
 | 3 | Methods — simulator, design space, protocols | 3.0 | credibility; the seed/threshold discipline |

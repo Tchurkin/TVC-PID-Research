@@ -168,7 +168,7 @@ def main() -> None:
     print(f"=== Kd-free gain-window rerun: {len(rows)} designs of {len(pop)} ===")
     print(f"  {len(rows) * len(KP_GRID) * len(KD_GRID) * len(EVAL_SEEDS):,} sims")
 
-    CHUNK = 20
+    CHUNK = 5     # small: this job has been killed repeatedly, so checkpoint often
     for i in range(0, len(rows), CHUNK):
         res = pd.DataFrame(Parallel(n_jobs=args.jobs, verbose=0)(
             delayed(sweep)(r) for r in rows[i:i + CHUNK]))
