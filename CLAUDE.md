@@ -56,6 +56,15 @@ weak, say so.
 
 # What the audit established (2026-08-02 → 08-04)
 
+## Paper emphasis (Braxton's final ruling, 2026-08-09)
+
+The STS paper is the **positive characterization**, in this order: **(1)** the failure map — who fails,
+and that it is inertia; **(2)** the 1/τ gain ceiling; **(3)** the decoupled-tuning result, framed as a
+**discovery about tuning methodology** (a prescription plus a warning to autotuners and simulation
+campaigns), **not as a retraction story**. The abstract's first result sentence is inertia, not the
+artifact. The six retired sections are one paragraph, §8 is ~2 pp, and nothing is called "the headline."
+Encoded as an abstract slot-order table in `paper/OUTLINE_STS.md`.
+
 ## The central result
 
 **Effects attributed to rocket hardware were substantially artifacts of tuning the derivative gain

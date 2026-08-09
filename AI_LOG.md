@@ -400,6 +400,33 @@ stability. Someone tuning by hand is already doing this correctly.
 **Files touched / code to cite:** `paper/OUTLINE_STS.md`, `paper/CLAIM_EVIDENCE_TABLE.md`, `CLAUDE.md`,
 `paper/make_sts_figures.py` (label strings in figs 8 and 9). Commit `d760d0e`.
 
+### 2026-08-09 — Applying my emphasis ruling to the paper outline
+
+**Tool:** Claude Opus 5 (Claude Code)
+**Categories:** CODE (document restructuring only)
+
+**What AI was asked to do:** I ruled that the paper is the positive characterization — abstract and
+intro lead with the failure map plus inertia and the 1/τ ceiling, with the decoupled-tuning result
+third and framed as a finding about tuning methodology rather than a retraction. I asked it to reorder
+the outline to match and to log the ruling.
+
+**What AI actually did:** added an abstract slot-order table (eight slots, which numbers go in each),
+demoted §6 from "THE HEADLINE" to finding 3, reordered the claims table leads-first, cut §8 from 2.5 to
+2.0 pp and moved that half page to §5, and wrote the ruling into the claims ledger. While doing it, it
+found that the per-section page headings had drifted from the budget table — §9 and §10 still read
+0.75 pp each, so the section notes summed to 20.5 against a table total of 20.0, and a stale line
+claimed §3 keeps 3.0 pp after §3 had been cut to 2.5. It flagged both and reconciled them to the table.
+
+**What AI did NOT do:** no prose. The abstract slot table says what each sentence must contain and in
+what order; every sentence is mine to write. The emphasis decision is mine and is the substance here —
+the AI executed a reordering, it did not choose the ordering.
+
+**Interpretation and decisions (student's):** the two lead findings stand on their own and a reader
+meeting this work for the first time should get the science before the correction history. Leading with
+the audit would bury two results that are independently worth reporting and would read as a confession.
+
+**Files touched / code to cite:** `paper/OUTLINE_STS.md`, `paper/CLAIM_EVIDENCE_TABLE.md`, `CLAUDE.md`.
+
 ### Template for future entries
 
 ```

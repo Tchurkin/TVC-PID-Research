@@ -26,6 +26,18 @@ maintains the ratio and therefore sits **outside** the artifact regime. **This p
 manual tuning.** Any sentence implying hobbyists tune the way the autotuner does is unsupported and
 must not appear in §6, §10, or the abstract.
 
+**Emphasis ruling (Braxton, 2026-08-09 — final).** This paper is the **positive characterization**.
+The abstract and §1 lead with **finding 1, the failure map (who fails — inertia, the frontier)** and
+**finding 2, the 1/τ gain ceiling**. The decoupled-tuning result is **finding 3**, and it is presented
+as a **discovery about tuning methodology** — a prescription plus a warning aimed at autotuners and
+simulation campaigns — **not as a retraction story**. Concretely:
+
+- The abstract's first sentence of results is inertia/the map. Not the artifact.
+- §6 is *a finding*, not "the headline." Nothing in the paper is labelled the headline any more.
+- The six retired sections are **one paragraph**, in §8, and §8 is **~2 pp**. The audit is a
+  methodology credential, not the story.
+- No sentence anywhere frames the paper as being about correcting earlier work.
+
 **All sections are decided.** The one conditional — §5's window sections — was resolved 2026-08-09 by
 `tools/window_kd_free.py`: the control passed and the window narrowing did not survive a free Kd, so
 those sections are cut. See §5.
@@ -45,11 +57,11 @@ is not deferred to October.
 | 1 | Introduction — the builder's problem | 1.5 | motivation, the four numbers, the question |
 | 2 | Background — what is already known | 0.75 | delay-margin theory; what is NOT new here |
 | 3 | Methods — simulator, design space, protocols | 2.5 | credibility; the seed/threshold discipline |
-| 4 | The failure map — who fails (incl. 0.5 pp surprise sidebar) | 3.75 | **C-INERTIA**, **C-FRONTIER** |
-| 5 | The gain ceiling — why they fail | 2.5 | **C-CEILING** |
-| 6 | Sim-to-real — the tuning method is the cause | 3.5 | **C-S2R**, **C-KD** (the headline) |
+| 4 | The failure map — who fails (incl. 0.5 pp surprise sidebar) | 3.75 | **C-INERTIA**, **C-FRONTIER** *(lead finding 1)* |
+| 5 | The gain ceiling — why they fail | **3.0** | **C-CEILING** *(lead finding 2)* |
+| 6 | Sim-to-real — what tuning method does to the result | 3.5 | **C-S2R**, **C-KD** *(finding 3)* |
 | 7 | Flight signature — the hardware test | 2.0 | **C-FLIGHT** + measured τ dataset |
-| 8 | Methods audit — how the measurements were checked | 2.5 | **C-AUDIT** (methodology highlight) |
+| 8 | Methods audit — how the measurements were checked | **2.0** | **C-AUDIT** (credential, not story) |
 | 9 | Limitations and what is not claimed | 0.5 | the negative space |
 | 10 | Impact for builders | 0.5 | impact paragraph, NOT the thesis |
 | | **total** | **20.0** | |
@@ -66,23 +78,53 @@ captions carry the most load.
 - §10 Impact 0.5. Braxton's own instruction: hobbyist usefulness is the impact paragraph, not the
   thesis — a paragraph is half a page.
 
-**Protected at full budget:** §6 (headline), §8 (the pre-registered test), §4 (title section), §3
-(rigor is what Top 300 judges). Do not raid these.
+**Protected at full budget:** §4 and §5 (the two lead findings), §6 (finding 3), §3 (rigor is what
+Top 300 judges). Do not raid these. §8 is the donor if anything overruns — it was cut 2.5 → 2.0 by the
+emphasis ruling and can go to 1.75 before it stops carrying the pre-registered test.
+
+**Reconciled 2026-08-09:** the per-section headings below had drifted from this table (§9 and §10 still
+read 0.75, which summed to 20.5, and §5's note claimed §3 keeps 3.0 after §3 was already cut to 2.5).
+The table is authoritative; headings now match it.
 
 Figure count drops to **11** with Fig 5 cut.
 
 
 ---
 
+## Abstract skeleton — slot order is the emphasis ruling made concrete
+
+**Structure only. Braxton writes every sentence.** ~200 words, one slot per sentence-ish. The order
+below is not stylistic — it is what the ruling requires, and it is the easiest thing in the paper to
+drift back out of order while drafting.
+
+| # | slot | what goes in it | numbers available |
+|---|---|---|---|
+| 1 | problem | A builder can measure thrust, nozzle arm, pitch inertia and loop delay before cutting metal, and cannot currently predict from them whether the vehicle will be tunable. | the four numbers |
+| 2 | what was done | 2,400-design simulated space, 10 fidelity modules, per-design gain search. | n = 2400 |
+| 3 | **finding 1 — the map** | Failing builds are **low-inertia** builds; achievable performance falls with authority×delay under optimal tuning. | **100%** of 36 failures below the 25th pctile of Iyy; ρ = **−0.692**, p = 3.4e-10 |
+| 4 | **finding 2 — the ceiling** | The usable-gain ceiling is set by loop delay and is **independent of control authority**, at a fixed Kd. | τ exponent **−1.067**; keff **−0.082** CI [−0.21, +0.05]; recalibrated **0.0661/τ** |
+| 5 | **finding 3 — tuning method** | *Then*, and only here: how the gain is searched for changes which designs are found to fail. Freezing D while sweeping P produces a strong authority×delay failure trend; tying D to P removes it. | **56/80 → 1/80**; ρ **+0.236** vs **−0.117** |
+| 6 | the prescription | Maintain the P:D ratio; re-tune D after any change to P before judging stability. Named audience: automated tuners and simulation campaigns. | — |
+| 7 | the hardware test | One instrumented flight distinguishes a marginal build. | AUC **0.954** [0.907, 0.989] |
+| 8 | scope | Simulation, with the measured-τ / flight qualification from §7. | — |
+
+**Slot 5 must not migrate above slot 3.** If a draft's first result sentence is about tuning method,
+the ruling has been violated. **The word "retraction," and any framing of the paper as a correction of
+earlier work, does not appear in the abstract at all.**
+
+---
+
 ## Claims that make the cut
+
+Ordered by the emphasis ruling: leads first, tuning method third.
 
 | tag | claim | strongest number | § | fig |
 |---|---|---|---|---|
-| **C-KD** | Holding D fixed while P sweeps (stale-D) causes the failures; re-tuning D with P removes them | **56/80 → 1/80** at high risk; ρ +0.236 vs −0.117 | 6 | 8, 9 |
-| **C-S2R** | A gain tuned in still air fails under full physics, with a monotone dose-response | 6.0% → **78.3%** across authority×delay bins, n=2400 | 6 | 7 |
-| **C-CEILING** | The usable-gain ceiling is set by loop delay, not authority — **at a fixed Kd** | keff **−0.082** CI [−0.21,+0.05]; τ **−1.067**; control ρ −0.762 vs −0.74 | 5 | 6 |
-| **C-INERTIA** | Failing builds are low-inertia builds | **100%** of the 36 failing designs below the 25th pctile of Iyy | 4 | 3 |
-| **C-FRONTIER** | Achievable performance degrades with authority×delay under optimal tuning | ρ = **−0.692** vs authority×delay, p=3.4e-10, n=63 | 4 | 4 |
+| **C-INERTIA** | *(lead 1)* Failing builds are low-inertia builds | **100%** of the 36 failing designs below the 25th pctile of Iyy | 4 | 3 |
+| **C-FRONTIER** | *(lead 1)* Achievable performance degrades with authority×delay under optimal tuning | ρ = **−0.692** vs authority×delay, p=3.4e-10, n=63 | 4 | 4 |
+| **C-CEILING** | *(lead 2)* The usable-gain ceiling is set by loop delay, not authority — **at a fixed Kd** | keff **−0.082** CI [−0.21,+0.05]; τ **−1.067**; control ρ −0.762 vs −0.74 | 5 | 6 |
+| **C-S2R** | *(finding 3)* A gain tuned in still air fails under full physics, with a monotone dose-response | 6.0% → **78.3%** across authority×delay bins, n=2400 | 6 | 7 |
+| **C-KD** | *(finding 3)* Holding D fixed while P sweeps (stale-D) is what produces that trend; re-tuning D with P removes it | **56/80 → 1/80** at high risk; ρ +0.236 vs −0.117 | 6 | 8, 9 |
 | **C-FLIGHT** | A failing build is identifiable from one instrumented flight | RMS **13.3°±5.2°** vs **3.8°±2.7°**; AUC **0.954** [0.907,0.989] | 7 | 10, 11 |
 | **C-AUDIT** | The measurement protocol, not the hardware, drove several published effects | pre-registered test **8/8**; floor exponent +1.06→+0.21→−0.20 | 8 | 12 |
 
@@ -103,7 +145,14 @@ project measured no manual tuning at all (Braxton, domain correction, 2026-08-09
 The builder tunes in a still-air simulator, flies, and the rocket oscillates or leans. Frame the
 question as **prediction before construction**: given thrust, nozzle arm, pitch inertia and loop
 delay, can you tell whether this build will be tunable? State the four numbers explicitly here —
-they are the paper's spine. Close on what the paper measures, not what it discovers.
+they are the paper's spine.
+
+**Lead order is fixed by the emphasis ruling.** The contribution paragraph previews, in this order:
+(1) the failure map — which builds fail, and that it is inertia; (2) the gain ceiling, and that it is
+set by delay rather than authority; (3) that how the gain is searched for changes which designs are
+found to fail, which is a result about tuning methodology with a one-line prescription. **The intro
+does not open on, or build toward, the tuning result**, and it does not describe the paper as revising
+earlier work. Close on what the paper measures, not what it discovers.
 *No figure.*
 
 ### §2 Background — 0.75 pp
@@ -176,7 +225,7 @@ not, then the one that does.
 Fig 4 — performance frontier, peak achievable SR vs authority×delay.
 Fig 5 — coefficient plot, the three factors with bootstrap CIs. (Cut this one first if §4 overruns.)*
 
-### §5 The gain ceiling — why they fail — 2.5 pp
+### §5 The gain ceiling — why they fail — 3.0 pp — **lead finding 2**
 C-CEILING with all three honesty items stated in the text, not a footnote:
 1. **"At a fixed Kd."** The ceiling is 8.8× higher when Kd is free (paired, 94% of designs,
    p=4.9e-9). A builder flies one Kd, so the fixed-Kd case is the operationally relevant one — say
@@ -202,7 +251,8 @@ adequate precision). Result:
 - With Kd free the window is mostly **unmeasurable**: 80% ceiling-censored, median window 8000×,
   i.e. the entire tested grid. For most designs, any gain works once D tracks P.
 
-So §5 stays at **2.5 pages** and §3 keeps its 3.0 — the base budget stands, no reallocation needed.
+§5 is **3.0 pages** — raised from 2.5 by the emphasis ruling and funded by §8's cut, since the ceiling
+is now a lead finding and its three honesty items each need room in the running text.
 The window result becomes **one paragraph in §8** as the fifth independent confirmation of the
 Kd artifact.
 
@@ -214,12 +264,19 @@ floor that was carrying the artifact all along.
 *Fig 6 — measured ceiling vs 1/τ, log-log, colored by keff (shows the authority-independence
 visually), with both 0.042/τ and the recalibrated fit drawn.*
 
-### §6 Sim-to-real: the tuning method is the cause — 3.5 pp — **THE HEADLINE**
+### §6 Sim-to-real: what the tuning method does to the result — 3.5 pp — **finding 3**
+
+**Framing (emphasis ruling).** This is a **discovery about tuning methodology**, stated positively:
+*how you search for a gain determines which designs you will find to be failures.* It is not the
+paper's headline and it is not a retraction. Write it as a finding with a prescription attached — a
+reader who has never seen this project's earlier work should read §6 straight through and take away a
+usable rule, with no sense that anything is being walked back. The audit belongs in §8.
+
 Build it in this order:
 
 1. **The phenomenon (C-S2R).** Still-air-tuned gains fail under full physics, monotone in
    authority×delay: 6.0% → 78.3% across bins, n=2400. Report the **curve**, one threshold.
-2. **The cause (C-KD).** Two arms on the same 2,400 designs, differing only in what the tuner does
+2. **The mechanism that produces it (C-KD).** Two arms on the same 2,400 designs, differing only in what the tuner does
    to D when P moves. Arm A (**stale D** — D probed once at P = 40 and frozen while P sweeps to 320,
    which is what the autotuner does) reproduces the published curve **bin by bin** — quote
    0.120/0.120 and 0.238/0.238 as the exact hits. Arm B (Kd tied to Kp) gives 0.022 → 0.013.
@@ -265,9 +322,16 @@ Flight record: **2 of 6 attempts controlled.**
 *Fig 10 — RMS distributions by class, with the diagnostic threshold.
 Fig 11 — measured bench τ: the dead-time distribution across randomized PWM phase.*
 
-### §8 Methods audit — 2.5 pp — **the methodology highlight**
-Not an apology and not a limitations section. The claim: several published effects were properties of
-the measurement protocol, and here is how that was found and quantified.
+### §8 Methods audit — 2.0 pp — **a credential, not the story**
+Not an apology, not a limitations section, and — per the emphasis ruling — **not the paper's arc**.
+Cut 2.5 → 2.0; the half page went to §5. The claim is narrow and positive: several measured effects
+turned out to be properties of the measurement protocol, and here is the discipline that caught them.
+
+**Hard limit: the retired work is ONE paragraph.** All six retired sections — the `window_ratio`
+family, the causal saturation result, the controller-invariance comparisons scored on the retired
+metric — get a single paragraph naming what was withdrawn and why. Do not narrate them one at a time.
+A reader should finish §8 thinking *this student checks his own work*, not *this student made six
+mistakes.*
 
 Lead with the **pre-registered test**: `frozen_kd_artifact_test.py`, 2026-06-22, decision criteria
 written into the file *before* the run, asymmetric so the easy outcome was "carry on" — and 8 of 8
@@ -284,13 +348,14 @@ result that matches expectation is the one to distrust.
 
 *Fig 12 — the floor exponent across the four protocols, with the pre-registered threshold drawn.*
 
-### §9 Limitations and what is not claimed — 0.75 pp
+### §9 Limitations and what is not claimed — 0.5 pp
 No mechanism isolated. No dimensionless invariant; the τ exponent is not identified (1.71 / 1.35 /
 controlled test favored 1). No cross-architecture claim. Simulation-only except where §7 says
-otherwise, with the ASC038 qualification. The failing-design label is soft. Sequential tuning being
-*the community's* practice is argued, not yet surveyed.
+otherwise, with the ASC038 qualification. The failing-design label is soft. **On §6's scope:** this
+project measured no manual tuning, so nothing is claimed about what builders do — the stale-D result
+is about automated gain searches. State it as scope, in one sentence, not as a confession.
 
-### §10 Impact for builders — 0.75 pp
+### §10 Impact for builders — 0.5 pp
 **Impact paragraph, not the thesis.** Maintain the P:D ratio — re-tune D after any change to P
 before judging stability. Aim this at autotuners and sim campaigns; do NOT imply hand-tuners are
 doing it wrong, since alternating manual practice already preserves the ratio. Screen a
@@ -320,9 +385,11 @@ Appendix 11 risk form (rocket motors) — dad as Designated Supervisor.
 
 ## Gaps ranked, for September
 
-1. **Firmware survey** — three GitHub firmwares already audited in `HEADLINE_FINAL.md`, plus
-   BPS.space's documented process. Converts §6's generalization from argument to evidence. **Highest
-   value, and it is a weekend of reading, not a compute campaign.**
-2. **Measured τ** — spec going to the engineer; makes §7 concrete.
-3. **Kd-free window rerun** — running; decides §5's conditional page.
-4. **Re-score LQR/SMC on a common metric** — only if §5's window sections live.
+1. **Measured τ** — spec posted to the engineer; makes §7 concrete, and it is the only open Sep-7
+   gate item.
+2. **Flight data** — tests C-FLIGHT on hardware; the one falsifiable prediction the paper makes.
+3. ~~Kd-free window rerun~~ — **DONE 2026-08-09.** Control passed; §5's window sections are cut.
+4. ~~Firmware survey~~ — **DOWNGRADED 2026-08-09.** It existed to argue stale-D is common practice;
+   that claim is withdrawn (manual practice is alternating), so it no longer buys §6 anything. At
+   most one sentence in §9. Not September work.
+5. **Re-score LQR/SMC on a common metric** — moot; the window sections are cut.
