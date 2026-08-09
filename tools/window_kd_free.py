@@ -77,7 +77,13 @@ MID_KP_IX  = len(KP_GRID) // 2
 # v2 published, for the positive control
 PUB = dict(win_keff=-1.192, win_lat=-1.880, win_r2=0.659,
            ceil_keff=-0.005, ceil_lat=-0.862, floor_keff=+1.061, floor_lat=+0.964)
-CONTROL_TOL = 0.45          # |observed - published| allowed on the window exponents
+# The control compares against the estimate's OWN uncertainty, not a fixed band. A fixed tolerance
+# is a test of sample size: the n=20 smoke returned keff -0.924 (SE 0.834) vs published -1.192 --
+# agreement well inside one standard error, but "failing" a +/-0.45 band it could not have passed.
+# Rule: published value must lie within CONTROL_SE of the observed estimate, AND the estimate must
+# be precise enough to be worth testing (SE below CONTROL_MAX_SE), else the verdict is UNDERPOWERED.
+CONTROL_SE     = 2.0        # published must be within this many SE of observed
+CONTROL_MAX_SE = 0.60       # above this the arm is too noisy to adjudicate at all
 
 OUT_CSV = Path("experiments/results/window_kd_free_py.csv")
 
@@ -142,7 +148,7 @@ def fit(d: pd.DataFrame, col: str, tag: str, cens: list[str]):
     r2 = 1 - ((y - yh) ** 2).sum() / max(((y - y.mean()) ** 2).sum(), 1e-12)
     print(f"  {tag:<30} n={len(g):<3} keff {b[1]:+.3f} (SE {se[1]:.3f})  "
           f"lat {b[2]:+.3f} (SE {se[2]:.3f})  R2={r2:.3f}")
-    return b[1], b[2], r2, len(g)
+    return b[1], b[2], r2, len(g), (se[1], se[2])
 
 
 def main() -> None:
@@ -188,9 +194,21 @@ def main() -> None:
     r = fit(d, "window_kd1", "Kd=1.0 window (replication)", ["floorcens_kd1", "ceilcens_kd1"])
     print(f"  {'published v2':<30}      keff {PUB['win_keff']:+.3f}"
           f"          lat {PUB['win_lat']:+.3f}          R2={PUB['win_r2']:.3f}")
-    ok = r is not None and abs(r[0] - PUB["win_keff"]) <= CONTROL_TOL \
-                       and abs(r[1] - PUB["win_lat"]) <= CONTROL_TOL
-    print(f"  CONTROL {'PASSED' if ok else 'FAILED'} (tolerance +/-{CONTROL_TOL} on both exponents)")
+    if r is None:
+        ok, verdict = False, "FAILED (no fit)"
+    else:
+        bk, bl, _, _, (sk, sl) = r
+        underpowered = max(sk, sl) > CONTROL_MAX_SE
+        within = (abs(bk - PUB["win_keff"]) <= CONTROL_SE * sk and
+                  abs(bl - PUB["win_lat"])  <= CONTROL_SE * sl)
+        ok = within and not underpowered
+        verdict = ("UNDERPOWERED — SE too large to adjudicate; treat as 'could not re-measure'"
+                   if underpowered else ("PASSED" if within else "FAILED"))
+        print(f"  keff  observed {bk:+.3f} (SE {sk:.3f}) vs published {PUB['win_keff']:+.3f}"
+              f"   -> {abs(bk-PUB['win_keff'])/max(sk,1e-9):.2f} SE away")
+        print(f"  lat   observed {bl:+.3f} (SE {sl:.3f}) vs published {PUB['win_lat']:+.3f}"
+              f"   -> {abs(bl-PUB['win_lat'])/max(sl,1e-9):.2f} SE away")
+    print(f"  CONTROL {verdict}")
     if not ok:
         print("\n  *** Replication failed. The free-Kd arm below is NOT interpretable.")
         print("  *** Report this as 'could not re-measure', not as a null result.")

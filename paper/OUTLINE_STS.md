@@ -164,11 +164,28 @@ C-CEILING with all three honesty items stated in the text, not a footnote:
 3. **Sample conditionality.** ρ = −0.76 on the authority-stratified sample vs **−0.38** on a
    population-representative one. Same code, same seeds, only the design set differs.
 
-**CONDITIONAL — the window sections.** If `tools/window_kd_free.py` shows the narrowing survives a
-free Kd, add ~1 page here restating the six inherited window sections with the caveat, and take the
-page from §3. If it vanishes, they are **cut entirely** and the result becomes one paragraph in §8
-as the fourth confirmation of the Kd artifact. **Do not write §5 past this paragraph until the rerun
-lands.**
+**RESOLVED 2026-08-09 — the window sections are CUT.** `tools/window_kd_free.py`, 120 designs,
+positive control PASSED (replication within 1.86 SE and 1.45 SE of v2's published exponents, with
+adequate precision). Result:
+
+- The window's authority dependence **collapses**: keff exponent **−0.803 (SE 0.209)** with Kd frozen
+  at v2's value, **+0.196 (SE 0.309)** with Kd free — a confidence interval spanning zero.
+- The mechanism is the **floor**, and it *reverses sign*: **+0.662 (SE 0.144)** frozen versus
+  **−0.848 (SE 0.116)** free, t = −7.3. The floor rising with authority is what closed the window,
+  and it does not survive a free Kd.
+- Freeing Kd widens the window by a median **13.6×** (n=115, 97% of designs wider, Wilcoxon
+  p = 5.9×10⁻²⁰) — a paired result that does not depend on the regression.
+- With Kd free the window is mostly **unmeasurable**: 80% ceiling-censored, median window 8000×,
+  i.e. the entire tested grid. For most designs, any gain works once D tracks P.
+
+So §5 stays at **2.5 pages** and §3 keeps its 3.0 — the base budget stands, no reallocation needed.
+The window result becomes **one paragraph in §8** as the fifth independent confirmation of the
+Kd artifact.
+
+**One thing this test also did: it corroborated C-CEILING a third time.** The ceiling's authority
+exponent came out **−0.071 (SE 0.059)** at fixed Kd — indistinguishable from zero, matching the
+−0.082 measured independently on v2's designs. The ceiling is authority-independent; it was the
+floor that was carrying the artifact all along.
 
 *Fig 6 — measured ceiling vs 1/τ, log-log, colored by keff (shows the authority-independence
 visually), with both 0.042/τ and the recalibrated fit drawn.*
