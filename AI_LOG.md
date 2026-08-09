@@ -147,9 +147,15 @@ outcome unchanged; and create a per-flight log covering the flights already flow
   Monte-Carlo dispersion vectors — 0 differences**. Compiled the real Teensy 4.1 target with
   `arduino-cli` (clean, `--warnings all`) and recorded the RAM/FLASH delta from the actual linker
   output. Disassembled `captureControl` from the ELF to bound its cost by instruction count.
-- Wrote **3 throwaway Python analysis scripts** (`CODE`) in a session scratch directory, **not** in this
-  repository: a paired SIL equivalence harness, a per-flight fact extractor, and an integral-trim
-  residual test. **Action required if cited:** commit and cite them.
+- Wrote **5 throwaway Python analysis scripts** (`CODE`) in a session scratch directory, **not** in this
+  repository: a paired SIL equivalence harness, a per-flight fact extractor, an integral-trim residual
+  test, an ASC007 saturation-vs-roll timing test, and an **offline estimator replay** that re-runs both
+  the naive integrator and the roll-aware quaternion on ASC007's and ASC031's own logged rate histories.
+  **Action required if cited:** commit and cite them. The replay result (that the naive estimator inverts
+  in sign, but that ASC031 shows inversion alone is not sufficient) is recorded in `DESIGN_LOG.md`
+  2026-08-02 and `FLIGHT_LOG.md`; **the interpretation and the decision not to change any code are
+  Braxton's**, prompted by his challenge to an earlier AI assessment that had called the mechanism
+  merely "contested".
 - **Wrote `FLIGHT_LOG.md` and `FLIGHT_LOG.csv`** as a lab record, populating the measured columns by
   computing them from the raw SD logs. Fields not supported by data are marked `[CONFIRM]`, unfilled.
 
@@ -171,6 +177,155 @@ residual test, which means it does not validate the current build's servo sign c
 `FLIGHT_LOG.md`, `FLIGHT_LOG.csv`, `DESIGN_LOG.md` (2026-08-02 entry).
 
 ---
+
+### 2026-08-03 — Pre-flight firmware changes (signs, linkage ratio, burnout ramp, button-exit, brownout recovery)
+**Tool:** Claude (Anthropic), via Claude Code.
+**Categories:** `CODE`.
+
+**What AI was asked to do:** flip the TVC servo signs after a failed bench check; apply the measured 1:5.5
+linkage ratio; make a button press exit the firmware's terminal `while(true)` states; smooth the burnout
+servo return; and add EEPROM-backed brownout recovery so a power glitch in flight does not cost the chute.
+
+**What AI actually did:** wrote all of the above into `Ascent_TVC.ino` (`CODE`, committed flight firmware —
+**cite in-text if any number it produces reaches the Research Report**), added `Firmware/sim/shims/EEPROM.h`
+and a `--seedphase` test flag plus an explicit `LINKAGE_SENSE` constant to `ascent_sim.cpp`. Ran the
+validation rather than asserting it: real Teensy 4.1 compile, an 8-case SIL battery, a 300-case Monte Carlo
+(89.3/10.3/0.3% vs 89.5/10.2/0.2% before — robustness preserved), and a SIL safety test showing a stale
+in-flight EEPROM record cannot fire a pyro with the vehicle at rest.
+
+**What AI did NOT do:** write paper prose or any citation; decide to fly untested code; determine the servo
+signs (those came from Braxton's bench test, which is the only authority) or the linkage ratio (his
+measurement). **AI declined to implement TVC resume after a brownout** and implemented recovery-only, on the
+stated ground that world-referenced attitude is not recoverable from a strapdown IMU without an external
+reference — reasoning recorded in `DESIGN_LOG.md` 2026-08-03 and in the source.
+
+**Interpretation and decisions (student's):** to fly this build with untested features; whether the airframe
+was rebuilt after ASC036; whether to keep 5.5 or revert to 5.0 if the gimbal binds.
+
+**Files touched / code to cite:** `Firmware/Ascent_TVC/Ascent_TVC.ino`, `Firmware/sim_ascent/ascent_sim.cpp`,
+`Firmware/sim/shims/EEPROM.h`, `DESIGN_LOG.md` (2026-08-03).
+
+---
+
+### 2026-08-04 — Flight ASC038: root-cause analysis, firmware fixes, harness fix, Impulse 2.2 support
+**Tool:** Claude (Anthropic), via Claude Code.
+**Categories:** `CODE` (flight firmware, SIL harness, analysis scripts), plus verification of results.
+
+**What AI was asked to do:** final pre-flight software check; after the flight, ingest the SD card,
+determine why the vehicle tumbled and why the parachute deployed ~1.5 m above the ground, fix it, work
+out why the SIL had passed the build, update the firmware for the Impulse 2.2 board, and enumerate
+failure modes.
+
+**What AI actually did:**
+- **Diagnosed ASC038 from the flight logs.** Established that SD writes in `logData()` cost a measured
+  mean 143 ms, that 29 of 170 control iterations exceeded 100 ms, that this tripped the `dt<0.1f` guard
+  in `sensors()`, and that the attitude estimator therefore froze while the vehicle reached 248 °/s.
+  Reconstructed true attitude by replaying the firmware's own logged raw rates.
+- **Wrote the firmware fixes** (`CODE`, committed flight code — **cite in-text if any number it produces
+  appears in the Research Report**): RAM-buffered flight log, `dt` clamped-not-skipped with counters,
+  an estimator-independent body-rate abort, recovery beeps moved after the pyros, `ctlDt` widened to
+  uint32, a deploy timer, and Impulse 2.2 rail-voltage + pyro-continuity sensing with pre-arm gates.
+- **Fixed the SIL blind spot** that let the build fly: added SD-write latency charged to the simulated
+  clock, plus `--servotau`, `--mass`, `--vbat/--rint/--stallA`, `--brownv`, `--pyroopen`.
+- **Wrote `Firmware/sim_ascent/regression.py`** (`CODE`, committed) — 20 regression locks, and
+  **verified it fails** by deliberately re-introducing the ASC038 bug.
+- Wrote ~8 throwaway analysis scripts in a session scratch directory, **not** in this repository
+  (flight-log parsers, attitude replay, gain/stability sweeps, deploy-time sweep, PCB netlist
+  extraction). **Action required if cited:** commit and cite them.
+- Extracted the Impulse 2.2 Teensy pin map and divider ratios directly from `Impulse_2.2.kicad_pcb`.
+
+**What AI did NOT do:** write paper prose, abstract, conclusions or any citation; fly, flash, bench-test
+or measure anything physical; decide to fly. All flight-hardware measurements quoted (mass, inertia,
+moment arm, linkage ratio, gimbal travel, servo signs) were made by Braxton and supplied to AI.
+
+**A verification failure worth recording, because it is the point of this log:** AI reported the
+pre-ASC038 build "ready to fly" on the strength of an 8/8 SIL pass. That pass was uninformative — the
+harness could not express the failure mode, since its clock was synthetic and SD writes cost zero
+simulated time. AI knew the clock was synthetic and had said so, but treated it as a measurement
+limitation rather than a validation blind spot. **A simulator PASS is only evidence about failure modes
+the model can represent**, and that qualification was missing. It is now recorded in `DESIGN_LOG.md`
+(2026-08-04 pm) and `FAILURE_MODES.md`, which lists what the SIL still cannot express.
+
+**Interpretation and decisions (student's):** whether to fly; the deploy-timing trade; whether to use the
+SPI sensor board on the first 2.2 flight; all hardware priorities.
+
+**Files touched / code to cite:** `Firmware/Ascent_TVC/Ascent_TVC.ino`,
+`Firmware/sim_ascent/{ascent_sim.cpp,regression.py,shims/SD.h}`, `Firmware/Bench_FindLimit/`,
+`Firmware/Bench_ThrowCheck/`, `FLIGHT_LOG.md`, `FLIGHT_LOG.csv`, `FAILURE_MODES.md`, `DESIGN_LOG.md`.
+
+---
+
+### 2026-08-08 — Failure-mode audit: blind abort, and separating the firmware gate from the alignment spec
+**Tool:** Claude (Anthropic), via Claude Code.
+**Categories:** `CODE`, `STAT`.
+
+**Prompt (mine, paraphrased):** conduct a detailed analysis of every failure mode encountered and
+possible; make sure the silico and bench testing workflow catches any issue; make sure the only way
+the rocket can fail is mechanically; make my code perfect.
+
+**What the AI did.**
+- Diagnosed a Monte Carlo drop (99.2% → 85% PASS). Ruled out a firmware regression by showing the
+  fault word was `0x0000` on all 120 flights (no detector fired) and the rate was stable at
+  83.8% ± 1.4 across five independent batch seeds, so it was not a bad draw either.
+- Identified the driver as thrust misalignment consuming the ±5° gimbal authority, and wrote the
+  analysis binning PASS rate by misalignment magnitude.
+- Wrote `measure_mis.py` to estimate real misalignment from flight logs (mean commanded TVC over the
+  burn). Result: ASC036 = 1.12° (clean), ASC037 ≥ 5.2° (railed 85% of the burn).
+- Swept `I_GAIN` 0.0 → 2.5 over 600 flights to test whether a gain change could substitute for
+  alignment. It cannot: 0.20 → 0.80 buys +0.8 points.
+- Swept alignment σ over 600 flights/row to produce the sensitivity table.
+- Found that both existing aborts read the IMU, so total inertial loss silences both (measured 179.8°
+  / 800 °/s with no abort, chute never fired). Wrote the `BLIND_ABORT_MS` third abort path.
+- Added `p4t`/`p4alt`/`p4vz` to the sim output; rewrote regression section 7 into a firmware gate at
+  σ=0.5° plus an informational build-quality curve; repaired three stale locks.
+
+**Interpretation and decisions are mine.** The AI initially read `p4descent=0` as "the chute never
+fired" and reported the blind abort as not working; it was actually firing correctly while the vehicle
+was still climbing. The conclusion I am drawing from this session — that the remaining dominant failure
+mode is mechanical alignment rather than software, and that the fleet number (~84%) and the firmware
+gate (100%) answer different questions — is my own, and rests on the two flight-log measurements above
+rather than on the simulator alone. σ=0.5° is an assumed build standard, not a measured one; only
+ASC036 has a trustworthy per-flight figure.
+
+**Verification I ran:** full `regression.py` — 40 locks, 0 failures.
+
+**Files touched / code to cite:** `Firmware/Ascent_TVC/Ascent_TVC.ino` (blind abort: `BLIND_ABORT_MS`,
+`blindSince`, the third branch in `emergency()`), `Firmware/sim_ascent/ascent_sim.cpp` (p4 reporting),
+`Firmware/sim_ascent/regression.py` (sections 5, 5b, 6, 7, 7b), `DESIGN_LOG.md`.
+
+---
+
+### 2026-08-08 — STS paper: claim selection, Kd-free window rerun, 20-page outline
+**Tool:** Claude (Anthropic), via Claude Code.
+**Categories:** `CODE`, `STAT`, plus outlining and numerical audit.
+
+**What AI was asked to do:** after Braxton reopened the STS submission on a narrowed
+"builder's failure map" scope, produce (1) this log entry, (2) a Kd-free gain-window rerun that
+decides whether six inherited paper sections survive, (3) a 20-page section outline with claim
+selection, figure list and per-section page budget, and (4) a hardware tau-measurement spec for the
+engineer session.
+
+**What AI actually did:**
+- Wrote `tools/window_kd_free.py` (`CODE`) — a paired frozen-Kd vs free-Kd gain-window measurement
+  carrying a positive control that must reproduce the published v2 window regression before its
+  novel result is interpretable. Ran it and reported the outcome.
+- Produced a section-by-section outline: which claims make the 20 pages, which are cut, figure
+  assignments, page budget. **Structure and claim selection only — no prose, no abstract, no
+  conclusions.** Braxton writes every sentence from it.
+- Audited numbers already in hand from the 2026-08-02/03/04 sessions; selected the statistical
+  tests used (`STAT`).
+
+**What AI did NOT do:** write any paper prose, abstract, conclusion, future-work section or
+bibliography entry; generate any citation; decide the thesis or which claims Braxton believes.
+Claim selection was proposed and argued; the decisions in the kickoff brief are his.
+
+**Interpretation and decisions (student's):** the thesis, the claims-in/claims-out list, the
+quality bar, the go/no-go gate criteria, and the working title were all set by Braxton in the
+2026-08-08 kickoff brief before this session began.
+
+**Files to cite if their output reaches the report:** `tools/window_kd_free.py`,
+`tools/s2r_replication.py`, `tools/ceiling_kd_free.py`, `tools/population_retune.py`,
+`tools/screen_retest_2x.py`, `tools/s2r_ic_sweep.py` — all AI-written, all committed to this repo.
 
 ### Template for future entries
 
