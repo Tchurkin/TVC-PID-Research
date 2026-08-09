@@ -7,13 +7,13 @@ Recover the sim-phase CSVs first: `git archive bb22d36^ experiments/results tool
 
 ---
 
-## C1 — Sequential gain tuning fails; coupled tuning fixes it  *(the headline)*
+## C1 — Stale-D tuning fails; preserving the P:D ratio fixes it  *(the headline)*
 
-| | Π < 300 | Π ≥ 300 | ρ(log Π, fail) |
+| | auth×delay < 300 | auth×delay ≥ 300 | ρ vs auth×delay |
 |---|---|---|---|
-| **Arm A** — sequential (P then D), original protocol | 0.087 | **0.700** | **+0.236** (p = 1e-31) |
+| **Arm A** — stale D (D fixed at P=40, P swept to 320) | 0.087 | **56 of 80 = 0.700** | **+0.236** (p = 1e-31) |
 | published result | 0.091 | 0.613 | — |
-| **Arm B** — coupled (Kd = 0.05·Kp) | 0.022 | **0.013** | −0.117 (wrong sign) |
+| **Arm B** — ratio preserved (Kd = 0.05·Kp) | 0.022 | **1 of 80 = 0.0125** | −0.117 (wrong sign) |
 
 Bin-by-bin reproduction (Arm A vs published): 0.060/0.068 · 0.084/0.093 · **0.120/0.120** ·
 **0.238/0.238** · 0.386/0.313 · 0.673/0.582 · 0.783/0.696
@@ -22,8 +22,10 @@ Bin-by-bin reproduction (Arm A vs published): 0.060/0.068 · 0.084/0.093 · **0.
   reproducing means reproducing. Arm B uses 340001–340015.
 - Mechanism: `autotune_continuous` probes Kd once at Kp = 40, freezes it, sweeps Kp to 320.
 - **Evidence:** `tools/s2r_replication.py` → `experiments/results/s2r_replication_py.csv`; commit `589c29e`
-- **Must state:** that sequential tuning is the standard method (Ziegler–Nichols is sequential) is
-  currently an argument, not a citation. Needs the firmware survey — see gap G1.
+- **Must state (framing ledger, 2026-08-09):** call this **stale-D**, never "sequential tuning" —
+  manual practice is *alternating* and preserves the ratio, so it sits outside this regime. External
+  validity is a **prescription** (maintain the P:D ratio; re-tune D after any P change before judging
+  stability) aimed at **autotuners and sim campaigns**, not an ethnographic claim about builders.
 
 ## C2 — The gain ceiling is set by delay and is independent of authority
 
@@ -83,12 +85,31 @@ the four-number screen as a *controllability* screen (AUC 0.985 on the original 
 
 ---
 
+## Claims ledger — framing constraints (violations must not drift back in)
+
+| date | ruling | why |
+|---|---|---|
+| 2026-08-09 | **The mechanism is "stale-D" / "decoupled" tuning — D held fixed while P sweeps. NEVER call it "sequential tuning."** | Readers hear "sequential" as ordinary manual practice. Real manual practice is **alternating** (adjust P, re-adjust D, repeat), which roughly preserves the ratio and sits **outside** the artifact regime. *(Braxton, domain knowledge.)* |
+| 2026-08-09 | **No claim that common practice sits inside the artifact regime.** External validity is a **prescription**, not an ethnography: *maintain the P:D ratio; re-tune D after any change to P before judging stability.* Audience: **autotuners and simulation campaigns.** | This project measured **zero** manual tuning. The evidence is about what an autotuner does — which is exactly the protocol that produced six retired sections of this project's own prior work. |
+| 2026-08-09 | Axis called **authority × delay**, a plotting coordinate. Never Π, never "dimensionless", never "invariant". | Braxton's claims-out list. Four self-inflicted violations were caught in the outline before it shipped. |
+| 2026-08-09 | Report **counts** for the headline (56/80 vs 1/80), not a one-decimal rate. | 1/80 = 1.25%; "1.3%" and "1.2%" are both rounding artifacts of a single event. 95% Wilson CIs [59.2%, 78.9%] vs [0.22%, 6.75%] are non-overlapping — the honest way to show it survives its own uncertainty. |
+
+**Consequence for gap G1.** The firmware survey was scoped to establish that sequential tuning is
+the community's practice. That claim is now **withdrawn as unsupportable**, so G1 no longer buys
+external validity for C-KD and drops well down the priority list. If it is run at all, the only
+question it can answer is narrower and more honest: *do any hobby TVC firmwares ship an autotuner,
+and does it hold D stale while sweeping P?* Most ship hand-set gains, so the likely finding is "not
+applicable" — which is itself worth one sentence in §9 rather than a weekend of reading.
+
+---
+
 ## Gaps, ranked by how much they'd improve the paper
 
-**G1 — Establish that sequential tuning is common practice.** Survey the three GitHub firmwares
-already audited in `HEADLINE_FINAL.md`, published build logs, BPS.space's documented process. Not a
-simulation. This is what makes C1 a claim about the field rather than about one script. **Highest
-value remaining.**
+**G1 — [DOWNGRADED 2026-08-09] Firmware autotuner survey.** Originally scoped to show sequential
+tuning is common practice; that claim is withdrawn (see the ledger — manual practice is alternating
+and preserves the ratio). What remains is narrow: do any hobby TVC firmwares ship an autotuner, and
+does it hold D stale while sweeping P? Most ship hand-set gains, so expect "not applicable" — one
+sentence in §9. **No longer the highest-value item; G2/G3 now lead.**
 
 **G2 — Measure τ on the vehicle.** `Firmware/Bench_Latency/`. Every hardware prediction is indexed on
 it and currently uses an assumed 0.035 s. Half a day.

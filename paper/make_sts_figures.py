@@ -204,7 +204,13 @@ def fig7():
 
 
 def fig8():
-    """THE key figure: same designs, same axis, only the tuner differs."""
+    """THE key figure: same designs, same axis, only what the tuner does to D when P moves.
+
+    NOTE the labelling. This is NOT "sequential vs coupled tuning" -- readers hear "sequential" as
+    ordinary manual practice, which is ALTERNATING (adjust P, re-adjust D, repeat) and preserves the
+    ratio. The artifact is specifically D held STALE while P sweeps, which is what autotuners and
+    sim campaigns do. This project measured no manual tuning (Braxton, domain correction 2026-08-09).
+    """
     d = _s2r()
     bins = [0, 50, 100, 150, 200, 300, 500, 1000]
     mid, a, b, n = [], [], [], []
@@ -216,9 +222,9 @@ def fig8():
         a.append(g.fail_a_gate035.mean()); b.append(g.fail_b_gate035.mean()); n.append(len(g))
     fig, ax = plt.subplots(figsize=(FULL * 0.58, 2.9))
     ax.plot(mid, a, color=ORANGE, lw=2.0, marker="o", ms=5.5, mec="white", mew=.8, zorder=5,
-            label="sequential tuning  (tune P, then set D)")
+            label="stale D  —  D fixed while P sweeps (autotuner)")
     ax.plot(mid, b, color=BLUE, lw=2.0, marker="s", ms=5, mec="white", mew=.8, zorder=5,
-            label="coupled tuning  (D tied to P)")
+            label="ratio preserved  —  D re-tuned with P")
     ax.fill_between(mid, b, a, color=ORANGE, alpha=.10, zorder=2)
     # Label each endpoint with ITS OWN bin value. An earlier version put the aggregate
     # Pi>=300 rates (70.0% / 1.3%) on these points, which are 78.3% / 4.3% -- two wrong
@@ -247,11 +253,11 @@ def fig8():
 
 # ---- Fig 9: the mechanism -----------------------------------------------------
 def fig9():
-    """Why sequential tuning fails: the frozen Kd is chosen at one Kp and held."""
+    """Why stale-D tuning fails: D is chosen at one probe gain and then held while P sweeps."""
     fig, ax = plt.subplots(figsize=(COL, 2.6))
     kp = np.geomspace(1, 320, 200)
-    ax.plot(kp, 0.05 * kp, color=BLUE, lw=1.8, zorder=4, label="coupled: D tracks P")
-    ax.axhline(2.0, color=ORANGE, lw=1.8, zorder=4, label="sequential: D frozen at the probe")
+    ax.plot(kp, 0.05 * kp, color=BLUE, lw=1.8, zorder=4, label="ratio preserved: D re-tuned with P")
+    ax.axhline(2.0, color=ORANGE, lw=1.8, zorder=4, label="stale D: frozen at the probe gain")
     ax.axvline(40, color=MUTED, lw=.8, ls=(0, (3, 3)), zorder=3)
     ax.annotate("D chosen here\n(probe gain, P = 40)", (40, 11), fontsize=6.2, color=INK2,
                 ha="center", va="top")

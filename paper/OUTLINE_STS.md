@@ -15,6 +15,17 @@ paper that axis is called **authority×delay** and is presented as a *plotting c
 never named Π, never described as dimensionless, invariant, or a discovered parameter. The screen is
 stated in terms of the four measurable numbers (thrust, nozzle arm, Iyy, loop delay), not a composite.
 
+
+**Mechanism-naming rule (Braxton, 2026-08-09 — domain correction).** The artifact is **D held fixed
+while P sweeps** — call it **stale-D** or **decoupled** tuning. That is what `autotune_continuous`
+does: probe D once at P = 40, freeze it, sweep P to 320.
+
+**Do NOT call it "sequential tuning."** Readers hear that as normal manual practice, and normal
+manual practice is *alternating* — a builder adjusts P, then re-adjusts D, iteratively, which roughly
+maintains the ratio and therefore sits **outside** the artifact regime. **This project has no data on
+manual tuning.** Any sentence implying hobbyists tune the way the autotuner does is unsupported and
+must not appear in §6, §10, or the abstract.
+
 **All sections are decided.** The one conditional — §5's window sections — was resolved 2026-08-09 by
 `tools/window_kd_free.py`: the control passed and the window narrowing did not survive a free Kd, so
 those sections are cut. See §5.
@@ -67,7 +78,7 @@ Figure count drops to **11** with Fig 5 cut.
 
 | tag | claim | strongest number | § | fig |
 |---|---|---|---|---|
-| **C-KD** | Sequential tuning (P then D) causes the failures; coupling Kd to Kp removes them | **56/80 → 1/80** at high risk; ρ +0.236 vs −0.117 | 6 | 8, 9 |
+| **C-KD** | Holding D fixed while P sweeps (stale-D) causes the failures; re-tuning D with P removes them | **56/80 → 1/80** at high risk; ρ +0.236 vs −0.117 | 6 | 8, 9 |
 | **C-S2R** | A gain tuned in still air fails under full physics, with a monotone dose-response | 6.0% → **78.3%** across authority×delay bins, n=2400 | 6 | 7 |
 | **C-CEILING** | The usable-gain ceiling is set by loop delay, not authority — **at a fixed Kd** | keff **−0.082** CI [−0.21,+0.05]; τ **−1.067**; control ρ −0.762 vs −0.74 | 5 | 6 |
 | **C-INERTIA** | Failing builds are low-inertia builds | **100%** of the 36 failing designs below the 25th pctile of Iyy | 4 | 3 |
@@ -80,7 +91,9 @@ Figure count drops to **11** with Fig 5 cut.
 Π = keff·τ² and every dimensionless-invariant framing · the causal saturation-removal result ·
 the `window_ratio` family *as originally measured* · the binary classifier as a headline ·
 "thrust is irrelevant or protective" · "strong p_unstable interaction" ·
-"each correction strengthened the AUC"
+"each correction strengthened the AUC" · **"sequential tuning is what hobbyists do" / any claim that
+common manual practice sits inside the artifact regime** — manual practice is *alternating* and this
+project measured no manual tuning at all (Braxton, domain correction, 2026-08-09)
 
 ---
 
@@ -94,8 +107,9 @@ they are the paper's spine. Close on what the paper measures, not what it discov
 *No figure.*
 
 ### §2 Background — 0.75 pp
-What is already known: the delay-margin gain ceiling is classical (Ziegler–Nichols; standard
-sequential PID tuning is P-then-D by construction). Say plainly that **C-CEILING is a re-derivation
+What is already known: the delay-margin gain ceiling is classical. Mention Ziegler–Nichols as the
+classical *procedure* for finding gains — but do NOT use it to argue that builders leave D stale;
+that inference is not supported. Say plainly that **C-CEILING is a re-derivation
 in a new domain, not a discovery** — claiming otherwise is the fastest way to lose a controls
 reviewer. Note the absence of hobby-scale TVC in the literature. STS guidelines forbid a long
 literature history: keep it short.
@@ -103,8 +117,8 @@ literature history: keep it short.
 
 ### §3 Methods — 2.5 pp
 Simulator and the 10 fidelity modules; the 2,400-design LHS space with parameter ranges; the
-gain-search protocols (this matters — the whole paper turns on tuning method, so both the sequential
-and coupled tuners need describing precisely); disjoint seed ranges per experiment.
+gain-search protocols (this matters — the whole paper turns on tuning method, so both the stale-D
+and ratio-preserving tuners need describing precisely, in terms of what each does to D when P moves); disjoint seed ranges per experiment.
 
 **Two discipline items that belong here and are worth the space:**
 - **One success criterion, stated once.** SR ≥ 0.80 throughout. Where the earlier work reported
@@ -205,8 +219,9 @@ Build it in this order:
 
 1. **The phenomenon (C-S2R).** Still-air-tuned gains fail under full physics, monotone in
    authority×delay: 6.0% → 78.3% across bins, n=2400. Report the **curve**, one threshold.
-2. **The cause (C-KD).** Two arms on the same 2,400 designs, differing only in the tuner. Arm A
-   (sequential, the standard method) reproduces the published curve **bin by bin** — quote
+2. **The cause (C-KD).** Two arms on the same 2,400 designs, differing only in what the tuner does
+   to D when P moves. Arm A (**stale D** — D probed once at P = 40 and frozen while P sweeps to 320,
+   which is what the autotuner does) reproduces the published curve **bin by bin** — quote
    0.120/0.120 and 0.238/0.238 as the exact hits. Arm B (Kd tied to Kp) gives 0.022 → 0.013.
    ρ vs authority×delay: **+0.236** (p=1e-31) vs **−0.117** (wrong sign). Failure at high risk **56 of 80 → 1 of 80** designs.
    **Report counts, not a 1-decimal rate:** 1/80 = 1.25%, so "1.3%" and "1.2%" are both rounding
@@ -215,9 +230,18 @@ Build it in this order:
 3. **The mechanism.** `autotune_continuous` probes Kd once at Kp=40, freezes it, sweeps Kp to 320;
    designs whose best gain lands far from the probe get a mismatched Kd, and the mismatch grows with
    authority×delay.
-4. **Why it generalizes.** Sequential tuning is the standard method — Ziegler–Nichols finds Ku with
-   D off, then reads Kd from a table. **This needs the firmware survey to be a claim about the
-   field** (see Gaps). Without it, state it as: the textbook method fails on high-risk designs.
+4. **External validity — state it as a PRESCRIPTION, not an ethnography.** The paper has no data on
+   how humans tune, and manual practice is *alternating* (adjust P, re-adjust D, repeat), which
+   roughly preserves the ratio and therefore sits outside the regime measured here. So the claim is
+   **not** "this is what builders do." It is:
+
+   > **Maintain the P:D ratio. Re-tune D after any change to P, before judging stability.**
+
+   Say who this squarely applies to: **automated tuners and simulation campaigns**, where D is
+   commonly fixed once and P is then swept — exactly the protocol that produced six retired sections
+   of this project's own prior work. That is a concrete, checkable audience, and the paper has direct
+   evidence for it. A builder tuning by hand is already doing the right thing; the value to them is
+   knowing *why* the ratio matters and what it costs when it slips.
 
 *Fig 7 — failure rate vs authority×delay, the dose-response curve.
 Fig 8 — the two arms overlaid: same designs, same axis, one line each. The paper's key figure.
@@ -267,7 +291,9 @@ otherwise, with the ASC038 qualification. The failing-design label is soft. Sequ
 *the community's* practice is argued, not yet surveyed.
 
 ### §10 Impact for builders — 0.75 pp
-**Impact paragraph, not the thesis.** Tie Kd to Kp rather than tuning them separately. Screen a
+**Impact paragraph, not the thesis.** Maintain the P:D ratio — re-tune D after any change to P
+before judging stability. Aim this at autotuners and sim campaigns; do NOT imply hand-tuners are
+doing it wrong, since alternating manual practice already preserves the ratio. Screen a
 design before cutting metal from four measurable numbers. Use 0.042/τ as a conservative gain limit.
 One instrumented flight at a known gain diagnoses a marginal build.
 

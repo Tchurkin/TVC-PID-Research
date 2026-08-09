@@ -64,9 +64,9 @@ same designs:
 
 | | Π < 300 | Π ≥ 300 |
 |---|---|---|
-| Arm A — sequential tuning (P then D), the published protocol | 0.087 | **0.700** |
+| Arm A — stale D (D fixed at P=40 while P sweeps to 320) | 0.087 | **0.700** |
 | published | 0.091 | 0.613 |
-| Arm B — coupled tuning (Kd tied to Kp) | 0.022 | **0.013** |
+| Arm B — ratio preserved (Kd tied to Kp) | 0.022 | **0.013** |
 
 Arm A reproduces the published curve **bin by bin**; Arm B is identical except the tuner ties Kd to
 Kp. ρ(log Π, fail): A = +0.236 (p = 1e-31), B = −0.117 (wrong sign). Failure at high Π drops
@@ -75,8 +75,14 @@ Report counts rather than a 1-decimal rate — 1/80 = 1.25%, so "1.3%" was a rou
 
 Mechanism: `autotune_continuous` probes Kd once at Kp = 40, freezes it, then sweeps Kp to 320, so
 designs whose best gain lands far from the probe get a mismatched Kd — and the mismatch grows with
-authority × delay. Sequential tuning is the *standard* method (Ziegler–Nichols is sequential), so
-this is a finding about common practice, not about one script.
+authority × delay.
+
+⚠ **NAMING (Braxton, domain correction 2026-08-09).** Call this **stale-D** or **decoupled** tuning,
+never "sequential tuning" — readers hear that as ordinary manual practice, and manual practice is
+**alternating** (adjust P, re-adjust D, repeat), which preserves the ratio and sits OUTSIDE this
+regime. This project measured no manual tuning. External validity is a **prescription** — *maintain
+the P:D ratio; re-tune D after any change to P before judging stability* — aimed at **autotuners and
+simulation campaigns**, not a claim about what builders do.
 
 Same cause, four independent appearances: the `window_ratio` family (floor inflated 1.8–2.9×, keff
 exponent +1.06 → +0.21 → −0.20), the gain ceiling (**8.8× higher** with Kd free), sim-to-real
