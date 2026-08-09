@@ -457,6 +457,41 @@ common practice and it is still the most distinctive thing in the paper.
 
 **Files touched / code to cite:** `paper/OUTLINE_STS.md`, `paper/CLAIM_EVIDENCE_TABLE.md`, `CLAUDE.md`.
 
+### 2026-08-09 — Speccing the retrospective flight-signature test
+
+**Tool:** Claude Opus 5 (Claude Code)
+**Categories:** IDEA (test design), CODE (`tools/flight_sig_usat_threshold.py`), STAT (threshold and
+power calculation — interpretation below is mine)
+
+**What AI was asked to do:** I proposed testing the sim-derived failure signature against my archived
+flight logs, with the classification rule fixed before looking, and asked whether any version of this
+already existed. It does not. I asked for a spec.
+
+**What AI actually did:** wrote `paper/RETRO_FLIGHT_SIG_SPEC.md` — the pre-registered rule, the data
+inventory, metric definitions, and eight named threats. Then ran the prep work: verified the simulator
+(`validate.py` 10/10, `git status sim/` clean) and wrote a 504-sim rerun to freeze the second feature's
+threshold, with a positive control that had to reproduce the four published signature statistics before
+its novel number could be used. The control passed to two decimals. The rerun then produced three
+things that changed the spec: the position-saturation feature is identically zero across all 504 sims
+so it cannot be pre-registered at all; the published per-run values do not reproduce on the current
+simulator even though the distributions do (KS p = 1.000 / 0.885), so the RMS threshold ships with a
+declared grey zone; and the paper's "saturated fraction" needs relabelling because it measures a
+rate limit, not the gimbal hitting its stops.
+
+It also found an undocumented `ASC037.CSV` on the card — thrust present, TVC active, max altitude
+0.78 m, i.e. a static fire that never made it into `FLIGHT_LOG.md`.
+
+**What AI did NOT do:** no flight log has been touched and no flight signature value computed. The
+thresholds come entirely from simulation, with nothing fit on flight data.
+
+**Interpretation and decisions (student's):** the honest value of this test is falsification and
+calibration, not confirmation — with five flights and two of them controlled, perfect classification
+still only reaches p = 0.10, and I would rather state that ceiling up front than report an AUC that
+invites comparison with the simulation's 0.954. The result I most expect to matter is whether real
+flights land anywhere near the simulated RMS scale at all.
+
+**Files touched / code to cite:** `paper/RETRO_FLIGHT_SIG_SPEC.md`, `tools/flight_sig_usat_threshold.py`.
+
 ### Template for future entries
 
 ```
