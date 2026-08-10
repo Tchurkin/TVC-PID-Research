@@ -15,8 +15,15 @@ This section did not exist while C1 was "the headline." It is now what the paper
 
 | quantity | value |
 |---|---|
-| failing designs below the population 25th pctile of Iyy | **36 of 36 = 100%** |
+| **P(random failure has lower Iyy than random survivor)** | **0.937** — Mann-Whitney **p = 9.45e-20**, rank-biserial **0.875** |
+| **median failing design's position in the population Iyy distribution** | **5.4th percentile** (IQR 1.1-8.9); 17/36 below the 5th, 28/36 below the 10th |
 | median Iyy of failing designs | **0.19×** the population median |
+| ~~failing designs below the 25th pctile~~ | ~~36 of 36~~ — **RETIRED 2026-08-10, selected threshold** |
+
+⚠ **Do not use the 25th-percentile framing.** It is true, but the binding failure sits at the
+**24.79th** percentile, so 25 is the smallest round number producing 100% and reads as a cutoff chosen
+to flatter (33 of 36 at the 20th). The threshold-free statistics above are stronger *and* carry a
+p-value. Caught by an adversarial check of §4's lead claim, 2026-08-10.
 | unregularized joint fit, standardized, bootstrap 95% CIs | log(1/Iyy) **+2.37** [1.94, 3.14] · log(T·L) **+1.77** [1.30, 2.45] · log(τ) **+2.90** [2.24, 3.92] |
 
 All three coefficients positive with CIs excluding zero — **do not claim thrust is protective**. An

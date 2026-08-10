@@ -38,10 +38,15 @@ text** — an uncited figure is a disqualification risk, including your own.
 
 ### P4 — C-INERTIA, the headline (~110 words)
 **Accomplishes:** the paper's lead number.
-**Carries:** **36 of 36** failing designs below the population 25th percentile of Iyy; median Iyy
+**Carries:** a randomly chosen failing design has lower inertia than a randomly chosen surviving one
+**93.7%** of the time (Mann-Whitney **p = 9.45e-20**, rank-biserial 0.875); **median failing design at
+the 5.4th percentile** (IQR 1.1-8.9), 17 of 36 below the 5th, 28 of 36 below the 10th; median Iyy
 **0.19×** the population median.
-**Do:** report the **count**, not "100%" alone — 36/36 tells the reader the sample size in the same
-breath. This is the same discipline as 56/80 vs "70%" in §6.
+**Do:** report the **distribution**. These statistics have no cutoff in them, so there is nothing for a
+reviewer to argue with.
+**Don't — corrected 2026-08-10:** the older framing "all 36 below the 25th percentile" is true but the
+binding case sits at the **24.79th**, making 25 the smallest round number that gives 100%. That reads
+as a threshold chosen to flatter, and the threshold-free version above is strictly stronger anyway.
 
 ### P5 — The joint fit (~140 words)
 **Accomplishes:** shows inertia dominates without overclaiming that the others do nothing.
@@ -111,7 +116,9 @@ nothing" slogan and the dead-zone dither row. Do not ship either.
 ## Before you call §4 done
 
 - [ ] Figures 3 and 4 each cited **by number in the running text**.
-- [ ] Every count reported as a count (36 of 36), not a bare percentage.
+- [ ] Counts reported as counts where used (17 of 36, 28 of 36), never a bare percentage.
+- [ ] **No percentile-cutoff claim anywhere** — the 25th-percentile framing is retired (binding case
+      at 24.79). P4 uses the threshold-free statistics.
 - [ ] The word Π appears nowhere; the axis is "authority×delay" every time.
 - [ ] No sentence says thrust is irrelevant or protective.
 - [ ] P7 exists, is in the body, and leads with the structural argument.

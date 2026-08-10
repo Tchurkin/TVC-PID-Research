@@ -34,11 +34,20 @@ the sentence around it has to be yours.
   as false and invites a ruler
 
 ### P4 · The lead number
-- → **36 of 36** failing designs below the population **25th percentile** of Iyy
+- → **primary statistic — threshold-free, use this one:** a randomly chosen failing design has lower
+  pitch inertia than a randomly chosen surviving design **93.7%** of the time
+  (Mann-Whitney **p = 9.45e-20**, rank-biserial **0.875**, n = 36 vs 2,364)
+- → **median failing design sits at the 5.4th percentile** of the population inertia distribution
+  (IQR 1.1-8.9); **17 of 36** below the 5th, **28 of 36** below the 10th
 - → median Iyy of failures = **0.19×** the population median
-- → report as a **count**, not "100%" — the count carries the sample size in the same breath
+- → report the **distribution**, not a cutoff — see the warning below
 - → one sentence of physical reading: disturbance angular acceleration scales as 1/Iyy while control
   authority is capped by max gimbal, so no gain choice buys it back
+- ✗ **DO NOT write "all 36 failing designs fall below the 25th percentile."** It is true, but the
+  binding case sits at the **24.79th** percentile — so 25 is the smallest round number that yields
+  100%, and a reviewer who checks will see a threshold set just above the worst case and stop trusting
+  the section. At the 20th percentile it is 33 of 36. The threshold-free statistics above are both
+  **stronger and unattackable**; there is no reason to use the cutoff version. *(Caught 2026-08-10.)*
 - ✗ do not say inertia is the *only* thing that matters — P5 immediately qualifies that
 
 ### P5 · The joint fit
@@ -118,7 +127,8 @@ Every number that must appear somewhere in §4. Tick as you place them.
 | 1 | 2,400 designs, Latin hypercube | P2 | ☐ |
 | 2 | max_gimbal 2.0–15.0°, median 8.6° | P2 | ☐ |
 | 3 | Figure 3 cited by number | P3 | ☐ |
-| 4 | 36 of 36 below 25th pctile Iyy | P4 | ☐ |
+| 4 | CLES 93.7%, Mann-Whitney p = 9.45e-20 | P4 | ☐ |
+| 4b | median failure at 5.4th pctile (IQR 1.1-8.9) | P4 | ☐ |
 | 5 | median Iyy 0.19× population | P4 | ☐ |
 | 6 | log(1/Iyy) +2.37 [1.94, 3.14] | P5 | ☐ |
 | 7 | log(T·L) +1.77 [1.30, 2.45] | P5 | ☐ |
@@ -139,7 +149,8 @@ Every number that must appear somewhere in §4. Tick as you place them.
 **Forbidden-move check (all must stay ☐ unchecked):**
 ☐ the word Π · ☐ "dimensionless" or "invariant" · ☐ thrust called irrelevant/protective ·
 ☐ "controllability screen" · ☐ "every failure lies left of here" · ☐ any reliance on §6 ·
-☐ the dead-zone dither row · ☐ "aerodynamics contributes nothing" as a broad claim
+☐ the dead-zone dither row · ☐ "aerodynamics contributes nothing" as a broad claim ·
+☐ **"all failures below the 25th percentile"** — selected threshold, binding case at 24.79
 
 ---
 

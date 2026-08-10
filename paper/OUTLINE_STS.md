@@ -125,7 +125,7 @@ drift back out of order while drafting.
 |---|---|---|---|
 | 1 | problem | A builder can measure thrust, nozzle arm, pitch inertia and loop delay before cutting metal, and cannot currently predict from them whether the vehicle will be tunable. | the four numbers |
 | 2 | what was done | 2,400-design simulated space, 10 fidelity modules, per-design gain search. | n = 2400 |
-| 3 | **finding 1 — the map** | Failing builds are **low-inertia** builds; achievable performance falls with authority×delay under optimal tuning. | **100%** of 36 failures below the 25th pctile of Iyy; ρ = **−0.692**, p = 3.4e-10 |
+| 3 | **finding 1 — the map** | Failing builds are **low-inertia** builds; achievable performance falls with authority×delay under optimal tuning. | failures have lower Iyy than survivors **93.7%** of the time, p = **9.45e-20**; median failure at the **5.4th pctile**; ρ = **−0.692**, p = 3.4e-10 |
 | 4 | **finding 2 — the ceiling** | The usable-gain ceiling is set by loop delay and is **independent of control authority**, at a fixed Kd. | τ exponent **−1.067**; keff **−0.082** CI [−0.21, +0.05]; recalibrated **0.0661/τ** |
 | 5 | **finding 3 — tuning method** | *Then*, and only here: a decoupled gain search does not merely add noise — it produces a smooth, hardware-indexed failure trend that reads as a physical law and is not one. Tying D to P removes it. | **56/80 → 1/80**; ρ **+0.236** vs **−0.117** |
 | 6 | the prescription, **conditional** | Maintain the P:D ratio; re-tune D after any change to P before judging stability. Named audience: automated tuners and simulation campaigns. **No prevalence claim** — "if your pipeline does this," never "pipelines do this." | — |
@@ -144,7 +144,7 @@ Ordered by the emphasis ruling: leads first, tuning method third.
 
 | tag | claim | strongest number | § | fig |
 |---|---|---|---|---|
-| **C-INERTIA** | *(lead 1)* Failing builds are low-inertia builds | **100%** of the 36 failing designs below the 25th pctile of Iyy | 4 | 3 |
+| **C-INERTIA** | *(lead 1)* Failing builds are low-inertia builds | **93.7%** CLES, Mann-Whitney **p = 9.45e-20**, rank-biserial 0.875; median failure at the **5.4th pctile** of Iyy | 4 | 3 |
 | **C-FRONTIER** | *(lead 1)* Achievable performance degrades with authority×delay under optimal tuning | ρ = **−0.692** vs authority×delay, p=3.4e-10, n=63 | 4 | 4 |
 | **C-CEILING** | *(lead 2)* The usable-gain ceiling is set by loop delay, not authority — **at a fixed Kd** | keff **−0.082** CI [−0.21,+0.05]; τ **−1.067**; control ρ −0.762 vs −0.74 | 5 | 6 |
 | **C-S2R** | *(finding 3)* A gain tuned in still air fails under full physics, with a monotone dose-response | 6.0% → **78.3%** across authority×delay bins, n=2400 | 6 | 7 |
@@ -215,8 +215,14 @@ put it here so §6 can just refer back.*
 ### §4 The failure map — who fails — 3.75 pp (3.25 body + 0.5 sidebar)
 The paper's title section. Which builds fail, as a map over the measurable numbers.
 
-C-INERTIA: 100% of the 36 failing designs sit below the population 25th percentile of Iyy; median
-Iyy 0.19× the population median. Report the **unregularized** joint fit with bootstrap CIs —
+C-INERTIA: a randomly chosen failing design has lower pitch inertia than a randomly chosen surviving
+design **93.7%** of the time (Mann-Whitney p = 9.45e-20, rank-biserial 0.875); the **median failing
+design sits at the 5.4th percentile** of the population inertia distribution (IQR 1.1–8.9), with 17 of
+36 below the 5th and 28 of 36 below the 10th; median Iyy 0.19× the population median.
+⚠ **The old "100% below the 25th percentile" framing is RETIRED (2026-08-10).** True, but the binding
+failure sits at the 24.79th percentile, so 25 is the smallest round number giving 100% and reads as a
+cutoff picked to flatter (33 of 36 at the 20th). The threshold-free statistics above are stronger and
+carry a p-value. Report the **unregularized** joint fit with bootstrap CIs —
 log(1/Iyy) +2.37 [1.94, 3.14], log(T·L) +1.77 [1.30, 2.45], log(τ) +2.90 [2.24, 3.92] — all three
 positive, all CIs excluding zero. **keff = T·L/Iyy is a legitimate grouping** (raw-log ratio
 T·L/(1/Iyy) = 1.18 where keff requires 1.00). Do not claim thrust is protective.
@@ -255,7 +261,7 @@ not, then the one that does.
 | **Wind is the enemy.** Gusts are what you tune against. | Wind strength does not mark a failing design: r = **−0.000** (p = 1.0) over a 9× range (0.05–0.45), and it does not predict still-air-tuning failure either (ρ = +0.017, p = 0.4, n = 2400). | Wind sets *how hard* the job is, not *which builds* fail. Screening on the four numbers is unaffected by the day's weather. |
 | **An aerodynamically unstable airframe is harder to fly.** | Stability margin does not mark a failing design: r(static margin) = **+0.011** (p = 0.6), r(Cm_alpha) = **−0.004** (p = 0.86). | Under active TVC at this scale, fin/CG stability is not the discriminator. **Scope this narrowly** — see the rejected row below. |
 | **A more powerful rocket needs a gentler gain.** | The gain ceiling is set by loop delay and is independent of authority — keff exponent **−0.005**, **−0.071**, **−0.082** across three independent measurements, every CI spanning zero. | The ceiling formula needs your loop rate, not your thrust. A powerful rocket is not automatically a twitchy one. |
-| **Build it light.** | Light means low pitch inertia, and **all 36** failing designs sit below the population 25th percentile of Iyy (median 0.19× the population). | The one intuition that *should* change behaviour: mass at the ends is control authority you already paid for. |
+| **Build it light.** | Light means low pitch inertia, and the **median failing design sits at the 5.4th percentile** of the population inertia distribution — a failing design has lower Iyy than a surviving one **93.7%** of the time (median 0.19× the population). | The one intuition that *should* change behaviour: mass at the ends is control authority you already paid for. |
 
 **Two candidates vetted and REJECTED — do not ship:**
 - *"Aerodynamics contributes almost nothing at this scale."* Supported only in the **narrow** form
