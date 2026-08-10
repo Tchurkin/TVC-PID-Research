@@ -112,18 +112,20 @@ def fig3():
     ax.scatter(bad.Iyy, bad.latency_steps + jit[d.fail.values], s=26, lw=.6,
                facecolor=ORANGE, edgecolor="white", zorder=5,
                label=f"failed to tune  (n={len(bad)})")
-    q25 = d.Iyy.quantile(.25)
-    ax.axvline(q25, color=INK2, lw=.8, ls=(0, (4, 3)), zorder=4)
-    # Honest annotation: the claim is true but MARGINAL for the closest design (0.02904 vs
-    # 0.02920 = 0.5%), which is why points appear to sit on the line. State the margin so a
-    # reader who squints at the figure is not left doubting the claim.
-    mx = d[d.fail].Iyy.max()
-    ax.annotate(f"population 25th percentile of $I_{{yy}}$ = {q25:.4f}\n"
-                f"all {int(d.fail.sum())} failures fall below it\n"
-                f"(closest {mx:.4f} — a 0.5% margin)",
-                xy=(q25 * 0.92, 1.55), fontsize=6.2, color=INK2, va="center", ha="right")
+    # No cutoff line. The 25th-percentile framing was RETIRED 2026-08-10: the binding failure sits
+    # at the 24.79th percentile, so 25 is the smallest round number giving 100% and reads as a
+    # threshold chosen to flatter. Annotate the threshold-free statistic instead — it is stronger,
+    # carries a p-value, and leaves the reader nothing to measure with a ruler.
+    med_f, med_ok = d[d.fail].Iyy.median(), d[~d.fail].Iyy.median()
+    ax.axvline(med_f,  color=ORANGE, lw=.9, ls=(0, (4, 3)), zorder=4)
+    ax.axvline(med_ok, color=BLUE,   lw=.9, ls=(0, (4, 3)), zorder=4)
+    ax.annotate(f"median $I_{{yy}}$   failed {med_f:.4f}  vs  tunable {med_ok:.4f}  (0.19×)\n"
+                "a failure has lower $I_{yy}$ than a survivor "
+                "93.7% of the time  ($p$ = 9×10$^{-20}$)",
+                xy=(0.5, -0.30), xycoords="axes fraction", fontsize=6.2, color=INK2,
+                va="top", ha="center")
     ax.set_xscale("log")
-    ax.set_xlabel("pitch inertia  $I_{yy}$  (kg·m²)   — lower is more responsive to every torque")
+    ax.set_xlabel("pitch inertia  $I_{yy}$  (kg·m²)")
     ax.set_ylabel("loop delay (control steps)")
     ax.set_ylim(0.3, 7.4)
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.14), ncol=2,

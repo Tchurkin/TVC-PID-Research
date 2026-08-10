@@ -1,3 +1,7 @@
+> **SUPERSEDED 2026-08-10 by `paper/S4_EVERYTHING.md`**, which folds this bullet skeleton + ledger together with
+> the outline's §4 notes, the sidebar rows, the reference facts (simulator, gates, labels,
+> tuners, figures) and the corrections to the first draft. Kept for history; do not write from it.
+
 # §4 — bullet skeleton and completeness ledger
 
 Companion to `S4_WRITING_PLAN.md` (paragraph-level). This is the level below: **one bullet per point

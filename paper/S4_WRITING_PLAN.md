@@ -1,3 +1,7 @@
+> **SUPERSEDED 2026-08-10 by `paper/S4_EVERYTHING.md`**, which folds this paragraph-level plan together with
+> the outline's §4 notes, the sidebar rows, the reference facts (simulator, gates, labels,
+> tuners, figures) and the corrections to the first draft. Kept for history; do not write from it.
+
 # §4 — paragraph-by-paragraph writing plan
 
 **What this is.** A build order for §4 with every number docked to the paragraph that needs it, so you
