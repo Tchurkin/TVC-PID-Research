@@ -525,6 +525,32 @@ broke. Both are things I could only have learned from flight data.
 **Files touched / code to cite:** `tools/retro_flight_signature.py`, `paper/make_sts_figures.py`
 (fig13), `paper/RETRO_FLIGHT_SIG_SPEC.md`, `FLIGHT_LOG.md`, `paper/CLAIM_EVIDENCE_TABLE.md`.
 
+### 2026-08-10 — Asked for a draft of section 4; refused, wrote a structural plan instead
+
+**Tool:** Claude Opus 5 (Claude Code)
+**Categories:** IDEA (structure/planning only) — **NOT** LANG, **NOT** any drafting
+
+**What AI was asked to do:** I asked it to write section 4 of the paper so I could see what it should
+look like.
+
+**What AI actually did:** **refused**, and pointed at the rule I set up at the start of this project
+and asked it to enforce — STS Appendix 4 makes AI-drafted report prose a disqualifying violation. It
+wrote `paper/S4_WRITING_PLAN.md` instead: eleven paragraphs, each with what the paragraph must
+accomplish, which statistics it carries, what to avoid, and a target word count, plus a pre-submission
+checklist. Structure and numbers, no sentences.
+
+**What AI did NOT do:** it did not write a draft, a sample paragraph, an example section, or a
+"you could say something like" illustration. There is no text in that plan I could paste into the
+report. Recording this because the refusal is the point: the guardrail I installed in August was
+tested in August and held.
+
+**Interpretation and decisions (student's):** every word of section 4 is mine. I am writing P1-P4
+first and having it critique those before I go further, on its suggestion that voice is cheaper to fix
+at 400 words than at 20 pages. Critique of my own prose is unrestricted; the only writing help I will
+accept later is word-level grammar polish, which will be logged as LANG and disclosed in Task 5.
+
+**Files touched / code to cite:** `paper/S4_WRITING_PLAN.md` (planning document, not report content).
+
 ### Template for future entries
 
 ```
