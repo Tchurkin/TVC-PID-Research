@@ -54,6 +54,12 @@
 #include <Adafruit_BNO055.h>
 #include <math.h>
 
+// Declared up here because the Arduino IDE hoists auto-generated prototypes to the TOP of the
+// file -- a struct used in a function signature must be defined before that hoisted prototype,
+// or the build fails with "'BusPins' does not name a type". Same gotcha the flight firmware
+// documents for baroReadAltitude().
+struct BusPins { const char* name; int sda, scl; };
+
 // ---- capture geometry -------------------------------------------------------
 constexpr uint32_t SAMPLE_US   = 2500;   // 400 Hz. Must be well above the 100 Hz fused rate.
 constexpr int      NCAP        = 4000;   // 10.0 s of waving
@@ -106,6 +112,50 @@ static bool bnoChipIdOk(TwoWire& w, uint8_t addr){
   return w.read() == 0xA0;
 }
 
+// ---- I2C PHYSICAL-LAYER CHECK ------------------------------------------------------
+// Run BEFORE Wire.begin(), while the pins are still plain GPIO. An idle I2C bus with working
+// pull-ups reads HIGH on both lines. This distinguishes three failures a device scan cannot:
+//   SDA HIGH, SCL HIGH -> bus is electrically fine; nothing is answering => device absent/unpowered
+//   SDA LOW,  SCL HIGH -> classic I2C LOCKUP: a device is mid-transaction and holding SDA down.
+//                         Nothing can ACK while this is true, so a scan sees an empty bus.
+//                         Recoverable: clock SCL until the device releases, then send STOP.
+//   both LOW           -> no pull-ups, or the bus is unpowered, or shorted to ground
+static void probeBusPins(const BusPins& b){
+  pinMode(b.sda, INPUT);  pinMode(b.scl, INPUT);
+  delayMicroseconds(50);
+  int sda = digitalRead(b.sda), scl = digitalRead(b.scl);
+  Serial.print(F("  ")); Serial.print(b.name);
+  Serial.print(F("  SDA(")); Serial.print(b.sda); Serial.print(F(")="));
+  Serial.print(sda ? "HIGH" : "LOW ");
+  Serial.print(F("  SCL(")); Serial.print(b.scl); Serial.print(F(")="));
+  Serial.print(scl ? "HIGH" : "LOW ");
+  if(sda && scl)        Serial.println(F("   -> idle, pull-ups OK. Nothing is answering."));
+  else if(!sda && scl)  Serial.println(F("   -> *** BUS LOCKED: a device is holding SDA low ***"));
+  else if(sda && !scl)  Serial.println(F("   -> SCL held low: shorted, or another master"));
+  else                  Serial.println(F("   -> *** BOTH LOW: no pull-ups, unpowered, or shorted ***"));
+}
+
+// Bit-bang up to 9 clocks on SCL to walk a wedged device out of its transaction, then a STOP.
+static bool recoverBus(const BusPins& b){
+  pinMode(b.sda, INPUT);
+  if(digitalRead(b.sda)) return false;               // not stuck, nothing to do
+  Serial.print(F("  recovering ")); Serial.print(b.name); Serial.print(F(" ... "));
+  pinMode(b.scl, OUTPUT);
+  for(int i=0;i<9 && !digitalRead(b.sda);i++){
+    digitalWrite(b.scl, LOW);  delayMicroseconds(5);
+    digitalWrite(b.scl, HIGH); delayMicroseconds(5);
+  }
+  // STOP: SDA low->high while SCL high
+  pinMode(b.sda, OUTPUT); digitalWrite(b.sda, LOW); delayMicroseconds(5);
+  digitalWrite(b.scl, HIGH); delayMicroseconds(5);
+  digitalWrite(b.sda, HIGH); delayMicroseconds(5);
+  pinMode(b.sda, INPUT); pinMode(b.scl, INPUT);
+  delayMicroseconds(50);
+  bool ok = digitalRead(b.sda);
+  Serial.println(ok ? F("released.") : F("STILL LOW -- not a wedged device."));
+  return ok;
+}
+
 static void scanBus(TwoWire& w, const char* name, uint32_t hz){
   w.begin(); w.setClock(hz);
   Serial.print(F("  ")); Serial.print(name); Serial.print(F(" @ "));
@@ -135,6 +185,24 @@ void setup(){
   // power-cycle the sensor, but a fresh upload can, so wait unconditionally.
   Serial.println(F("# waiting 1000 ms for BNO055 boot..."));
   delay(1000);
+
+  // ---- physical layer first. A scan cannot tell "absent" from "bus wedged". ----
+  static const BusPins PINS[] = {
+    {"Wire  ", 18, 19},
+#if defined(__IMXRT1062__)
+    {"Wire1 ", 17, 16}, {"Wire2 ", 25, 24},
+#endif
+  };
+  const int NPINS = sizeof(PINS)/sizeof(PINS[0]);
+  Serial.println(F("# I2C physical-layer check (before Wire.begin, pins as GPIO):"));
+  for(int i=0;i<NPINS;i++) probeBusPins(PINS[i]);
+  bool recovered=false;
+  for(int i=0;i<NPINS;i++) recovered |= recoverBus(PINS[i]);
+  if(recovered){
+    Serial.println(F("# a bus was unwedged -- rescanning."));
+    for(int i=0;i<NPINS;i++) probeBusPins(PINS[i]);
+  }
+  Serial.println();
 
   // Try every bus, and 100 kHz FIRST. The BNO055 stretches the clock and is widely reported
   // to enumerate unreliably at 400 kHz -- the flight firmware runs Wire at the 100 kHz default.
