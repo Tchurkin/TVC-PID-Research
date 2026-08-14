@@ -54,7 +54,10 @@ void digitalWrite(int pin, int val);
 int  digitalRead(int pin);
 int  analogRead(int pin);
 void analogReadResolution(int bits);
+inline void analogReadAveraging(int){}   // Teensy-only ADC setting; no-op here so EVERY firmware config (incl.
+                                         // Ascent_TVC's optional CTL_SERVO_FEEDBACK path) still builds in the SIL
 void tone(int pin, unsigned int freq);
+void tone(int pin, unsigned int freq, unsigned long dur);   // duration form: non-blocking on hardware
 void noTone(int pin);
 void sim_advance(unsigned long ms);   // step the harness clock + physics (also called by delay())
 

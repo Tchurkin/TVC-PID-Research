@@ -32,6 +32,7 @@ HardwareSerial Serial(true);    // echo firmware status messages to stderr
 HardwareSerial Serial1(false);  // GPS port (RX only)
 TwoWire  Wire;
 SPIClass SPI;
+SPIClass SPI1;   // sensor-board bus; shim returns 0x00 so the ICM/DPS read as absent
 SDClass  SD;
 
 // ============================================================================
@@ -80,7 +81,7 @@ static const double CU_TO_RAD = (15.0/12.0)*(M_PI/180.0);   // gimbal rad per co
 
 // Physics / aero (match firmware IYY + aero params)
 static const double G=9.80665, RHO=1.20;
-static const double MASS=0.80;            // kg -- NOMINAL all-up mass at the landing burn (== firmware MASS_LAND_KG)
+static const double MASS=0.95;            // kg -- NOMINAL all-up mass at the landing burn (== firmware MASS_LAND_KG); 2x F15 + legs
 static const double IYY=0.012;            // kg m^2 lateral (pitch=yaw, == firmware IYY, at MASS)
 static const double IZZ0=1.8e-4;          // kg m^2 ROLL inertia (slender body: ~m*r^2/2) -- ~65x smaller than IYY,
                                           //   which is WHY tiny roll torques diverge fast (the TVC roll problem)
@@ -105,6 +106,8 @@ static const double CG_PROP_M=0.009;       // CG moves this far FORWARD per moto
 static const double CG_LEGS_M=0.030;       // legs deploy -> CG aft by this (also shortens the TVC arm)
 static double WIND=2.0;                    // m/s steady wind at the reference altitude, +x (downrange)  -- runtime: --wind
 static double WINDY=0.0;                   // m/s steady CROSSwind, +y  -- runtime: --windy (3-D: guidance must null it)
+static bool NOGPS=false, NOMARGIN=false;   // model the current PCB's missing channels: --nogps = no GPS fusion (accel-only
+                                           // x/y dead-reckoning); --nomargin = margin fin STOWED (folded) -> NO coast/descent attitude control
 static double wTurb=0, wTurbY=0; static bool GUSTS=false; static const double TAU_W=0.8;   // OU gusts per axis (--gusts)
 // Wind SHEAR (REALISM): wind grows with altitude (atmospheric boundary layer, power law). WIND is the speed at
 // WIND_ZREF; aloft it's stronger, near the deck weaker. Stresses the wind estimator/guidance (which assume it's
@@ -135,8 +138,8 @@ static double CG_OFF_Y=0.0;      // --cgoffy m :   misses the CG -> constant pit
 static double ROLL_CANT=0.0;     // --rollcant m : nozzle tangential cant arm (m): constant roll torque = T*this
 static double FIN_MIS=0.0;       // --finmis m^3 : fin misalignment roll coefficient: M_z += qdyn*this (aero roll trim)
 // Ascent motor (T/W~1.7) and landing motor (T/W~4.5; aNet must match firmware's LAND/MASS_LAND)
-static const double ASC_PLATEAU=12, ASC_PEAK=22, ASC_BURN=3.45;
-static const double LAND_PLATEAU=18, LAND_PEAK=28, LAND_BURN=2.0;   // sized so decel nulls vz ~as it burns out at the ground
+static const double ASC_PLATEAU=14, ASC_PEAK=26, ASC_BURN=3.45;                  // Estes F15 (same batch both burns)
+static const double LAND_PLATEAU=14, LAND_PEAK=26, LAND_BURN=3.45;   // Estes F15: T/W~1.5, LONG 3.45 s burn (can't cut -> hop-prone); the honest same-batch config
 // Simulated sensor errors (so pad calibration has something to remove)
 static const double SIM_GBIAS=0.010, SIM_GBIASY=-0.006, SIM_GBIASZ=0.008;          // rad/s per gyro axis
 static const double SIM_ABIASX=0.20, SIM_ABIASY=-0.12, SIM_ABIASZ=0.15;            // m/s^2 per accel axis
@@ -199,11 +202,18 @@ static bool   sawBoost=false, sawCoast=false, sawBurn=false;
 static double frand(){ return (double)rand()/(double)RAND_MAX; }
 static double gn(double s){ double u1=fmax(1e-12,frand()),u2=frand(); return s*sqrt(-2*log(u1))*cos(2*M_PI*u2); }
 
-static double thrustCurve(double tau,double burn,double plateau,double peak){
-  if(tau<0||tau>burn) return 0;
-  if(tau<0.15) return peak*tau/0.15;
-  if(tau<0.50) return peak-(peak-plateau)*(tau-0.15)/0.35;
-  return plateau;
+// Estes F15 REAL thrust curve (thrustcurve.org RASP.ENG / NAR cert): time(s), thrust(N). Total impulse ~49.6 Ns,
+// burn ~3.40 s, peak 26.75 N @ 0.386 s. The TAIL-OFF is a CLIFF, not a ramp: ~13 N held to 3.35 s, then 13 -> 7.3 -> 0
+// by 3.40 s (~0.05 s) -> there is NO usable "settle in the tail-off" window (the earlier parametric 0.4 s tail-off was
+// optimistic). Same batch drives BOTH burns; TW_SCALE/LAND_SCALE (callers) apply the per-flight dispersion.
+static const int    F15_N=23;
+static const double F15_T[F15_N]={0,0.063,0.118,0.158,0.228,0.340,0.386,0.425,0.481,0.583,0.883,1.191,1.364,1.569,1.727,2.000,2.390,2.680,2.960,3.250,3.350,3.390,3.400};
+static const double F15_F[F15_N]={0,2.127,4.407,8.359,13.68,20.82,26.75,25.38,22.19,17.93,16.11,14.59,15.35,15.65,14.74,14.28,13.68,13.08,13.07,13.05,13.00,7.300,0.000};
+static double thrustCurve(double tau,double burn,double plateau,double peak){   // signature kept; the F15 table is used
+  (void)burn;(void)plateau;(void)peak;
+  if(tau<=0||tau>=F15_T[F15_N-1]) return 0;
+  for(int i=1;i<F15_N;i++) if(tau<F15_T[i]){ double f=(tau-F15_T[i-1])/(F15_T[i]-F15_T[i-1]); return F15_F[i-1]+f*(F15_F[i]-F15_F[i-1]); }
+  return 0;
 }
 static double ascentThrust(){ return ascentLit? TW_SCALE*thrustCurve(g_micros/1e6-ascentT0,ASC_BURN,ASC_PLATEAU,ASC_PEAK):0; }
 static double landThrust(){ return landLit? LAND_SCALE*thrustCurve(g_micros/1e6-landT0,LAND_BURN,LAND_PLATEAU,LAND_PEAK):0; }
@@ -229,7 +239,7 @@ static void stepPhysics(double dt){
   // actuator channels (realized): TVC gimbal deflections in the body X-Z and Y-Z planes, margin fold, roll diff
   double uA  = (TVC_NEUTRAL - tvcRealDeg ) / TVC_DEG_PER_UNIT;
   double uB  = (TVC_NEUTRAL - tvc2RealDeg) / TVC_DEG_PER_UNIT;
-  double dep = 0.5 + (marRealDeg -MARGIN_NEUTRAL)/(2.0*MARGIN_DEG_RANGE);
+  double dep = NOMARGIN ? 0.0 : 0.5 + (marRealDeg -MARGIN_NEUTRAL)/(2.0*MARGIN_DEG_RANGE);   // --nomargin: fin STOWED (no coast attitude ctrl)
   double rDf =       (rollRealDeg-ROLL_NEUTRAL  )/(2.0*ROLL_DEG_RANGE);   // differential fin fold, +-0.5
   double thrust = ascentThrust() + landThrust();
   // Current mass/CG/inertia from propellant burnt so far (linear over each burn).
@@ -340,6 +350,7 @@ static void updateSensors(){
 
 static double pxHist[256], pyHist[256]; static int pxHistIdx=0;   // 1 ms samples for GPS latency
 static void feedGPS(){
+  if(NOGPS) return;                                  // no-GPS board: never feed a fix -> firmware's gpsFix stays false
   static uint64_t last=0;
   if(g_micros-last < (uint64_t)(1e6/GPS_HZ)) return;
   last=g_micros;
@@ -431,6 +442,8 @@ int main(int argc, char** argv){
     else if(!strcmp(argv[i],"--nomassid")) g_massIdOn=false;
     else if(!strcmp(argv[i],"--massid"))   g_massIdOn=true;
     else if(!strcmp(argv[i],"--gusts")) GUSTS=true;
+    else if(!strcmp(argv[i],"--nogps")) NOGPS=true;
+    else if(!strcmp(argv[i],"--nomargin")) NOMARGIN=true;
   }
   if(nomInPath){ FILE* f=fopen(nomInPath,"r"); if(f){ int n=0; double z,x,v;   // load nominal descent into the firmware
     while(n<48 && fscanf(f,"%lf %lf %lf",&z,&x,&v)==3){ g_nomZ[n]=(float)z; g_nomX[n]=(float)x; g_nomVx[n]=(float)v; n++; }
