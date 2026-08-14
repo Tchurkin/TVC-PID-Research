@@ -176,9 +176,13 @@ void loop(){
   Serial.print(F("  update period  [ms]  = ")); Serial.print(per,3);
   Serial.print(F("   min ")); Serial.print(mn/1000.0f,3);
   Serial.print(F("   max ")); Serial.println(mx/1000.0f,3);
-  Serial.print(F("  -> effective rate [Hz] = ")); Serial.println(per>0?1000.0f/per:0.0f,1);
-  Serial.println(F("  (should be ~1.000 ms = 1000 Hz; the read is faster than the ODR, so"));
-  Serial.println(F("   the sample the loop gets is up to one ODR period old.)"));
+  Serial.print(F("  -> USE THE MIN as the ODR period: ")); Serial.print(mn/1000.0f,3);
+  Serial.print(F(" ms = ")); Serial.print(mn>0?1000000.0f/mn:0.0f,1); Serial.println(F(" Hz"));
+  Serial.println(F("  WHY NOT THE MEAN: this detects updates by watching the gyro word CHANGE."));
+  Serial.println(F("  At rest the signal is a couple of LSB of noise, so consecutive samples are"));
+  Serial.println(F("  often bit-identical and the update is missed -- which inflates the mean and"));
+  Serial.println(F("  the max. You cannot observe a change FASTER than the ODR, so the minimum"));
+  Serial.println(F("  observed interval is the one physically meaningful estimate of the period."));
   Serial.println();
 
   // ---- Phase 4: flight-representative loop period ---------------------------------------
@@ -204,13 +208,17 @@ void loop(){
   Serial.print(F("  loop period [ms]  min ")); Serial.print(llo/1000.0f,3);
   Serial.print(F("   median ")); Serial.print(loopMed/1000.0f,3);
   Serial.print(F("   max ")); Serial.println(lhi/1000.0f,3);
-  Serial.println(F("  (SPI read + quaternion propagate + tilt + PD; no SD, no servo write)"));
+  Serial.println(F("  *** THIS IS A FLOOR, NOT THE FLIGHT LOOP. *** It is SPI read + attitude +"));
+  Serial.println(F("  PD only: no baro, no SD, no servo write, no CTL capture, no health checks."));
+  Serial.println(F("  The flight loop is ~100x this. For tau, use loop_us_median from a BENCH"));
+  Serial.println(F("  CTL###.CSV capture of Ascent_TVC -- NOT ASC038's 3450 us, which was the"));
+  Serial.println(F("  SD-starved flight (mean 27683 us) that the 2026-08-04 fix addressed."));
   Serial.println();
 
   // ---- Summary --------------------------------------------------------------------------
   float tSpi  = spiMed/1000.0f;
-  float tSamp = 0.5f*per;                 // mean age of the sample the loop reads
-  float tLoop = 0.5f*(loopMed/1000.0f);   // mean age of the command within one loop
+  float tSamp = 0.5f*(mn/1000.0f);        // mean age of the sample; MIN is the true ODR period
+  float tLoop = 0.5f*(loopMed/1000.0f);   // floor only -- substitute the real flight loop period
   float tauMeasured = tSamp + tLoop;
   Serial.println(F("==================== SUMMARY ===================="));
   Serial.print(F("SPI burst read       [ms] = ")); Serial.println(tSpi,3);
