@@ -1258,6 +1258,11 @@ constexpr uint32_t PERSIST_MAGIC   = 0x54564332;   // 'TVC2'
 constexpr int      PERSIST_ADDR    = 0;
 constexpr uint16_t RESUME_MAX_BOOTS = 3;           // give up after this many reboots in one flight
 constexpr unsigned long RESUME_MAX_WAIT_MS = 8000; // hard deploy timeout once a resume is armed
+// Barometric vertical motion over looksAirborne()'s 400 ms window. 2 m in 400 ms is 5 m/s sustained.
+// Bench noise on the fitted DPS310 is 0.16 m peak-to-peak over minutes (Impulse22_SensorCheck,
+// 2026-08-13), so this is >12x the sensor floor, and no one carries a rocket up at 5 m/s for 400 ms.
+// Real flight is nowhere near the threshold: 20 m/s at the blind spot below puts 8 m in the window.
+constexpr float RESUME_ALT_MOVE_M = 2.0f;
 void readIMU();                                    // fwd decl: defined below, so this block also builds as plain C++
 uint32_t persistSum(const Persist&p){               // cheap integrity check: a half-written record must not be trusted
   const uint8_t* b=(const uint8_t*)&p; uint32_t h=2166136261u;
@@ -1290,8 +1295,25 @@ bool looksAirborne(){
   // likely moment to brown out in the first place.
   // Judging each sample on its own removes the hole entirely: thrust (~2.1 g) and free-fall (~0.1 g)
   // BOTH deviate from 1 g, so a mixed window becomes a strong positive instead of a false negative.
+  //
+  // THAT IS TRUE AT THE ENDPOINTS AND FALSE IN BETWEEN, which left a second blind spot (found
+  // 2026-08-13, SIL sweep of --resetat in 50 ms steps). Specific force does not JUMP from thrust to
+  // free-fall, it sweeps: across the F15 tail-off it runs 1.53 g -> 0.48 g and passes through
+  // 1.003 g at t=3.05 s. For ~250 ms it sits inside this test's own +/-0.45 g dead band while the
+  // vehicle is at 35-40 m climbing at 20 m/s. Every reset in t=[2.85, 3.25] was declared "on the
+  // ground" and the chute never came out -- a 410 ms hole, and the failure is silent.
+  //
+  // No accelerometer threshold can close this, because at that instant a flying rocket and a resting
+  // one genuinely produce the same specific force. The evidence has to come from somewhere else, so
+  // the barometer is sampled across the same window.
+  //
+  // CHANGE in altitude, never absolute AGL. Absolute would mean trusting persist.groundAlt, and a
+  // stale record from a previous flight at a lower field would then read as hundreds of metres of
+  // "altitude" the moment the board powers on -- firing a pyro in your hands. A difference taken
+  // inside one 400 ms window cannot be fooled by a bad datum, only by real vertical motion.
   int n=0, offOneG=0; float maxW=0;
-  unsigned long t0=millis();
+  float altMin=1e9f, altMax=-1e9f;
+  unsigned long t0=millis(), tBaro=0;
   while(millis()-t0<400){ wdtFeed();
     readIMU();
     float am=sqrtf(imu_ax*imu_ax+imu_ay*imu_ay+imu_az*imu_az);
@@ -1299,6 +1321,14 @@ bool looksAirborne(){
     if(fabsf(am - G) > 0.45f*G) offOneG++;               // thrust OR free-fall, either way not resting
     n++;
     if(wm>maxW)maxW=wm;
+    // Every 50 ms, not every pass: the DPS310 is configured for 32 Hz, so a faster poll just re-reads
+    // the same conversion and spends loop time to learn nothing.
+    if(millis()-tBaro >= 50){
+      tBaro = millis();
+      float a = baroReadAltitude(SEA_LEVEL_HPA);          // returns 0.0 with no baro fitted, so the
+      if(a<altMin) altMin=a;                              // term below is simply dead in that case
+      if(a>altMax) altMax=a;
+    }
     delay(5);
   }
   // SUSTAINED, at 60% of the window -- deliberately stricter than a bare majority. A vehicle resting in
@@ -1307,7 +1337,10 @@ bool looksAirborne(){
   // firing a pyro on the bench, so it is a check that must stay hard to satisfy, not an easy one.
   bool sustained = (n>0) && (offOneG*5 > n*3);
   bool tumbling  = (maxW > 90.0f);                       // deg/s, well above hand movement
-  return sustained || tumbling;
+  // Purely additive: on the ground this is 0.0 m and the interlock behaves exactly as before, so the
+  // stale-EEPROM-must-not-deploy locks in section 6 are unaffected.
+  bool climbing  = (altMax > altMin) && ((altMax-altMin) > RESUME_ALT_MOVE_M);
+  return sustained || tumbling || climbing;
 }
 
 // Armed only when a reboot is detected mid-flight AND the sensors independently agree the vehicle is flying.

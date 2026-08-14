@@ -323,6 +323,27 @@ check("burnout-window reset is still detected as AIRBORNE (per-sample, not windo
       outcome(out) == "PASS" and field(out,"p4t") > 0,
       f"outcome={outcome(out)} chute={'at %.1f m' % field(out,'p4alt') if field(out,'p4t')>0 else 'NEVER'}")
 
+# The SECOND blind spot in looksAirborne(), found 2026-08-13 -- by SWEEPING --resetat in 50 ms steps
+# instead of probing a handful of round numbers. Specific force does not jump from thrust to free-fall,
+# it sweeps: across the F15 tail-off it runs 1.53 g -> 0.48 g and passes through 1.003 g at t=3.05 s,
+# so for ~250 ms it sits inside the detector's own +/-0.45 g dead band while the vehicle is at 35-40 m
+# climbing at 20 m/s. Every reset in t=[2.85, 3.25] was declared "on the ground" and the chute never
+# came out. The fix reads barometric altitude CHANGE across the same window; no accelerometer
+# threshold can close it, because at that instant a flying rocket and a resting one genuinely produce
+# the same specific force.
+# The lesson is the sampling, not the bug: 1.0/2.0/3.0 straddled a 410 ms hole for months without
+# landing in it, and t=3.0 only caught it once the rebuild changed the mass. Sweep, don't sample.
+# (A 100 ms sweep over the whole flight, 0.2-8.0 s, was clean at the time of the fix; this keeps the
+# fine sweep on the tail-off, which is the only place the crossing is physically forced.)
+holes, t = [], 2.60
+while t <= 3.86:
+    out, boots = run_flight(AIRFRAME + ["--resetat", f"{t:.2f}", "--seed", "11"])
+    p4t = field(out, "p4t")
+    if not (p4t is not None and p4t > 0 and boots == 1): holes.append(f"{t:.2f}")
+    t += 0.05
+check("motor tail-off: EVERY reset through the 1 g crossing still deploys (50 ms sweep)",
+      not holes, f"chute NEVER fired for --resetat {', '.join(holes)}")
+
 # The chute must never be fired into the thrust column, whenever the reset lands.
 for t in (1.0, 2.0, 3.0):
     out, _ = run_flight(AIRFRAME + ["--resetat",t,"--seed","11"])

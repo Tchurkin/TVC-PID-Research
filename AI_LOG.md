@@ -551,6 +551,82 @@ accept later is word-level grammar polish, which will be logged as LANG and disc
 
 **Files touched / code to cite:** `paper/S4_WRITING_PLAN.md` (planning document, not report content).
 
+### 2026-08-12 — Impulse 2.3 board revision: pyro ARM FET replacement after a bench burnout
+**Tool:** Claude (Opus 5) in Claude Code
+**Categories:** CODE
+
+**What AI was asked to do:** "the impulse 2.2 pcb pyro switch fet, q21, failed and got fried from the
+pyro current. fix it" / "make a new pcb called 2.3".
+
+**What AI actually did:** diagnosed the failure quantitatively (7–8 A through a SOT-23 AO3401A for a
+~1 s pulse ⇒ 150–300 °C junction rise), selected the AO4407A replacement and verified its ratings
+against the AOS datasheet and its JLCPCB availability rather than asserting them from memory, then
+forked `PCBs/Impulse_2.2_kicad/` → `PCBs/Impulse_2.3_kicad/` and made the change in the KiCad files:
+schematic symbol swap, PCB footprint swap, gate/source/drain re-route, pyro rail widening, zone
+refill, and regeneration of the fab package. It wrote the supporting scripts
+(`_mk23.py`, `_fix_pyro_arm.py`, `_reroute_pyro_arm.py`, `_widen_rails.py`, `_geom.py`,
+`_dump_geom.py`, `_refill_zones.py`, `_mk_fab.py`) and the `DESIGN_LOG.md` entry and 2.3 `README.md`
+documenting the decision. Verification was by KiCad's own ERC/DRC against a 2.2 baseline, and DRC
+rejected an early version of the widening pass (a real In2 short and a board-edge violation), which
+was then fixed.
+
+**What AI did NOT do:** no paper or essay prose. This is hardware/CAD/code work only. It also did not
+place an order, and it explicitly did not verify Q21's JLC placement rotation — that is flagged in
+`fab/ORDER_NOTES.txt` as requiring a human check against JLC's preview.
+
+**Interpretation and decisions (student's):** *[Braxton to complete — the engineering calls that are
+yours to confirm: (a) accept AO4407A/SOIC-8 vs the DFN alternative, (b) accept the 2 new courtyard
+overlaps at 0.48 mm pad-to-pad, (c) whether to also upgrade Q20, (d) verify the Q21 CPL rotation
+before ordering.]*
+
+**Files touched / code to cite:** `PCBs/Impulse_2.3_kicad/` (new board revision and its scripts),
+`DESIGN_LOG.md` (2026-08-12 entry).
+
+### 2026-08-13 — Sensor bring-up fixes and a parachute blind spot in the reset-recovery path
+**Tool:** Claude Opus 5 (Claude Code)
+**Categories:** CODE
+
+**What AI was asked to do:** interpret bench logs from `Impulse22_SensorCheck` (IMU / barometer /
+relative GPS) after the GPS finally acquired a fix, then take on the reset-during-boost failure
+in the ascent regression suite.
+
+**What AI actually did:**
+- Fixed three defects in `Impulse22_SensorCheck.ino`, all found by reading the logged data rather
+  than by inspection: (1) the GPS datum was captured on the first fix, which is the worst fix
+  (4 sats, HDOP 9.8) and biased every relative reading after it; now gated on >=5 sats and
+  HDOP <= 2.5. (2) GSV was parsed as if one constellation existed, so the GPGSV and BDGSV tallies
+  overwrote each other and the "in view" count alternated 10/4 between prints. (3) Added an
+  accelerometer scale check gated on the board being undisturbed, using the change in gyro rate
+  between samples so that uncalibrated bias does not disqualify a still board.
+- Root-caused the reset-during-boost failure. Swept `--resetat` in 50 ms steps and found a
+  contiguous 410 ms window, t = [2.85, 3.25] s, in which an in-flight reboot never deployed the
+  parachute. Cause: `looksAirborne()` judges flight only from specific force and body rate, and
+  across the F15 tail-off specific force sweeps 1.53 g -> 0.48 g, passing through 1.003 g at
+  t = 3.05 s. For ~250 ms a rocket at 35-40 m climbing at 20 m/s produces the same accelerometer
+  reading as one resting on the pad. The two failing checks were one bug: `vz=+0.0` was the
+  never-fired sentinel, not a deployment under thrust.
+- Fixed it by adding barometric altitude CHANGE across the same 400 ms window (threshold 2 m).
+  Deliberately a difference, not absolute AGL: absolute would trust `persist.groundAlt`, so a stale
+  record from a previous flight at a lower field would read as "airborne" on power-up and fire a
+  pyro during handling.
+- Added a swept regression lock and verified it with a positive control — reverting the fix makes
+  it fail and name all nine hole times. Gate went 65/68 -> 68/69.
+
+**What AI did NOT do:** no paper or essay prose. It did not touch `DESIGN_LOG.md`. It did not
+resolve the remaining failure (`heavier rebuild: entering the numbers beats flying stale gains`),
+and the firmware is still NOT flashable — the gate exits non-zero. The 2 m threshold is justified
+against measured DPS310 bench noise but has not been checked against a real flight, and the fix has
+only ever run in simulation.
+
+**Interpretation and decisions (student's):** *[Braxton to complete — the calls that are yours:
+(a) whether 2 m / 400 ms is the right sensitivity given real pad conditions such as wind gusts and
+someone lifting the rail, (b) whether the remaining rebuild-gain failure is a firmware defect or a
+test whose discrimination has collapsed, (c) whether the GPS datum gate thresholds suit your field.]*
+
+**Files touched / code to cite:** `Firmware/Impulse22_SensorCheck/Impulse22_SensorCheck.ino`,
+`Firmware/Ascent_TVC/Ascent_TVC.ino` (`looksAirborne`, `RESUME_ALT_MOVE_M`),
+`Firmware/sim_ascent/regression.py` (tail-off sweep lock).
+
 ### Template for future entries
 
 ```
