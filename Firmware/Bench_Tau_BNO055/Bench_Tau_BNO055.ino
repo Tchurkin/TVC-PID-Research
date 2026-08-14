@@ -131,7 +131,9 @@ static void probeBusPins(const BusPins& b){
   Serial.print(scl ? "HIGH" : "LOW ");
   if(sda && scl)        Serial.println(F("   -> idle, pull-ups OK. Nothing is answering."));
   else if(!sda && scl)  Serial.println(F("   -> *** BUS LOCKED: a device is holding SDA low ***"));
-  else if(sda && !scl)  Serial.println(F("   -> SCL held low: shorted, or another master"));
+  else if(sda && !scl)  Serial.println(F("   -> SCL low: almost always just an UNUSED bus. These pins"
+                                         " are not wired as I2C on this board, so SCL floats with no"
+                                         " pull-up. Only a concern if you expected a device here."));
   else                  Serial.println(F("   -> *** BOTH LOW: no pull-ups, unpowered, or shorted ***"));
 }
 
