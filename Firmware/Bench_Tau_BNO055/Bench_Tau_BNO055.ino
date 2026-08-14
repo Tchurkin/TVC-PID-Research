@@ -72,8 +72,12 @@ BIGBUF uint32_t capT[NCAP];
 BIGBUF float    capG[NCAP][3];      // raw gyro, deg/s
 BIGBUF float    capE[NCAP][3];      // fused Euler, deg  (heading, roll, pitch)
 
-Adafruit_BNO055 bno(55, 0x28, &Wire);
-bool addr29 = false;
+// Constructed AFTER detection, so the right bus and address are known first.
+Adafruit_BNO055* bno = nullptr;
+TwoWire* i2cBus = nullptr;
+uint8_t  bnoAddr = 0;
+const char* busName = "?";
+uint32_t i2cHz = 100000;
 
 // ---- helpers ----------------------------------------------------------------
 static float medianOf(uint32_t* v, int n){
@@ -93,32 +97,106 @@ static void unwrap(float* a, int n){
   }
 }
 
+// Read the BNO055 CHIP_ID (reg 0x00). A real BNO055 answers 0xA0. This distinguishes it
+// from anything else that happens to ACK on 0x28/0x29.
+static bool bnoChipIdOk(TwoWire& w, uint8_t addr){
+  w.beginTransmission(addr); w.write((uint8_t)0x00);
+  if(w.endTransmission() != 0) return false;
+  if(w.requestFrom((int)addr, 1) != 1) return false;
+  return w.read() == 0xA0;
+}
+
+static void scanBus(TwoWire& w, const char* name, uint32_t hz){
+  w.begin(); w.setClock(hz);
+  Serial.print(F("  ")); Serial.print(name); Serial.print(F(" @ "));
+  Serial.print(hz/1000); Serial.print(F(" kHz: "));
+  int found=0;
+  for(uint8_t a=0x08; a<0x78; a++){
+    w.beginTransmission(a);
+    if(w.endTransmission()==0){
+      Serial.print(F("0x")); if(a<16) Serial.print('0'); Serial.print(a,HEX); Serial.print(' ');
+      found++;
+    }
+  }
+  if(!found) Serial.print(F("(nothing)"));
+  Serial.println();
+}
+
 void setup(){
   Serial.begin(115200);
   while(!Serial && millis() < 4000);
-  Wire.begin();
-  Wire.setClock(400000);                 // 400 kHz: the read cost below is measured at this rate
 
   Serial.println(F("# ============================================================"));
   Serial.println(F("# Bench_Tau_BNO055 -- sensor+compute loop delay"));
   Serial.println(F("# BENCH ONLY. No motor. Servos may be disconnected."));
   Serial.println(F("# ============================================================"));
 
-  if(!bno.begin(OPERATION_MODE_NDOF)){
-    addr29 = true;
-    bno = Adafruit_BNO055(55, 0x29, &Wire);
-    if(!bno.begin(OPERATION_MODE_NDOF)){
-      Serial.println(F("FATAL: no BNO055 at 0x28 or 0x29. Check wiring/pullups."));
-      while(1) delay(1000);
+  // The BNO055 needs ~650 ms from power-on before it answers. A Teensy soft-reset does NOT
+  // power-cycle the sensor, but a fresh upload can, so wait unconditionally.
+  Serial.println(F("# waiting 1000 ms for BNO055 boot..."));
+  delay(1000);
+
+  // Try every bus, and 100 kHz FIRST. The BNO055 stretches the clock and is widely reported
+  // to enumerate unreliably at 400 kHz -- the flight firmware runs Wire at the 100 kHz default.
+  TwoWire* busses[] = {
+    &Wire,
+#if defined(__IMXRT1062__)
+    &Wire1, &Wire2,
+#endif
+  };
+  const char* names[] = {
+    "Wire  (SDA18/SCL19)",
+#if defined(__IMXRT1062__)
+    "Wire1 (SDA17/SCL16)", "Wire2 (SDA25/SCL24)",
+#endif
+  };
+  const int NBUS = sizeof(busses)/sizeof(busses[0]);
+  const uint32_t rates[] = {100000, 400000};
+
+  for(int r=0; r<2 && !i2cBus; r++){
+    for(int b=0; b<NBUS && !i2cBus; b++){
+      busses[b]->begin();
+      busses[b]->setClock(rates[r]);
+      for(int k=0; k<2; k++){
+        uint8_t a = k ? 0x29 : 0x28;
+        if(bnoChipIdOk(*busses[b], a)){
+          i2cBus=busses[b]; bnoAddr=a; busName=names[b]; i2cHz=rates[r];
+          break;
+        }
+      }
     }
   }
-  Serial.print(F("# BNO055 found at 0x")); Serial.println(addr29 ? "29" : "28");
+
+  if(!i2cBus){
+    Serial.println(F("FATAL: no BNO055 (CHIP_ID 0xA0) on any bus at 0x28 or 0x29."));
+    Serial.println(F("Full scan of every bus, so you can see what IS connected:"));
+    for(int r=0;r<2;r++) for(int b=0;b<NBUS;b++) scanBus(*busses[b], names[b], rates[r]);
+    Serial.println(F(""));
+    Serial.println(F("Checklist:"));
+    Serial.println(F("  1. VIN to 3.3V (or 5V if your breakout has a regulator), GND common."));
+    Serial.println(F("  2. SDA/SCL not swapped. Teensy 4.1 Wire = SDA 18, SCL 19."));
+    Serial.println(F("  3. Pull-ups present -- most breakouts have them, bare chips do not."));
+    Serial.println(F("  4. ADR pin: low = 0x28, high = 0x29."));
+    Serial.println(F("  5. If an address ACKs above but CHIP_ID was wrong, it is not a BNO055."));
+    Serial.println(F("Paste this whole block and I can tell you which one it is."));
+    while(1) delay(1000);
+  }
+
+  Serial.print(F("# BNO055 found: ")); Serial.print(busName);
+  Serial.print(F("  addr 0x")); Serial.print(bnoAddr,HEX);
+  Serial.print(F("  @ ")); Serial.print(i2cHz/1000); Serial.println(F(" kHz"));
+
+  bno = new Adafruit_BNO055(55, bnoAddr, i2cBus);
+  if(!bno->begin(OPERATION_MODE_NDOF)){
+    Serial.println(F("FATAL: CHIP_ID matched but begin() failed -- sensor present, not responding."));
+    while(1) delay(1000);
+  }
   delay(1000);
-  bno.setExtCrystalUse(true);            // the breakout has a 32 kHz crystal; Bosch recommends it
+  bno->setExtCrystalUse(true);
   delay(500);
 
   uint8_t sysCal=0, gyroCal=0, accCal=0, magCal=0;
-  bno.getCalibration(&sysCal, &gyroCal, &accCal, &magCal);
+  bno->getCalibration(&sysCal, &gyroCal, &accCal, &magCal);
   Serial.print(F("# calibration sys/gyro/acc/mag = "));
   Serial.print(sysCal); Serial.print('/'); Serial.print(gyroCal); Serial.print('/');
   Serial.print(accCal); Serial.print('/'); Serial.println(magCal);
@@ -131,9 +209,9 @@ static void phaseI2C(){
   Serial.println(F("-- PHASE 1: I2C read cost ---------------------------------"));
   static uint32_t d1[NI2C_REPS], d2[NI2C_REPS], d3[NI2C_REPS];
   for(int i=0;i<NI2C_REPS;i++){
-    uint32_t a=micros(); volatile imu::Vector<3> g = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
-    uint32_t b=micros(); volatile imu::Vector<3> e = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
-    uint32_t c=micros(); volatile imu::Quaternion q = bno.getQuat();
+    uint32_t a=micros(); volatile imu::Vector<3> g = bno->getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
+    uint32_t b=micros(); volatile imu::Vector<3> e = bno->getVector(Adafruit_BNO055::VECTOR_EULER);
+    uint32_t c=micros(); volatile imu::Quaternion q = bno->getQuat();
     uint32_t d=micros();
     (void)g;(void)e;(void)q;
     d1[i]=b-a; d2[i]=c-b; d3[i]=d-c;
@@ -148,11 +226,11 @@ static void phaseI2C(){
 static float phaseOutputPeriod(){
   Serial.println(F("-- PHASE 2: fused-output update period ---------------------"));
   Serial.println(F("   (hold the board STILL is fine; we watch the LSB change)"));
-  imu::Vector<3> prev = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
+  imu::Vector<3> prev = bno->getVector(Adafruit_BNO055::VECTOR_EULER);
   uint32_t tPrev = micros(), t0 = millis();
   uint32_t nChg = 0; double sum = 0; uint32_t mn = 0xFFFFFFFF, mx = 0;
   while(millis() - t0 < OUTPER_MS){
-    imu::Vector<3> e = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
+    imu::Vector<3> e = bno->getVector(Adafruit_BNO055::VECTOR_EULER);
     if(e.x()!=prev.x() || e.y()!=prev.y() || e.z()!=prev.z()){
       uint32_t now = micros(), dt = now - tPrev;
       if(nChg){ sum += dt; if(dt<mn)mn=dt; if(dt>mx)mx=dt; }
@@ -183,8 +261,8 @@ static float phaseFusionDelay(float* outCorr, int* outBestPair){
   for(int i=0;i<NCAP;i++){
     while((int32_t)(micros()-next) < 0) {}
     capT[i] = micros();
-    imu::Vector<3> g = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);  // deg/s
-    imu::Vector<3> e = bno.getVector(Adafruit_BNO055::VECTOR_EULER);      // deg
+    imu::Vector<3> g = bno->getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);  // deg/s
+    imu::Vector<3> e = bno->getVector(Adafruit_BNO055::VECTOR_EULER);      // deg
     capG[i][0]=g.x(); capG[i][1]=g.y(); capG[i][2]=g.z();
     capE[i][0]=e.x(); capE[i][1]=e.y(); capE[i][2]=e.z();
     next += SAMPLE_US;
@@ -276,8 +354,8 @@ static float phaseLoopPeriod(float* mn, float* mx){
   static uint32_t d[NLOOP_REPS];
   for(int i=0;i<NLOOP_REPS;i++){
     uint32_t a=micros();
-    volatile imu::Vector<3> e = bno.getVector(Adafruit_BNO055::VECTOR_EULER);
-    volatile imu::Vector<3> g = bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
+    volatile imu::Vector<3> e = bno->getVector(Adafruit_BNO055::VECTOR_EULER);
+    volatile imu::Vector<3> g = bno->getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);
     (void)e;(void)g;
     volatile float u = 0;                        // stand-in for the PD + trim arithmetic
     for(int k=0;k<40;k++) u += sqrtf((float)k)*0.001f;
