@@ -110,6 +110,24 @@ constexpr int P4     = 12;   // PARACHUTE melt wire (primary recovery)
 constexpr int RLED   = 6, GLED = 7, BLED = 8;
 // Pack-status LEDs, readable on the pad with no laptop. Unlike the RGB (common anode on 5V-CLEAN),
 // these are ordinary discretes: pin -> 330R -> LED -> GND, so they are ACTIVE HIGH.
+// -- SENSOR BOARD, SPI1 --------------------------------------------------------
+// Declared HERE with the rest of the pin map rather than beside the drivers 600 lines below.
+// Chip selects living next to the code that toggles them is how you end up with two ideas about
+// which pin is which.
+constexpr int PIN_CS_IMU  = 0;    // ICM-42688-P
+constexpr int PIN_CS_BARO = 15;   // DPS310
+constexpr int PIN_MISO1   = 1, PIN_MOSI1 = 26, PIN_SCK1 = 27;
+
+// -- SIGNAL POLARITY -- every one of these has bitten this project ------------
+//   SENS_DET (32)   ACTIVE LOW.  Sensor board ties J1 pad 12 to GND; LED4+R64 pull up from
+//                                5V-CLEAN. CONNECTED = LOW. Reading it as active-high halted the
+//                                board on every boot with the harness correctly plugged in.
+//   RGB LED1 (6/7/8) COMMON ANODE on 5V-CLEAN -> a channel lights when its pin is pulled LOW, and
+//                                "off" must be HIGH-Z: driven HIGH leaves 1.7 V across the red die,
+//                                right at its knee, and it glows.
+//   PACK LEDs (30/31) ACTIVE HIGH. Ordinary discretes: pin -> 330R -> LED -> GND.
+//   BUTTON (14)     ACTIVE HIGH, external 10k pulldown (R23). Do NOT use INPUT_PULLUP.
+//   PYRO gates      ACTIVE HIGH, external 10k pulldowns (R50-R53) hold them off while the MCU boots.
 constexpr int PIN_MAIN_LED = 30;   // LED2, green  -- main pack (VBAT)
 constexpr int PIN_PYRO_LED = 31;   // LED3, yellow -- pyro pack (7.4 V)
 constexpr int SD_CS  = BUILTIN_SDCARD;
@@ -167,6 +185,30 @@ constexpr int   SERVO_X_SIGN = -1;
 // It must NOT be fixed by flipping SERVO_X_SIGN either: doing that turned the simulated flight into
 // a tumble, because the SIL models the MPU-6050 frame that SERVO_X_SIGN was verified against.
 // So: correct the ICM relative to the MPU, and leave the MPU/SIL path exactly as proven.
+// ================= EVERY SIGN CONVENTION, IN ONE PLACE =======================================
+// Three separate knobs act at three different points, and confusing them cost a full bench session.
+// The trap is that SENSOR axes cross over into CONTROL channels:
+//
+//     control channel X  <-  P from accel Y    D from gyro X
+//     control channel Y  <-  P from accel X    D from gyro Y
+//
+// so no single per-axis constant can fix one channel -- it always fixes one term and breaks another.
+//   ICM_MAP_* / ICM_SGN_*   per SENSOR axis, applied in icm42688Read(). Flips accel and gyro
+//                           together, which is what keeps the frame self-consistent for the
+//                           quaternion. Use for a rotated/mirrored sensor mounting.
+//   ICM_CHAN_*_SIGN         per CONTROL channel, ICM only, applied in writeServos(). Flips P and D
+//                           together on one channel. Use when a whole channel drives the wrong way.
+//   SERVO_*_SIGN            per control channel, ALL sources. Verified 2026-08-03 against the
+//                           MPU-6050 -- changing it breaks the SIL, which models that frame.
+constexpr int   ICM_AXES_VERIFIED = 1;                    // <<< SET after the bench check
+constexpr int   ICM_MAP_X = 0, ICM_MAP_Y = 1, ICM_MAP_Z = 2;   // raw axis feeding firmware X/Y/Z
+// X flipped from the bench, 2026-08-13: with +1 the gimbal drove the nose the WRONG way on the X
+// channel. Corrected HERE rather than at SERVO_X_SIGN because SERVO_X_SIGN was verified 2026-08-03
+// against the MPU-6050 with these same servos and this same linkage, neither of which has changed --
+// the only new variable is the IMU. Flipping the sensor axis also flips accel and gyro together, so
+// the frame stays self-consistent and the LOGGED tilt sign is right; flipping the servo instead
+// would have fixed the loop while leaving every flight log recording X backwards.
+constexpr float ICM_SGN_X = +1.0f, ICM_SGN_Y = +1.0f, ICM_SGN_Z = +1.0f;
 constexpr int   ICM_CHAN_X_SIGN = -1;
 constexpr int   ICM_CHAN_Y_SIGN = +1;            // *** SET FROM THE BENCH, 2026-08-03: with +1 BOTH axes drove the nose the WRONG
 constexpr int   SERVO_Y_SIGN = -1;            // way (pitch-the-nose test), so both were flipped to -1 and the test re-run. ***
@@ -1377,17 +1419,7 @@ void dumpFlightLog(){
 // different part on a different PCB in a different orientation, so NONE of that carries over
 // (FAILURE_MODES.md D4). A wrong sign is not a degraded flight, it is guaranteed divergence.
 // Re-run the pitch-the-nose check, set the map below, then set ICM_AXES_VERIFIED to 1.
-constexpr int   ICM_AXES_VERIFIED = 1;                    // <<< SET after the bench check
-constexpr int   ICM_MAP_X = 0, ICM_MAP_Y = 1, ICM_MAP_Z = 2;   // raw axis feeding firmware X/Y/Z
-// X flipped from the bench, 2026-08-13: with +1 the gimbal drove the nose the WRONG way on the X
-// channel. Corrected HERE rather than at SERVO_X_SIGN because SERVO_X_SIGN was verified 2026-08-03
-// against the MPU-6050 with these same servos and this same linkage, neither of which has changed --
-// the only new variable is the IMU. Flipping the sensor axis also flips accel and gyro together, so
-// the frame stays self-consistent and the LOGGED tilt sign is right; flipping the servo instead
-// would have fixed the loop while leaving every flight log recording X backwards.
-constexpr float ICM_SGN_X = +1.0f, ICM_SGN_Y = +1.0f, ICM_SGN_Z = +1.0f;
 
-constexpr int   PIN_CS_IMU = 0, PIN_CS_BARO = 15;
 constexpr float ICM_G0 = 9.80665f;
 constexpr float ICM_ACC_LSB_PER_G   = 2048.0f;            // +/-16 g
 constexpr float ICM_GYR_LSB_PER_DPS = 16.4f;              // +/-2000 dps
