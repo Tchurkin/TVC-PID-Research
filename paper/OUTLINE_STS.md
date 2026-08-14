@@ -288,6 +288,24 @@ C-CEILING with all three honesty items stated in the text, not a footnote:
    what the data says.
 3. **Sample conditionality.** ρ = −0.76 on the authority-stratified sample vs **−0.38** on a
    population-representative one. Same code, same seeds, only the design set differs.
+4. **⚠ FITTED RANGE (new 2026-08-13, and it now bites).** The law was fitted over τ = **5–30 ms** —
+   `latency_steps` clipped to [1, 6] at dt = 0.005 s (`design_space.py:201`). State the fitted range
+   explicitly *in §5*, because §7 reports a vehicle at **3.2 ms**, below it. A reader who meets the
+   measured τ in §7 without having been told §5's range in §5 will assume the prediction covers it.
+
+**The measured τ, and how to use it here.** `paper/TAU_MEASUREMENT.md`: τ ≈ **3.2 ms** measured, vs
+the 0.035 s this project assumed. At that τ the law predicts a ceiling of **15.7–24.3**, against
+**1.9** at the assumed value.
+
+**That number is an EXTRAPOLATION and must be labelled one every time it appears.** 3.2 ms is outside
+the fitted range in the direction where nothing was measured, and it is a large claim — roughly an
+order of magnitude of extra gain headroom — resting entirely on the −1.067 exponent continuing to
+hold where it was never tested. Options, in order of preference:
+- **Best:** run the fast-regime check (`tools/ceiling_fast_regime.py`) and, if the exponent survives,
+  quote the prediction as validated over the extended range. This is the experiment that upgrades §5.
+- **Otherwise:** report the prediction with the words "extrapolated beyond the fitted range" attached,
+  and do not build any §5 conclusion on it.
+Either way, **do not** write a sentence that implies the ceiling was measured at this vehicle's τ.
 
 **RESOLVED 2026-08-09 — the window sections are CUT.** `tools/window_kd_free.py`, 120 designs,
 positive control PASSED (replication within 1.86 SE and 1.45 SE of v2's published exponents, with
@@ -427,7 +445,14 @@ file writes cost zero simulated time. This paper's simulation results carry the 
 Flight record: **2 of 6 attempts controlled.**
 
 *Fig 10 — RMS distributions by class, with the diagnostic threshold (caption must say slew-rate).
-Fig 11 — measured bench τ: the dead-time distribution across randomized PWM phase.
+Fig 11 — **RE-SPEC'D 2026-08-13.** Was "bench τ dead-time distribution across randomized PWM phase",
+which was written for the *actuator* measurement (`Bench_Latency`, pot-tapped servos) — work this
+project is not doing, and which measures a quantity the ceiling law does not use. It is now the
+**τ decomposition, measured vs assumed**: a horizontal stacked bar for the measured vehicle
+(UI-filter group delay · half the 0.984 ms sample period · half the ~3.45 ms loop) against a single
+bar at the assumed 0.035 s, with the simulated 5–30 ms sampled range drawn as a shaded band so the
+reader sees at a glance that the vehicle sits below it. One panel, and it carries §7's whole
+hardware-τ story plus §5's fitted-range caveat.
 Fig 13 — **the retrospective test**: five flown flights on the simulation's own RMS scale, log axis,
 pre-registered threshold and grey zone drawn. `paper/figures/fig13_retro_flight_test.png`.*
 

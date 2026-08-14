@@ -109,7 +109,47 @@ two orders of magnitude.
 
 ---
 
-## 6. The experiment this measurement earns
+## 6. The experiment this measurement earns — ATTEMPTED 2026-08-13, BLOCKED
+
+**`tools/ceiling_fast_regime.py` was written and run. Its preflight control failed, so the
+extrapolation caveat in §4 STANDS and §5 must keep it.**
+
+**Design.** Three arms separating dt from τ, because τ = latency_steps × dt and reaching τ < 5 ms
+requires dt < 0.005:
+
+| arm | dt | latency_steps | τ | role |
+|---|---|---|---|---|
+| A | 0.005 | 1–6 | 5–30 ms | replication — must reproduce the published −1.067 |
+| B | 0.001 | 5–30 | 5–30 ms | **dt control at matched τ** |
+| C | 0.001 | 1–4 | 1–4 ms | the novel fast regime |
+
+**Result: the simulator is not dt-invariant, and the cause is specific.** Same design, same τ = 5 ms,
+two timesteps:
+
+| | dt = 0.005 × 1 step | dt = 0.001 × 5 steps | RMS ratio |
+|---|---|---|---|
+| noise **OFF**, Kp 5 / 20 / 60 | SR 1.0, rms 0.91 / 0.58 / 0.43 | SR 1.0, rms 0.92 / 0.46 / 0.46 | 1.01 / 0.79 / 1.06 |
+| noise **ON**, Kp 5 / 20 / 60 | SR 1.0, rms 2.04 / 1.80 / 1.70 | SR 0.4 / 0.2 / **0.0**, rms 11.75 / 8.90 / 18.07 | 5.8 / 5.0 / **10.6** |
+
+With noise off the plant, actuator and latency pipeline agree across timesteps — those are all
+dt-invariant. With noise on they do not. **`sim/sensor_model.py:117` adds
+`gyro_noise_std * randn()` once per STEP with no dt scaling**; its own docstring calls the units
+"rad/s per sqrt step". The bias random walk on line 111 *is* scaled, by √dt, which is why only the
+white-noise term misbehaves.
+
+So halving dt does not hold the physical noise fixed, and any ceiling measured at a finer dt would
+differ from the published ones for a reason that is **not τ**. The tool detects this in a preflight
+and refuses to spend the compute.
+
+**This invalidates nothing published.** Every prior result used dt = 0.005 throughout, so they are
+internally consistent. It means only that the latency axis cannot be *extended* by lowering dt.
+
+**What it would take to unblock.** Give `gyro_noise_std` a physical definition — a gyro's noise is a
+density in °/s/√Hz, so the per-sample σ should scale with the sample rate rather than being fixed —
+then re-validate the whole simulator at the new dt. That is a modelling change, not a scale factor,
+and it would put every existing result in scope for re-checking. **Not a September job.**
+
+## 7. The original framing of that experiment, for whoever picks it up
 
 **Does the 1/τ ceiling law hold below 5 ms?** It was fitted over 5–30 ms and this vehicle lives at
 3.2 ms. That is a focused question, not a campaign: reduce the simulator's `dt`, re-run the ceiling
