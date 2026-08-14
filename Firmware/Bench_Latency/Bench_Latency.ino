@@ -14,7 +14,7 @@
     slew     [deg/s]   peak d(position)/dt during a large, rate-limited step
     tau_lag  [ms]      first-order lag, from a SMALL step that never hits the rate limit
     settle   [ms]      time to stay inside a 2% band
-    tau_act  [ms]      = t_dead + tau_lag  <- the number to put in Pi = keff * tau^2
+    tau_act  [ms]      = t_dead + tau_lag  <- the ACTUATOR half of the loop delay tau
 
   WHY THE PHASE RANDOMIZATION MATTERS (the part a naive step test gets wrong):
     PWMServo updates the servo on a ~50 Hz frame. A command issued just after a frame
@@ -71,12 +71,14 @@ constexpr float GIMBAL_HALF_SPAN_DEG = 5.0f;               // matches MAX_TILT i
 constexpr int   SERVO_HALF_SPAN_DEG =
     (int)(LINKAGE_SERVO_DEG_PER_GIMBAL_DEG * GIMBAL_HALF_SPAN_DEG + 0.5f);
 
-// ---- Vehicle constants, for the on-bench Pi readout -------------------------
-// keff = T_avg * L / Iyy, all MEASURED (Ascent_TVC.ino header, 2026-07-06).
+// ---- Vehicle constants ------------------------------------------------------
+// UPDATED 2026-08-13 to the POST-ASC036-REBUILD airframe. The previous values here
+// (L = 0.14, Iyy = 0.0078, keff ~257) described the airframe ASC036 DESTROYED and would
+// have made this sketch's readout wrong by ~2x. Measured 2026-08-03, bifilar for Iyy.
 constexpr float T_AVG_N   = 14.34f;    // N,      F-15 average thrust
-constexpr float L_CG_M    = 0.14f;     // m,      CG -> TVC pivot
-constexpr float IYY_KGM2  = 0.0078f;   // kg*m^2, wet, one motor
-constexpr float KEFF      = T_AVG_N * L_CG_M / IYY_KGM2;   // ~257 s^-2
+constexpr float L_CG_M    = 0.16f;     // m,      CG -> TVC pivot   (was 0.14, destroyed airframe)
+constexpr float IYY_KGM2  = 0.0176f;   // kg*m^2, bifilar            (was 0.0078, destroyed airframe)
+constexpr float KEFF      = T_AVG_N * L_CG_M / IYY_KGM2;   // ~130 s^-2 (was ~257)
 
 // ---- Capture ----------------------------------------------------------------
 constexpr int      CAP_N          = 900;   // samples per trial
@@ -233,9 +235,12 @@ static void report(Axis& a){
   Serial.print(F("  settle 2%     [ms]  mean=")); Serial.println(a.settle.mean,2);
   Serial.print(F("  slew  [servo deg/s] ")); Serial.print(slewServo,1);
   Serial.print(F("   [gimbal deg/s] "));     Serial.println(slewGimb,1);
-  Serial.print(F("  tau_act = dead+lag [ms] = ")); Serial.println(tauAct,2);
-  Serial.print(F("  -> Pi_actuator_only = keff*tau^2 = "));
-  Serial.println(KEFF * (tauAct/1000.0f) * (tauAct/1000.0f), 3);
+  Serial.print(F("  tau_act = dead+lag [ms] = ")); Serial.print(tauAct,2);
+  Serial.print(F("  = ")); Serial.print(tauAct/1000.0f,4); Serial.println(F(" s"));
+  Serial.print(F("  (ACTUATOR HALF ONLY. tau_total = this + sensor group delay + loop period.)"));
+  Serial.println();
+  Serial.print(F("  for reference, keff = T*L/Iyy = ")); Serial.print(KEFF,1);
+  Serial.println(F(" s^-2 on the REBUILT airframe"));
 }
 
 void setup(){
@@ -253,7 +258,7 @@ void setup(){
   Serial.print  (F("# keff = T*L/Iyy = ")); Serial.print(KEFF,1); Serial.println(F(" s^-2"));
   Serial.print  (F("# linkage servo-deg per gimbal-deg = "));
   Serial.print(LINKAGE_SERVO_DEG_PER_GIMBAL_DEG,1);
-  Serial.println(F("   <-- flight firmware uses 5.0. RESOLVE THIS."));
+  Serial.println(F("   (matches Ascent_TVC SERVO_*_MULT and the SIL -- resolved 2026-08-04)"));
   Serial.println(F("# holding neutral. send 'g' to run, 'r' to re-run."));
 }
 
@@ -266,8 +271,9 @@ void loop(){
   runAxis(axX); runAxis(axY);
   Serial.println(F("==================== SUMMARY ===================="));
   report(axX); report(axY);
-  Serial.println(F("NOTE: Pi above uses the ACTUATOR delay only. Total loop tau also includes"));
-  Serial.println(F("  the sensor/compute path (MPU6050 DLPF group delay + loop period). Add that"));
-  Serial.println(F("  from the flight firmware's loop-period log before computing the vehicle Pi."));
+  Serial.println(F("NOTE: this is component 1 of 3. tau_total = actuator + sensor + compute:"));
+  Serial.println(F("  2) sensor  : MPU6050 DLPF group delay at MPU6050_BAND_94_HZ + I2C read time"));
+  Serial.println(F("  3) compute : loop period min/median/max from CTL###.CSV over a burn"));
+  Serial.println(F("  Report all three plus the sum. Target precision +-10% on tau_total."));
   Serial.println(F("================================================"));
 }
