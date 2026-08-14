@@ -44,3 +44,8 @@ sim/_patch_atlas.py
 
 # ascent SIL build artifact
 Firmware/sim_ascent/ascent_sim.exe
+
+# SIL run artifacts — the shimmed SD.h writes these on every regression run.
+# Scoped to the sim dirs on purpose: FLIGHT_LOG.csv at the repo root is the real flight record.
+Firmware/sim_ascent/*.CSV
+Firmware/sim/*.txt

@@ -54,6 +54,17 @@ constexpr float GYR_LSB_PER_DPS = 16.4f;    // ±2000 dps
 
 bool haveICM = false, haveDPS = false;
 
+// |A| should read 1.000 g at rest, and it is the one cheap check on accelerometer scale and bias.
+// Hand contact destroys it: a run spent picking the board up swung |A| between 0.79 and 1.34 g,
+// which says nothing about the sensor. So only accumulate samples where the gyro is quiet -- the
+// statistic then measures the ICM instead of your hands.
+// Gate on the CHANGE in rate between samples, not the rate itself. The gyro is uncalibrated here,
+// and a few dps of fixed bias is normal out of the box -- an absolute-rate gate would reject a
+// perfectly still board forever. Bias is constant, so it cancels in the difference.
+constexpr float STILL_DGYRO_DPS = 2.0f;
+uint32_t stillN=0; double stillSum=0; float stillMin=9.9f, stillMax=0.0f;
+float gPrevX=0, gPrevY=0, gPrevZ=0; bool gPrevValid=false;
+
 // ── SPI1 helpers ─────────────────────────────────────────────────────────────
 static uint8_t rd(int cs, SPISettings s, uint8_t reg){
   SPI1.beginTransaction(s); digitalWrite(cs,LOW);
@@ -144,6 +155,21 @@ char     nmea[100]; uint8_t nlen=0;
 uint32_t nmeaCount=0;
 int      gpsFix=0, gpsSats=0;
 float    gpsHdop=0, gpsMsl=0;
+// GSV is the diagnostic that separates "acquiring" from "deaf". It lists satellites IN VIEW with
+// their carrier-to-noise. A receiver with a working antenna reports birds at 25-45 dBHz within
+// seconds of seeing sky, long before it has enough of them to solve a position. Zero in view, or
+// several in view but all at 0 dBHz, means RF -- antenna, shielding or interference -- not time.
+// The ATGM336H is multi-constellation: it emits GPGSV for GPS *and* BDGSV for BeiDou, and each
+// constellation numbers its own GSV sentences from 1. A single running tally is therefore reset
+// halfway through every cycle and ends up reporting whichever constellation happened to finish
+// last -- which is exactly why this alternated between "10 in view" and "4 in view" line by line.
+// Keep one tally per talker ID and sum them.
+struct GsvTalker { uint16_t id; int inView, tracked, maxSnr; };
+GsvTalker gsvT[4]; int gsvNT=0;
+// Datum quality gate. 5 satellites and HDOP 2.5 is a solution worth measuring from; the button
+// still forces a re-zero whenever you want one.
+constexpr int   DATUM_MIN_SATS = 5;
+constexpr float DATUM_MAX_HDOP = 2.5f;
 double   gpsLat=0, gpsLon=0;
 bool     gpsHasFix=false, originSet=false;
 double   lat0=0, lon0=0; float msl0=0;
@@ -192,6 +218,31 @@ void projectFix(){
   gpsE = Rn*cos(lat0*M_PI/180.0)*dLon;
   gpsU = gpsMsl - msl0;
 }
+void parseGSV(const char*s){
+  const uint16_t id = ((uint16_t)(uint8_t)s[1]<<8) | (uint8_t)s[2];   // "GP", "BD", "GL", "GA"
+  GsvTalker* t=nullptr;
+  for(int i=0;i<gsvNT;i++) if(gsvT[i].id==id){ t=&gsvT[i]; break; }
+  if(!t){
+    if(gsvNT>=4) return;                                  // more constellations than we track
+    t=&gsvT[gsvNT++]; t->id=id; t->inView=t->tracked=t->maxSnr=0;
+  }
+  const char* mn=field(s,2);
+  if(*mn && atoi(mn)==1){ t->tracked=0; t->maxSnr=0; }    // THIS talker's set restarts
+  const char* v=field(s,3); if(*v) t->inView=atoi(v);
+  for(int k=0;k<4;k++){                                   // up to 4 satellites per sentence
+    const char* snr=field(s,7+4*k);
+    if(!*snr || *snr==',' || *snr=='*') continue;
+    int q=atoi(snr);
+    if(q>0){ t->tracked++; if(q>t->maxSnr) t->maxSnr=q; }
+  }
+}
+void gsvTotals(int&inView,int&tracked,int&maxSnr){
+  inView=tracked=maxSnr=0;
+  for(int i=0;i<gsvNT;i++){
+    inView += gsvT[i].inView;  tracked += gsvT[i].tracked;
+    if(gsvT[i].maxSnr>maxSnr) maxSnr = gsvT[i].maxSnr;
+  }
+}
 void parseGGA(const char*s){
   const char* q = field(s,6);  if(*q) gpsFix  = atoi(q);
   const char* n = field(s,7);  if(*n) gpsSats = atoi(n);
@@ -204,7 +255,14 @@ void parseGGA(const char*s){
     if(*ns=='S') lat=-lat;
     if(*ew=='W') lon=-lon;
     gpsLat=lat; gpsLon=lon; gpsHasFix=true;
-    if(!originSet) setOrigin();            // first good fix becomes the datum
+    // Do NOT take the FIRST fix as the datum. The first fix is the worst fix -- typically 4
+    // satellites at HDOP ~10, tens of metres out -- and every relative reading afterwards inherits
+    // that error as a fixed offset. Wait for the solution to actually converge.
+    if(!originSet && gpsSats >= DATUM_MIN_SATS && gpsHdop > 0 && gpsHdop <= DATUM_MAX_HDOP){
+      setOrigin();
+      Serial.print(F(">>> datum set: ")); Serial.print(gpsSats);
+      Serial.print(F(" sats, hdop ")); Serial.println(gpsHdop,1);
+    }
     projectFix();
   } else gpsHasFix=false;
 }
@@ -215,7 +273,10 @@ void pumpGPS(){
     if(nlen==0) continue;
     if(c=='\r'||c=='\n'){
       nmea[nlen]=0; nmeaCount++;
-      if(nlen>9 && strstr(nmea,"GGA") && nmeaChecksumOk(nmea)) parseGGA(nmea);
+      if(nlen>9 && nmeaChecksumOk(nmea)){
+        if(strstr(nmea,"GGA")) parseGGA(nmea);
+        else if(strstr(nmea,"GSV")) parseGSV(nmea);
+      }
       nlen=0; continue;
     }
     if(nlen<sizeof(nmea)-1) nmea[nlen++]=c;
@@ -274,7 +335,8 @@ void loop(){
       while(digitalRead(PIN_BUTTON)==HIGH) pumpGPS();
       if(haveDPS) zeroBaro();
       originSet=false; setOrigin();
-      Serial.println(F(">>> re-zeroed: baro ground pressure and GPS datum"));
+      stillN=0; stillSum=0; stillMin=9.9f; stillMax=0.0f; gPrevValid=false;   // "start over"
+      Serial.println(F(">>> re-zeroed: baro ground pressure, GPS datum and the |A| statistic"));
       beep(1500,120);
     }
   }
@@ -289,12 +351,43 @@ void loop(){
   if(haveICM){
     float ax,ay,az,gx,gy,gz,tc;
     if(icmRead(ax,ay,az,gx,gy,gz,tc)){
-      Serial.print(F("A ")); Serial.print(ax,3); Serial.print(' '); Serial.print(ay,3);
-      Serial.print(' '); Serial.print(az,3);
-      Serial.print(F("  |A| ")); Serial.print(sqrtf(ax*ax+ay*ay+az*az),3);
-      Serial.print(F("   G ")); Serial.print(gx,2); Serial.print(' '); Serial.print(gy,2);
+      // Attitude in degrees, using the SAME decomposition as Ascent_TVC so the numbers here can be
+      // compared against the flight firmware's tiltX/tiltY directly rather than being a second,
+      // subtly different convention. Valid at rest only -- accel reads thrust under power and
+      // free-fall in coast, so treat these as a bench/pad reading.
+      const float RAD2DEG = 57.29577951f;
+      const float tiltX =  atan2f(ay, az) * RAD2DEG;               // rotation about body X
+      const float tiltY = -atan2f(ax, az) * RAD2DEG;               // rotation about body Y
+      const float tiltT =  atan2f(sqrtf(ax*ax+ay*ay), az) * RAD2DEG;  // total angle off vertical
+      Serial.print(F("IMU  tilt X ")); Serial.print(tiltX,2);
+      Serial.print(F("  Y ")); Serial.print(tiltY,2);
+      Serial.print(F("  total ")); Serial.print(tiltT,2);
+      Serial.print(F(" deg   rate ")); Serial.print(gx,2); Serial.print(' '); Serial.print(gy,2);
       Serial.print(' '); Serial.print(gz,2);
-      Serial.print(F("   T ")); Serial.print(tc,1); Serial.println('C');
+      Serial.print(F(" dps   T ")); Serial.print(tc,1); Serial.println('C');
+      Serial.print(F("     accel ")); Serial.print(ax,3); Serial.print(' '); Serial.print(ay,3);
+      Serial.print(' '); Serial.print(az,3);
+      const float magA = sqrtf(ax*ax+ay*ay+az*az);
+      const float dgx=gx-gPrevX, dgy=gy-gPrevY, dgz=gz-gPrevZ;
+      const bool  still = gPrevValid && sqrtf(dgx*dgx+dgy*dgy+dgz*dgz) < STILL_DGYRO_DPS;
+      gPrevX=gx; gPrevY=gy; gPrevZ=gz; gPrevValid=true;
+      if(still){
+        stillN++; stillSum += magA;
+        if(magA<stillMin) stillMin=magA;
+        if(magA>stillMax) stillMax=magA;
+      }
+      Serial.print(F(" g   |A| ")); Serial.print(magA,3);
+      Serial.println(still ? F("  (still)") : F("  (moving -- |A| is your hands, not the sensor)"));
+      if(stillN>=20){
+        Serial.print(F("     at rest: |A| mean ")); Serial.print((float)(stillSum/stillN),4);
+        Serial.print(F("  span ")); Serial.print(stillMax-stillMin,4);
+        Serial.print(F(" g over ")); Serial.print((int)stillN);
+        Serial.println(F(" samples   (want mean 1.000, span < 0.02)"));
+      } else if(!still){
+        Serial.print(F("     at rest: "));
+        Serial.print(20-(int)stillN);
+        Serial.println(F(" more undisturbed samples needed -- set the board down to check accel scale"));
+      }
     } else {
       Serial.println(F("A  -- ICM returned its no-data sentinel (reset into standby); re-initialising"));
       haveICM = icmBegin();
@@ -313,14 +406,35 @@ void loop(){
   Serial.print(F(" hdop ")); Serial.print(gpsHdop,1);
   Serial.print(F("  nmea ")); Serial.print(nmeaCount);
   Serial.print(F(" pps ")); Serial.print(ppsCount);
+  Serial.println();
+  int gsvInView, gsvTracked, gsvMaxSnr;
+  gsvTotals(gsvInView, gsvTracked, gsvMaxSnr);
+  Serial.print(F("     sky: ")); Serial.print(gsvInView); Serial.print(F(" in view, "));
+  Serial.print(gsvTracked); Serial.print(F(" with signal, best "));
+  Serial.print(gsvMaxSnr); Serial.print(F(" dBHz ("));
+  for(int i=0;i<gsvNT;i++){
+    if(i) Serial.print('/');
+    Serial.print((char)(gsvT[i].id>>8)); Serial.print((char)(gsvT[i].id&0xFF));
+    Serial.print(' '); Serial.print(gsvT[i].tracked);
+  }
+  Serial.print(')');
+  if(gsvInView==0)        Serial.print(F("   <- receiver sees NOTHING: antenna/RF, not patience"));
+  else if(gsvMaxSnr<20)   Serial.print(F("   <- too weak to decode: shielding or interference"));
+  else if(gsvTracked<4)   Serial.print(F("   <- signal is fine, needs more birds. Wait."));
   if(originSet && gpsHasFix){
     Serial.print(F("   N ")); Serial.print(gpsN,2);
     Serial.print(F("  E ")); Serial.print(gpsE,2);
     Serial.print(F("  U ")); Serial.print(gpsU,2);
+    // Bearing from the datum, degrees true, 0 = north and increasing clockwise. Distance alone
+    // cannot tell you the projection has the axes the right way round; walking a known heading and
+    // checking this can.
+    double brg = atan2(gpsE, gpsN) * 57.29577951;
+    if(brg < 0) brg += 360.0;
     Serial.print(F(" m   dist ")); Serial.print(sqrt(gpsN*gpsN+gpsE*gpsE),2);
-    Serial.println(F(" m"));
+    Serial.print(F(" m   brg ")); Serial.print(brg,1); Serial.println(F(" deg"));
   } else {
-    Serial.println(gpsHasFix ? F("   (no datum yet)") : F("   NO FIX"));
+    Serial.println(gpsHasFix ? F("   fix too weak for a datum -- waiting for 5 sats / hdop<=2.5")
+                            : F("   NO FIX"));
   }
   Serial.println();
 }
