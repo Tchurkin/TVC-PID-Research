@@ -398,9 +398,27 @@ from simulation, and all three are more interesting than the 5/5:
 one flight whose verdict flips between the two analysis passes. One of the five rests on a
 pre-registered analysis choice, not on a comfortable margin.
 
-**The hardware dataset goes here** — measured τ from the bench (spec posted to the engineer), the
-bifilar Iyy, and whatever flight data exists by the deadline. Even a bench-only τ makes §5 and §6
-concrete rather than parametric: it places *this* vehicle on the paper's own axes.
+**The hardware dataset goes here** — the bifilar Iyy, the retrospective signature test, and the
+**measured τ (2026-08-13)**. Full working: `paper/TAU_MEASUREMENT.md`.
+
+**⚠ τ IS MEASURED, AND IT OVERTURNS THE ASSUMPTION.** ICM-42688-P at 1 kHz, SPI burst 18 µs, true
+sample period 0.984 ms, loop ~3.45 ms → **τ ≈ 3.2 ms**, against the **0.035 s** the paper assumed.
+**8–13× smaller**, and robust to the one unmeasured term (the UI-filter group delay) because the loop
+term dominates.
+
+Three things must be said, and none of them is "here is the vehicle on the axis":
+1. **The vehicle is BELOW the simulated range.** `latency_steps` is clipped to [1, 6] at dt = 0.005 s
+   (`design_space.py:201`), so the simulator spans 5–30 ms and **cannot express 3.2 ms at all**.
+   That is a structural limit, not a parameter choice — belongs in §9.
+2. **The 5–30 ms range is not wrong.** It is the right envelope for *fusion-IMU* vehicles, which is
+   the dominant hobby architecture — BPS.space has used the BNO055 across multiple generations, and a
+   BNO055's τ floor from published specs alone is 6–11 ms (100 Hz fused output → 5 ms mean sampling
+   age, plus a 1–6 ms quaternion read), before counting its unpublished fusion-filter delay or the
+   loop. This vehicle uses a *raw* IMU with attitude integrated on the MCU, which is simply a faster
+   architecture. Report it as a scope statement, not a modelling error.
+3. **Do NOT quote `0.0661/τ` for this vehicle as a validated prediction.** The law was fitted over
+   5–30 ms; 3.2 ms is outside it in the direction where nothing was measured. It is an extrapolation
+   and must be labelled one.
 
 **Qualification that must appear, and it is the engineer's finding, credited:** a simulator PASS is
 only evidence about failure modes the model can represent. ASC038 tumbled from a 143 ms SD write
