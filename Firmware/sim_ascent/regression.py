@@ -423,12 +423,54 @@ check("schedule never surrenders margin at HIGH keff (must not exceed fixed-gain
 
 # The motivating case: a rebuilt airframe. Typing the new mass properties in must recover the response
 # that hand-rescaling the gains would have given -- that is the entire point of deriving them.
-heavy = ["--mass","0.927","--iyy","3.40","--larm","1.30","--tipx","5","--gnoise","0.15","--seed","11"]
-stale, _ = run(heavy + ["--fixedgain"])
-told,  _ = run(heavy + ["--tellfirmware"])
-check("heavier rebuild: entering the numbers beats flying stale gains",
-      field(told,"boostTilt") < field(stale,"boostTilt") - 0.5,
-      f"told={field(told,'boostTilt'):.2f} vs stale={field(stale,'boostTilt'):.2f} deg")
+#
+# REWRITTEN 2026-08-14. The old form asserted `told < stale - 0.5` on a bare --tipx 5 run. That is
+# arithmetically unsatisfiable: the scenario is so benign that stale itself is only 0.38 deg, so it
+# demanded a boost tilt below -0.12 deg. NO firmware change could ever pass it, and it had been
+# reading as a firmware defect. Two things were wrong with it, and both are worth not repeating:
+#   - an ABSOLUTE threshold on a metric whose scale is set by the airframe and the disturbance, and
+#   - a scenario with no disturbance worth rejecting, so nothing could distinguish the two arms.
+# Now run under thrust misalignment -- section 7b establishes that misalignment, not gain choice, is
+# the dominant driver of what a flight does -- and scored RELATIVE, over several seeds so one lucky
+# draw cannot decide it. This is not a threshold tuned until it went green: entering the numbers is
+# worth ~20% here, and the bar is set at 10%.
+heavy = ["--mass","0.927","--iyy","3.40","--larm","1.30","--tipx","5",
+         "--misx","2.0","--gnoise","0.15"]
+gains = []
+for sd in (11, 12, 13, 14, 15):
+    stale, _ = run(heavy + ["--fixedgain",    "--seed", sd])
+    told,  _ = run(heavy + ["--tellfirmware", "--seed", sd])
+    gains.append((field(stale,"boostTilt"), field(told,"boostTilt")))
+med = statistics.median((t - s) / s for s, t in gains)
+check("heavier rebuild: entering the numbers beats flying stale gains (5 seeds, >=10%)",
+      med < -0.10,
+      f"median {100*med:+.1f}% boost tilt vs stale "
+      f"(stale {statistics.median(s for s,_ in gains):.2f} -> told {statistics.median(t for _,t in gains):.2f} deg)")
+
+# THE OTHER HALF OF THE SAME KNOB, and it points the opposite way. Added 2026-08-14.
+# The one-sided lock above varies --tipx to reach "HIGH keff", but tip-off does not set keff at all:
+# keff = T*L/Iyy. So nothing in this suite had ever driven keff high through the parameter that
+# actually controls it, and the schedule's protection was never tested where it matters.
+# Driving it properly (Iyy DOWN -> keff UP, i.e. a LIGHTER rebuild) shows the clamp doing its job --
+# sched = constrain(keffNominal/keffEst, 1.0, ..) is inert above nominal, so the in-flight schedule
+# never gives margin back. But --tellfirmware does not go through the schedule: it rewrites DRY_*,
+# which raises keffNominal itself, and pEff = TVC_WN^2/keffNominal then FALLS. That is exactly the
+# full normalisation the schedule comment says was measured worse on 139 of 140 airframes -- entering
+# through the nominal instead of through the schedule, where the one-sided clamp cannot protect it.
+# Measured (40 seeds, 1 deg/axis misalign): worst-case boost tilt 2.16 -> 2.52 -> 3.12 -> 4.50 deg as
+# Iyy falls 2.257 -> 1.90 -> 1.50 -> 1.00, monotone, and told was worse on 40 of 40 seeds at each.
+# Every arm still PASSed 40/40, so this is MARGIN, not safety -- and that is what is locked here.
+# It is deliberately NOT asserted that telling the firmware helps on a light airframe. It does not.
+for iyy, worst_allowed in (("1.90", 3.2), ("1.50", 3.8)):
+    light = ["--mass","0.927","--iyy",iyy,"--larm","1.143","--misx","1.0","--misy","1.0",
+             "--tipx","3","--gnoise","0.15"]
+    bad = []
+    for sd in (101, 102, 103, 104, 105):
+        told, _ = run(light + ["--tellfirmware", "--seed", sd])
+        if outcome(told) != "PASS" or field(told,"boostTilt") > worst_allowed:
+            bad.append(f"seed {sd}: {outcome(told)} tilt {field(told,'boostTilt'):.2f}")
+    check(f"lighter rebuild (Iyy x{iyy}): typing the numbers in costs margin but never the flight",
+          not bad, "; ".join(bad))
 
 # ----------------------------------------------------------- 7. Monte Carlo
 #

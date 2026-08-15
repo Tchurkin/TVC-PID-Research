@@ -627,6 +627,43 @@ test whose discrimination has collapsed, (c) whether the GPS datum gate threshol
 `Firmware/Ascent_TVC/Ascent_TVC.ino` (`looksAirborne`, `RESUME_ALT_MOVE_M`),
 `Firmware/sim_ascent/regression.py` (tail-off sweep lock).
 
+### 2026-08-14 — Unsatisfiable regression threshold, and a gain-schedule blind spot
+**Tool:** Claude Opus 5 (Claude Code)
+**Categories:** CODE, STAT
+
+**What AI was asked to do:** clear the last failing regression check ahead of a 2026-08-16 launch.
+
+**What AI actually did:**
+- Diagnosed `heavier rebuild: entering the numbers beats flying stale gains` as an **unsatisfiable
+  assertion**, not a firmware defect. It required `told < stale - 0.5` deg on a scenario where stale
+  itself is 0.38 deg, i.e. a boost tilt below -0.12 deg. Two faults: an ABSOLUTE threshold on a
+  metric whose scale is set by the airframe, and a scenario with no disturbance worth rejecting.
+  Rewritten to run under thrust misalignment, scored RELATIVE, over 5 seeds. Passes at -23.4%
+  against a 10% bar — the bar was set after measuring, not tuned until it went green.
+- Found a real blind spot while checking whether the feature helps at all. The existing lock
+  "schedule never surrenders margin at HIGH keff" varies `--tipx`, but tip-off does not set keff
+  (keff = T*L/Iyy), so the suite had never driven keff high through the parameter that controls it.
+- Driving it properly (40 seeds, paired): the in-flight schedule is correctly inert above nominal,
+  but `--tellfirmware` bypasses it — it rewrites DRY_*, raising keffNominal, and pEff =
+  TVC_WN^2/keffNominal then falls. That is the full normalisation the schedule's own comment records
+  as measured worse on 139/140 airframes. Worst-case boost tilt 2.16 -> 2.52 -> 3.12 -> 4.50 deg as
+  Iyy falls 2.257 -> 1.90 -> 1.50 -> 1.00; told worse on 40/40 seeds at each step. **PASS stayed
+  40/40 in every arm, so this is margin, not safety.** Locked as such; it is deliberately NOT
+  asserted that telling the firmware helps on a light airframe, because it does not.
+- Gate now 71 passed / 0 failed, exit 0.
+
+**What AI did NOT do:** no paper or essay prose, and no `DESIGN_LOG.md` entry. It did not measure
+the rebuilt vehicle, and every number above is simulation. It did not model the removed nose cone
+or the parachute-on-top configuration at all — the SIL has no aerodynamic representation of either,
+so the suite passing says nothing about that change.
+
+**Interpretation and decisions (student's):** *[Braxton to complete — the calls that are yours:
+(a) whether to enter tomorrow's remeasured mass properties or fly the current constants, given the
+lighter-airframe finding above, (b) whether the coast-phase stability of a nose-cone-less airframe
+is acceptable, (c) whether 71/71 green is sufficient to fly on the 16th.]*
+
+**Files touched / code to cite:** `Firmware/sim_ascent/regression.py` (section 6d rewrite).
+
 ### Template for future entries
 
 ```
