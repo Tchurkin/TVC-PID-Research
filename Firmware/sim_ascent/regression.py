@@ -472,6 +472,40 @@ for iyy, worst_allowed in (("1.90", 3.2), ("1.50", 3.8)):
     check(f"lighter rebuild (Iyy x{iyy}): typing the numbers in costs margin but never the flight",
           not bad, "; ".join(bad))
 
+# -------------------------------------- 6e. ROLL COUPLING vs Izz (legs removed). Added 2026-08-14.
+section("6e. Roll coupling — Izz is the one mass property nothing had ever varied")
+# Braxton flew this failure for real: legs off, pre-quaternion firmware, and the vehicle pitched over.
+# That is the ASC007/ASC031 roll-coupling divergence the quaternion estimator was written to fix
+# (Ascent_TVC.ino:10, 2026-07-13). Legs stick out radially so they dominate Izz, and removing them
+# makes the vehicle roll-agile: the same nozzle cant spins it up much faster.
+#
+# The suite had NEVER varied --izz. Not once. It touches roll in a single dispersion case, and that
+# case pins Izz at nominal -- so the exact configuration being flown on 2026-08-16 was untested.
+#
+# CALIBRATE THE DISTURBANCE FIRST. The first pass of this used the dispersion case's --rollcant 0.0008
+# and "confirmed" the fear outright: 0/20 at Izz 0.60. That was wrong, and wrong in the direction that
+# flattered the hypothesis. 0.0008 produces 4500 deg/s of roll; the real vehicle has never exceeded
+# ~110 deg/s (ASC031 193 deg over a 3.5 s burn, ASC036 74.6 deg -- FLIGHT_LOG.md). Backing that out
+# at constant torque puts the true cant near 2e-5 m, so the dispersion value is ~40x reality.
+# At the CALIBRATED cant the fear does not reproduce: Izz down to 0.25x still passes 20/20.
+# The cliff sits at ~5500 deg/s of roll -- 2.7x the 2000 deg/s gyro FSR, past which the estimator is
+# blind -- and reaching it needs 15x the measured cant even at Izz 0.25.
+#
+# Locked at 3x the worst cant ever inferred from flight, across the plausible legs-off range.
+# NOTE: Izz itself is ESTIMATED, never measured (0.5*m*r^2, FLIGHT_LOG.md line 25). The margin below
+# is what makes that acceptable, not confidence in the number.
+ROLL_CANT_FLOWN = 0.00002        # m, inferred from ASC031/ASC036 roll excursions
+for izz in ("1.00", "0.60", "0.40", "0.25"):
+    bad = []
+    for sd in (301, 302, 303, 304, 305):
+        out, _ = run(AIRFRAME + ["--izz", izz, "--rollcant", f"{3*ROLL_CANT_FLOWN:.6f}",
+                                 "--misx","1.0","--misy","1.0","--tipx","3","--seed", sd])
+        if outcome(out) != "PASS" or field(out,"boostTilt") > 6.0:
+            bad.append(f"seed {sd}: {outcome(out)} tilt {field(out,'boostTilt'):.1f} "
+                       f"roll {field(out,'rollrate'):.0f} dps")
+    check(f"legs-off Izz x{izz} at 3x the flown nozzle cant -> no roll-coupling divergence",
+          not bad, "; ".join(bad))
+
 # ----------------------------------------------------------- 7. Monte Carlo
 #
 # WHY THIS SECTION IS SPLIT (rewritten 2026-08-08)
