@@ -106,7 +106,7 @@ constexpr uint32_t BENCHCAL_MAGIC = 0xB1A5CA10;
 // light and no recovery charge can fire either. The inhibit is at the DRIVER, not at the call sites.
 //
 // ⚠ THE FIRST VERSION OF THIS GOT IT WRONG, AND THE BENCH CAUGHT IT (CTL003, 2026-08-15).
-// It inhibited only P3 and reasoned that with no ignition, liftoffConfirmed could never go true, so
+// It inhibited only the motor channel and reasoned that with no ignition, liftoffConfirmed could never go true, so
 // the existing liftoff interlock would hold the chute and leg charges. But liftoffConfirmed latches
 // on a TRANSIENT above THRUST_ONSET_G (1.5 g) sampled at ~11.7 kHz, and ordinary bench handling
 // produces that. It latched, the firmware took the normal recovery path, and both melt wires were
@@ -125,7 +125,7 @@ constexpr uint32_t BENCHCAL_MAGIC = 0xB1A5CA10;
 // mode" is a gate-locked property instead of an argument. The build flag is still what the gate
 // greps for, and in a flight build nothing ever sets this true.
 bool    groundTestInhibit = (GROUND_TEST != 0);
-uint8_t pyroAttemptMask   = 0;   // bits 0..3 = P1..P4 requested while inhibited. Doubles as the
+uint8_t pyroAttemptMask   = 0;   // bits 0..3 = P1..P4 (ascent,descent,legs,chute) requested while inhibited. Doubles as the
                                  // positive control: it proves the firmware DID reach the code that
                                  // would have fired, so a passing test means the inhibit stopped it
                                  // rather than the path never being taken.
@@ -136,9 +136,9 @@ uint8_t pyroAttemptMask   = 0;   // bits 0..3 = P1..P4 requested while inhibited
 // (FAILURE_MODES B3: it separates "the firmware never fired" from "the firmware fired and the
 // hardware did not respond") and it can only be exercised by actually burning something.
 //
-// *** P3, THE MOTOR CHANNEL, IS NEVER RELEASED BY THIS. ***
+// *** THE MOTOR CHANNELS ARE NEVER RELEASED BY THIS. ***
 // A ground test does not involve lighting a motor. That is enforced here rather than left as an
-// intention, because "I won't light any motors" is a promise and `pin != P3` is a property. So the
+// intention, because "I won't light any motors" is a promise and a pin exclusion is a property. So the
 // worst this flag can do is fire a recovery channel you chose to connect.
 //
 // USE A DUMMY LOAD FIRST -- a 10 ohm 1 W resistor, or an LED with a 470 ohm series resistor, across
@@ -147,7 +147,7 @@ uint8_t pyroAttemptMask   = 0;   // bits 0..3 = P1..P4 requested while inhibited
 // same job for ONE chosen channel with a hold-to-fire interlock; prefer it if you only want to prove
 // the hardware. Use this one when you specifically want the FLIGHT firmware's own sequencing.
 #define GT_PYRO_LIVE 1
-bool gtPyroLive = (GT_PYRO_LIVE != 0);   // runtime mirror so the SIL can lock the P3 exclusion
+bool gtPyroLive = (GT_PYRO_LIVE != 0);   // runtime mirror so the SIL can lock the motor exclusion
 
 // -- Pins (verify against your wiring) ----------------------------------------
 // *** SERVO PIN CROSSING -- READ BEFORE "FIXING" THIS. ***
@@ -160,10 +160,27 @@ bool gtPyroLive = (GT_PYRO_LIVE != 0);   // runtime mirror so the SIL can lock t
 // authority, and it must be re-run on the new board before flight (new harness, new connectors).
 constexpr int BUTTON = 14;
 constexpr int BUZZER = 13;
-constexpr int P1     = 9;    // LANDING LEGS deploy (melt wire) -- protects the TVC on touchdown
-constexpr int P2     = 10;   // not connected
-constexpr int P3     = 11;   // ASCENT motor ignition
-constexpr int P4     = 12;   // PARACHUTE melt wire (primary recovery)
+// -- PYRO CHANNELS ------------------------------------------------------------
+// PHYSICAL channels. These are board pins and do not move.
+constexpr int P1     = 9;
+constexpr int P2     = 10;
+constexpr int P3     = 11;
+constexpr int P4     = 12;
+// ROLES. *** REASSIGNED 2026-08-15 (Braxton): ascent P1, descent P2, legs P3, chute P4. ***
+// Previously: legs P1, n/c P2, ascent P3, chute P4 -- so ASCENT AND LEGS SWAPPED.
+//
+// ALWAYS FIRE BY ROLE, NEVER BY CHANNEL NUMBER. Every call site below uses these names, so a future
+// rewire is this block and nothing else. That is not tidiness: the previous mapping had the
+// ground-test motor inhibit written as `pin != P3`, and under the new mapping P3 is the LEGS -- so a
+// straight renumber would have inhibited the legs and RELEASED THE ASCENT MOTOR on a bench test.
+// A channel number cannot express "the thing that must never fire indoors"; a role can.
+constexpr int PYRO_ASCENT  = P1;   // ASCENT motor ignition
+constexpr int PYRO_DESCENT = P2;   // DESCENT/landing motor ignition -- NEWLY LIVE, was "not connected"
+constexpr int PYRO_LEGS    = P3;   // LANDING LEGS deploy (melt wire) -- protects the TVC on touchdown
+constexpr int PYRO_CHUTE   = P4;   // PARACHUTE melt wire (primary recovery)
+// THIS AIRFRAME / NEXT FLIGHT uses P1 (ascent) and P4 (chute) ONLY. P2 and P3 are wired but unused:
+// there is no landing burn and no leg deploy on this flight. Nothing below fires PYRO_DESCENT, and
+// PYRO_LEGS is fired only on the recovery path, which is harmless with no melt wire fitted.
 constexpr int RLED   = 6, GLED = 7, BLED = 8;
 // Pack-status LEDs, readable on the pad with no laptop. Unlike the RGB (common anode on 5V-CLEAN),
 // these are ordinary discretes: pin -> 330R -> LED -> GND, so they are ACTIVE HIGH.
@@ -207,7 +224,7 @@ constexpr float VBAT_DIV = 3.128f, SERVO_V_DIV = 2.0f, PYRO_V_DIV = 3.128f;
 //     PYROn_SENSE LOW  -> open circuit: not connected, broken, or ALREADY BURNED THROUGH
 // That last case makes this a post-fire confirmation as well as a pre-arm check -- ASC038 had no way
 // to tell whether the melt wire ever burned, which is exactly the unknown in its recovery timeline.
-constexpr int PIN_PYRO_SENSE[4] = {38, 39, 40, 41};       // indexed to P1..P4 order below
+constexpr int PIN_PYRO_SENSE[4] = {38, 39, 40, 41};       // indexed P1..P4 = ascent, descent, legs, chute
 // RAISED 0.9 -> 1.5 V on 2026-08-15: 0.9 V was giving FALSE POSITIVES on the bench, i.e. reporting
 // an igniter present on an open channel. An open node is only pulled to 0 V by leakage through the
 // LED, so it floats higher than the design assumed, and 0.9 V sat inside that float.
@@ -964,10 +981,10 @@ uint32_t dtLongCount = 0, dtDroppedCount = 0;
 //   T(t) = imu_az(t)*m(t) + drag,   m(t) = dry + prop*(1 - t/BURN_TIME).
 constexpr int   MOTOR_BUF_N    = 1000;         // 100 Hz -> ~10 s of headroom; 1000*8 B = 8 KB RAM
 constexpr float THRUST_ONSET_G = 1.5f;         // g; axial accel above this = motor lit / lifting off
-uint32_t motorT[MOTOR_BUF_N];                  // ms since the ignition COMMAND (P3)
+uint32_t motorT[MOTOR_BUF_N];                  // ms since the ignition COMMAND (PYRO_ASCENT)
 float    motorAz[MOTOR_BUF_N];                 // axial specific force (m/s^2) at that time
 int      motorN = 0;                           // samples captured
-uint32_t ignCmdMs = 0, thrustOnsetMs = 0;      // P3-command time / first-thrust time (millis)
+uint32_t ignCmdMs = 0, thrustOnsetMs = 0;      // ignition-command time / first-thrust time (millis)
 void captureMotor(){                           // called each burn cycle: detect thrust onset + sample at 100 Hz
   if(thrustOnsetMs==0 && imu_az > THRUST_ONSET_G*G) thrustOnsetMs = millis();   // onset: full-rate for precision
   static uint32_t lastCap=0;
@@ -1257,16 +1274,16 @@ void dumpControlLog(){
   // Post-fire continuity: a melt wire that burned through reads OPEN. "fired=1 cont=1" means the pyro
   // was commanded but the wire is still intact -- i.e. it never got hot enough. That distinguishes
   // "the firmware did not fire" from "the firmware fired and the hardware did not respond".
-  snprintf(b,sizeof(b),"# postfire_continuity P1=%d P2=%d P3=%d P4=%d  (1 = still continuous = wire did NOT burn)",
+  snprintf(b,sizeof(b),"# postfire_continuity P1ascent=%d P2descent=%d P3legs=%d P4chute=%d  (1 = still continuous = wire did NOT burn)",
            (int)pyroContinuous(0), (int)pyroContinuous(1),
            (int)pyroContinuous(2), (int)pyroContinuous(3));                                       f.println(b);
   // Raw sense volts alongside, because the boolean above hides a marginal joint: a channel at 0.95 V
   // and one at 1.85 V both read "1" against the 0.90 V threshold, and only one of them is healthy.
-  snprintf(b,sizeof(b),"# pyro_sense_v P1=%.2f P2=%.2f P3=%.2f P4=%.2f  (threshold %.2f)",
+  snprintf(b,sizeof(b),"# pyro_sense_v P1ascent=%.2f P2descent=%.2f P3legs=%.2f P4chute=%.2f  (threshold %.2f)",
            readRail(PIN_PYRO_SENSE[0],1.0f), readRail(PIN_PYRO_SENSE[1],1.0f),
            readRail(PIN_PYRO_SENSE[2],1.0f), readRail(PIN_PYRO_SENSE[3],1.0f), PYRO_CONT_V);
                                                                                                   f.println(b);
-  snprintf(b,sizeof(b),"# ground_test=%d gt_pyro_live=%d pyro_attempt_mask=0x%X (bits P1,P2,P3,P4 = requested but refused)",
+  snprintf(b,sizeof(b),"# ground_test=%d gt_pyro_live=%d pyro_attempt_mask=0x%X (bits P1ascent,P2descent,P3legs,P4chute = requested but refused)",
            (int)groundTestInhibit,(int)gtPyroLive,(unsigned)pyroAttemptMask);                      f.println(b);
 #endif
 #if CTL_SERVO_FEEDBACK
@@ -1339,10 +1356,14 @@ void triggerPyro(int pin){
   // An interlock against "the motor never lit" is not an interlock against "someone picked the
   // rocket up". The inhibit belongs at the single choke point every pyro call passes through, where
   // no call site -- present or future -- can fail to inherit it.
-    // GT_PYRO_LIVE releases the RECOVERY channels only. P3 is excluded unconditionally: a ground
-    // test never lights a motor, and that is a property of this line rather than a promise made
-    // elsewhere. Note the exclusion is on the PIN, so it holds no matter which call site asked.
-    const bool allowed = gtPyroLive && (pin != P3);
+    // GT_PYRO_LIVE releases the RECOVERY channels only. BOTH MOTOR channels are excluded
+    // unconditionally: a ground test never lights a motor, and that is a property of this line
+    // rather than a promise made elsewhere. Note the exclusion is on the PIN, so it holds no matter
+    // which call site asked.
+    // *** 2026-08-15: written by ROLE, not number. This used to read `pin != P3` when P3 was the
+    // motor. P3 is now the LEGS, so that line would have inhibited the legs and RELEASED THE ASCENT
+    // MOTOR on a bench. PYRO_DESCENT is added because it is newly live and is also a motor. ***
+    const bool allowed = gtPyroLive && (pin != PYRO_ASCENT) && (pin != PYRO_DESCENT);
     if(!allowed){
       if(pin==P1) pyroAttemptMask |= 0x1; else if(pin==P2) pyroAttemptMask |= 0x2;
       else if(pin==P3) pyroAttemptMask |= 0x4; else if(pin==P4) pyroAttemptMask |= 0x8;
@@ -1494,8 +1515,8 @@ bool pyroContinuous(int idx){                    // idx 0..3 -> P1..P4
 // All four channels, with the RAW SENSE VOLTAGE beside each verdict.
 // The voltage is the point. As a bare boolean a channel sitting at 1.55 V reads identically to one
 // at 1.95 V -- both "CONT" -- but the first is a hair above PYRO_CONT_V and could drop open under
-// vibration, while the second is a solid connection sitting on the LED clamp. Only P4 and P1 were
-// ever reported, and only as booleans; P2 and P3 were never shown at all.
+// vibration, while the second is a solid connection sitting on the LED clamp. Only two channels
+// were ever reported, and only as booleans; the other two were never shown at all.
 // (Example levels updated 2026-08-15 with the threshold; they only illustrate if they straddle it.)
 //
 // NOTHING IS ENERGISED TO MEASURE THIS. The sense circuit works with the FET OFF: ~0.6 mA flows
@@ -1504,7 +1525,7 @@ bool pyroContinuous(int idx){                    // idx 0..3 -> P1..P4
 // To deliberately FIRE a channel on the bench, use Firmware/Impulse22_PyroTest -- it is built for
 // exactly that, with a dummy-load procedure and a hold-to-fire interlock.
 void printPyroStatus(){
-  static const char* const PYRO_NAME[4] = {"P1legs", "P2 n/c", "P3motr", "P4chut"};
+  static const char* const PYRO_NAME[4] = {"P1ascnt", "P2dscnt", "P3legs", "P4chut"};
   Serial.print(F("pyro cont:"));
   for(int i=0;i<4;i++){
     Serial.print(F("  ")); Serial.print(PYRO_NAME[i]); Serial.print(F("="));
@@ -1590,7 +1611,7 @@ void centerServosRamp(){
 // A strapdown IMU cannot recover WORLD-referenced attitude without an external reference, and there is
 // none on this vehicle. Resuming TVC on a stale attitude would command corrections against an orientation
 // the vehicle no longer has -- actively driving a tumble, strictly worse than coasting. So: recovery only.
-// This never touches P3 (motor ignition) and never re-enters the control loop.
+// This never touches PYRO_ASCENT (motor ignition) and never re-enters the control loop.
 constexpr uint32_t PERSIST_MAGIC   = 0x54564332;   // 'TVC2'
 constexpr int      PERSIST_ADDR    = 0;
 constexpr uint16_t RESUME_MAX_BOOTS = 3;           // give up after this many reboots in one flight
@@ -1701,8 +1722,8 @@ void resumeAfterReset(){
     if(!thrusting && (altitude < highest_alt-APOGEE_DROP_M || millis()-t0>RESUME_MAX_WAIT_MS)) break;
     wdtFeed(); updatePyros(); delay(10);
   }
-  triggerPyro(P4);                    // parachute
-  triggerPyro(P1);                    // legs
+  triggerPyro(PYRO_CHUTE);            // parachute
+  triggerPyro(PYRO_LEGS);             // legs
   setPhase(3);
   dumpControlLog();                   // whatever survived in RAM is gone after a reboot, but the loop stats are not
   Serial.println(F("RESUME: chute + legs deployed"));
@@ -2582,8 +2603,8 @@ void emergency(){
   neutralServos();
   Serial.println(F("EMERGENCY"));
   LED(true,false,false);
-  triggerPyro(P4);                 // parachute first
-  triggerPyro(P1);                 // then legs -- protect the TVC on the (tumbling) recovery landing
+  triggerPyro(PYRO_CHUTE);         // parachute first
+  triggerPyro(PYRO_LEGS);          // then legs -- protect the TVC on the (tumbling) recovery landing
   poweredFlight=false; inFlight=false;
   setPhase(3);                     // chute out: a reboot after this must not re-arm the resume watchdog
   // Both pyros have ALREADY fired -- this only delays the beeping, and the dumps tick updatePyros() internally so
@@ -2971,11 +2992,16 @@ bool countdown(){
   Serial.print(F(" V  SERVO ")); Serial.print(servoV,2);
   Serial.print(F(" V  PYRO ")); Serial.print(pyroV,2); Serial.println(F(" V"));
   bool railsBad = (vbatV < VBAT_ARM_MIN_V) || (servoV < SERVO_V_MIN_V) || (pyroV < PYRO_V_MIN_V);
-  // ALL FOUR channels are now reported (with sense volts) by printPyroStatus(); only P4 is GATED.
-  // P4 = parachute: an open igniter there means the vehicle is unrecoverable and there is no reason
-  // to leave the pad. P1 (legs) is reported but deliberately not gated -- legs are not survival
-  // critical and a false abort is worse. P3 (motor) is not gated either: a motor igniter reads open
-  // in some wiring schemes, so gating it would scrub good launches.
+  // ALL FOUR channels are reported (with sense volts) by printPyroStatus(); only the CHUTE is GATED.
+  // Roles updated 2026-08-15 -- gating is unchanged because the chute is still P4, but the other two
+  // names moved and the reasoning below is per ROLE, not per channel number:
+  //   PYRO_CHUTE  (P4) GATED     -- an open igniter here means the vehicle is unrecoverable, so
+  //                                 there is no reason to leave the pad.
+  //   PYRO_LEGS   (P3) reported, NOT gated -- legs are not survival critical and a false abort is
+  //                                 worse than a hard landing. Not fitted at all on this flight.
+  //   PYRO_ASCENT (P1) reported, NOT gated -- a motor igniter reads open in some wiring schemes, so
+  //                                 gating it would scrub good launches.
+  //   PYRO_DESCENT(P2) reported, NOT gated -- unused on this flight.
   bool p4Open = !pyroContinuous(3);
   printPyroStatus();
   if(railsBad || p4Open){
@@ -3031,12 +3057,12 @@ bool countdown(){
   // last line is withheld. And because the motor never lights, liftoffConfirmed stays false, so the
   // existing liftoff interlock in loop() then refuses to fire the chute and leg charges as well:
   // the entire pyro bank is inert in this mode without any new code deciding that.
-  Serial.println(F("*** GROUND TEST: IGNITION INHIBITED -- P3 not fired. ***"));
+  Serial.println(F("*** GROUND TEST: IGNITION INHIBITED -- ascent motor not fired. ***"));
   Serial.println(F("    The sequence continues so you can watch TVC, logging and recovery run."));
   Serial.println(F("    Set GROUND_TEST 0 at the top of this file before flying."));
   for(int i=0;i<3;i++){ LED(true,false,true); beep(1500,60); LED(false,false,false); delay(60); }
 #else
-  triggerPyro(P3);
+  triggerPyro(PYRO_ASCENT);
 #endif
   return true;
 }
@@ -3184,6 +3210,8 @@ void setup(){
   pinMode(PIN_MAIN_LED,OUTPUT); digitalWrite(PIN_MAIN_LED,LOW);   // active HIGH, start dark
   pinMode(PIN_PYRO_LED,OUTPUT); digitalWrite(PIN_PYRO_LED,LOW);
   // (the pack-LED self test is NON-BLOCKING and lives in updateBatteryLeds() -- see the note there)
+  // All four driven LOW before anything else can run. Order is physical (P1..P4); the roles are
+  // PYRO_ASCENT / PYRO_DESCENT / PYRO_LEGS / PYRO_CHUTE respectively.
   pinMode(P1,OUTPUT); pinMode(P2,OUTPUT); pinMode(P3,OUTPUT); pinMode(P4,OUTPUT);
   digitalWrite(P1,LOW); digitalWrite(P2,LOW); digitalWrite(P3,LOW); digitalWrite(P4,LOW);
 #if BOARD_IMPULSE_22
@@ -3211,7 +3239,7 @@ void setup(){
   Serial.println(F("\n*********************************************************"));
   Serial.println(F("*  GROUND TEST BUILD -- THIS FIRMWARE CANNOT LAUNCH.     *"));
   Serial.println(F("*  Pre-arm gates are BYPASSED (warnings only) and the    *"));
-  Serial.println(F("*  motor igniter P3 is HARD-INHIBITED. No liftoff means  *"));
+  Serial.println(F("*  the ascent igniter is HARD-INHIBITED. No liftoff means *"));
   Serial.println(F("*  the chute and leg charges are interlocked off too.    *"));
   Serial.println(F("*  Set GROUND_TEST 0 to fly. regression.py will refuse   *"));
   Serial.println(F("*  to run until you do.                                  *"));
@@ -3397,7 +3425,7 @@ void setup(){
   }
   if(resetCause & (1<<4)) raiseFault(F_WDT_RESET, HEALTH_REDUCED);   // came up from a watchdog reset
   resumeAfterReset();     // if we rebooted mid-flight AND the sensors agree we are flying: protect the chute.
-                          // Returns immediately in every normal power-on. Never touches P3, never resumes TVC.
+                          // Returns immediately in every normal power-on. Never fires a motor, never resumes TVC.
   // Watchdog LAST, after every blocking init is done, so a slow sensor probe can never trip it.
   // From here on the control loop and every long-running loop feed it; a genuine hang resets the
   // board, and the EEPROM record + resumeAfterReset() above then get the parachute out.
@@ -3612,8 +3640,8 @@ void loop(){
     LED(false,false,false);
     return;                                // back to ARM without ever energising a pyro channel
   }
-  triggerPyro(P4);                         // PARACHUTE (primary recovery)
-  triggerPyro(P1);                         // LANDING LEGS -- deploy now so touchdown loads the legs, not the TVC
+  triggerPyro(PYRO_CHUTE);                 // PARACHUTE (primary recovery)
+  triggerPyro(PYRO_LEGS);                  // LANDING LEGS -- deploy now so touchdown loads the legs, not the TVC
   setPhase(3);                             // chute is out: a later reboot must NOT re-run the resume watchdog
   beep(659,100); beep(523,100); beep(659,100);   // moved AFTER the pyros: audible cue, costs no altitude
   dumpFlightLog();                         // write the RAM-buffered 20 Hz flight log -> ASC###.CSV
@@ -3628,7 +3656,7 @@ void loop(){
   LED(false,false,false);
   Serial.println(F("RECOVERED cleared by button -- returning to ARM"));
   return;      // loop() is re-entered by the core = ARM state. exitOnButton() has already disarmed every
-               // pyro, and re-arming still needs 5 rapid presses + the 30 s countdown before P3 can fire.
+               // pyro, and re-arming still needs 5 rapid presses + the 30 s countdown before ignition.
 }
 
 
