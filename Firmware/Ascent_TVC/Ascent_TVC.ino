@@ -92,6 +92,63 @@ constexpr uint32_t BENCHCAL_MAGIC = 0xB1A5CA10;
 //     PCBs/Impulse_2.2_kicad/Impulse_2.2.kicad_pcb (the netlist is the ground truth, not the silk).
 #define BOARD_IMPULSE_22  1
 
+// ============================================================================================
+// GROUND TEST MODE  --  1 = bench, 0 = FLIGHT
+// ============================================================================================
+// Set to 1 to exercise the full ARM -> countdown -> abort -> recovery sequence on the bench without
+// a flight-ready pyro bank. The pre-arm gates (rails, parachute continuity, sensor rate, pad tilt)
+// become LOUD WARNINGS instead of aborts, so a bench setup with no igniters fitted, no 7.4 V pyro
+// pack and the airframe lying on its side can still run the sequence end to end.
+//
+// *** IT ALSO HARD-INHIBITS EVERY PYRO CHANNEL. THAT IS THE POINT, NOT A SIDE EFFECT. ***
+// The obvious hazard of a "skip the safety checks" flag is that it survives to launch day. This one
+// cannot usefully do so: with GROUND_TEST=1 triggerPyro() refuses every channel, so the motor cannot
+// light and no recovery charge can fire either. The inhibit is at the DRIVER, not at the call sites.
+//
+// ⚠ THE FIRST VERSION OF THIS GOT IT WRONG, AND THE BENCH CAUGHT IT (CTL003, 2026-08-15).
+// It inhibited only P3 and reasoned that with no ignition, liftoffConfirmed could never go true, so
+// the existing liftoff interlock would hold the chute and leg charges. But liftoffConfirmed latches
+// on a TRANSIENT above THRUST_ONSET_G (1.5 g) sampled at ~11.7 kHz, and ordinary bench handling
+// produces that. It latched, the firmware took the normal recovery path, and both melt wires were
+// energised on a bench. Reasoning that a safety property "follows from an existing mechanism" is
+// exactly the step that needs testing rather than trusting -- the interlock guards "the motor never
+// lit", which is a different proposition from "the vehicle never flew".
+//
+// Three further things make it hard to forget:
+//   1. setup() prints a banner and sounds a distinctive triple chirp at every boot;
+//   2. every bypassed gate says so on the console and flashes red+blue rather than the abort alarm;
+//   3. regression.py REFUSES TO RUN with it set, and tells you to clear it. The flight gate is the
+//      last thing between a build and the pad, so that is where the reminder belongs.
+#define GROUND_TEST 1
+// Runtime mirror of the build flag, for the same reason TVC_TORQUE_CMD is a variable: it lets the
+// SIL exercise the inhibit inside a FLIGHT build (--groundtest), so "no pyro can fire in ground-test
+// mode" is a gate-locked property instead of an argument. The build flag is still what the gate
+// greps for, and in a flight build nothing ever sets this true.
+bool    groundTestInhibit = (GROUND_TEST != 0);
+uint8_t pyroAttemptMask   = 0;   // bits 0..3 = P1..P4 requested while inhibited. Doubles as the
+                                 // positive control: it proves the firmware DID reach the code that
+                                 // would have fired, so a passing test means the inhibit stopped it
+                                 // rather than the path never being taken.
+
+// ---- GT_PYRO_LIVE: let the RECOVERY channels actually fire during a ground test ----------------
+// Set to 1 to bench-test the real fire path end to end -- FET switching, the 1000 ms pulse, and the
+// post-fire continuity readback going CONT -> open. That last one is a genuine flight diagnostic
+// (FAILURE_MODES B3: it separates "the firmware never fired" from "the firmware fired and the
+// hardware did not respond") and it can only be exercised by actually burning something.
+//
+// *** P3, THE MOTOR CHANNEL, IS NEVER RELEASED BY THIS. ***
+// A ground test does not involve lighting a motor. That is enforced here rather than left as an
+// intention, because "I won't light any motors" is a promise and `pin != P3` is a property. So the
+// worst this flag can do is fire a recovery channel you chose to connect.
+//
+// USE A DUMMY LOAD FIRST -- a 10 ohm 1 W resistor, or an LED with a 470 ohm series resistor, across
+// the channel. It proves the FET switches and the pulse is the right length while igniting nothing.
+// Fit a real melt wire only after the dummy load has passed. Firmware/Impulse22_PyroTest does the
+// same job for ONE chosen channel with a hold-to-fire interlock; prefer it if you only want to prove
+// the hardware. Use this one when you specifically want the FLIGHT firmware's own sequencing.
+#define GT_PYRO_LIVE 1
+bool gtPyroLive = (GT_PYRO_LIVE != 0);   // runtime mirror so the SIL can lock the P3 exclusion
+
 // -- Pins (verify against your wiring) ----------------------------------------
 // *** SERVO PIN CROSSING -- READ BEFORE "FIXING" THIS. ***
 // The board netlist calls pin 3 SERVOX and pin 4 SERVOY. This firmware has always used
@@ -151,7 +208,22 @@ constexpr float VBAT_DIV = 3.128f, SERVO_V_DIV = 2.0f, PYRO_V_DIV = 3.128f;
 // That last case makes this a post-fire confirmation as well as a pre-arm check -- ASC038 had no way
 // to tell whether the melt wire ever burned, which is exactly the unknown in its recovery timeline.
 constexpr int PIN_PYRO_SENSE[4] = {38, 39, 40, 41};       // indexed to P1..P4 order below
-constexpr float PYRO_CONT_V = 0.9f;                        // V at the pin above which we call it continuous
+// RAISED 0.9 -> 1.5 V on 2026-08-15: 0.9 V was giving FALSE POSITIVES on the bench, i.e. reporting
+// an igniter present on an open channel. An open node is only pulled to 0 V by leakage through the
+// LED, so it floats higher than the design assumed, and 0.9 V sat inside that float.
+//
+// ERROR DIRECTION, and why raising it is the safe way to be wrong. A false POSITIVE is the dangerous
+// failure: the board believes the P4 melt wire is good, arms, flies, and there is no parachute --
+// which is exactly the unknown ASC038 could not resolve. A false NEGATIVE only refuses to arm on the
+// pad. Given a choice, this threshold should fail toward "refuse", so it belongs nearer the top of
+// the gap rather than the middle.
+//
+// ! MARGIN WARNING: the LED forward drop is ~1.6-2.0 V, so 1.5 V leaves only ~0.1 V against the LOW
+// end of that range. If a channel starts reading open when an igniter IS fitted, this is why, and the
+// fix is to measure rather than nudge -- printPyroStatus() prints all four channels in volts.
+// Read a KNOWN-OPEN and a KNOWN-CONNECTED channel, then put this constant midway between the two
+// observed levels. That is a five-minute bench measurement and it ends the guessing.
+constexpr float PYRO_CONT_V = 1.5f;                        // V at the pin above which we call it continuous
 constexpr int PIN_SENS_DET = 32;                           // sensor-board ribbon present (J_SENSOR1 pin 12)
 constexpr float ADC_VREF = 3.3f;
 constexpr int   ADC_BITS = 12, ADC_MAX = 4095;
@@ -209,6 +281,20 @@ constexpr int   ICM_MAP_X = 0, ICM_MAP_Y = 1, ICM_MAP_Z = 2;   // raw axis feedi
 // the frame stays self-consistent and the LOGGED tilt sign is right; flipping the servo instead
 // would have fixed the loop while leaving every flight log recording X backwards.
 constexpr float ICM_SGN_X = +1.0f, ICM_SGN_Y = +1.0f, ICM_SGN_Z = +1.0f;
+// ---- ICM UI FILTER BANDWIDTH (GYRO_ACCEL_CONFIG0, register 0x52) ----------------------------
+// Found 2026-08-15: icm42688Begin() never wrote this register, so the UI filter bandwidth -- which
+// is a DIRECT contributor to loop delay tau, the quantity the whole gain design is indexed on -- was
+// left at whatever the part powers up with. Not wrong, but set by accident, and a tau measurement
+// against an accidental configuration is a measurement of an accident.
+// DELIBERATELY NOT CHANGED. 0xFF means "leave the power-on default alone" and is the flight setting:
+// altering the filter changes both the noise the D term sees and the delay, neither of which this
+// project's simulator can express, and doing that between a tau measurement and a launch would
+// invalidate the measurement it is meant to inform. What IS added is a READBACK, printed at boot and
+// written to the CTL header, so every flight and every bench run records the filter it actually ran.
+// TO CHANGE IT LATER: set this to the register value you want (bits [7:4] accel, [3:0] gyro), re-run
+// Bench_Tau_ICM to get the new tau, and re-run the gate. Do not change it and fly the same day.
+constexpr uint8_t ICM_UI_FILT_CFG = 0xFF;    // 0xFF = do not write; any other value is written to 0x52
+uint8_t icmUiFiltReadback = 0x00;            // what 0x52 actually reads back after configuration
 constexpr int   ICM_CHAN_X_SIGN = -1;
 constexpr int   ICM_CHAN_Y_SIGN = +1;            // *** SET FROM THE BENCH, 2026-08-03: with +1 BOTH axes drove the nose the WRONG
 constexpr int   SERVO_Y_SIGN = -1;            // way (pitch-the-nose test), so both were flipped to -1 and the test re-run. ***
@@ -639,13 +725,24 @@ constexpr unsigned long SENSOR_READ_MAX_US = 6000;  // pad gate: mean IMU read c
                                         // at 100 kHz it is ~2 ms. 6 ms means the bus is sick, and the whole
                                         // control design assumes a ~3.5 ms loop, so flying it is not an option.
 constexpr int  IMU_STUCK_N          = 25;    // identical consecutive samples = wedged bus / dead device
-constexpr float ATT_STALE_RATE_DPS  = 25.0f; // if the body is turning faster than this...
-constexpr float ATT_STALE_MOVE_DEG  = 0.05f; // ...and the attitude moves less than this, it is stale
-constexpr int  ATT_STALE_N          = 40;    // for this many consecutive samples
+// Attitude-staleness, RATE-vs-RATE so the loop period cancels. See the detector in sensors() for why
+// the previous per-sample form broke: it compared a per-iteration movement against a fixed 0.05 deg,
+// which is only meaningful at one loop speed, and the loop got 40x faster when the SPI IMU came up.
+constexpr float ATT_STALE_WINDOW_S   = 0.15f; // integrate over this long, then judge (was 40 samples --
+                                              // 140 ms at the old loop rate, 3.4 ms at the new one)
+constexpr float ATT_STALE_MIN_ROT_DEG = 4.0f; // ...but only judge windows with real rotation in them.
+                                              // 0.15 s at the 25 dps the old gate used = 3.75 deg.
+constexpr float ATT_STALE_TRACK_FRAC = 0.25f; // stale if the estimate showed under this fraction of the
+                                              // rotation the gyro reported. ASC038 showed ~0 (frozen);
+                                              // a healthy estimate tracks at ~1.0, so 0.25 sits far
+                                              // from both. Gyro noise cannot fake tracking -- noise
+                                              // ADDS movement, so it can only push this number UP.
+float attStaleExpDeg = 0, attStaleGotDeg = 0, attStaleWinS = 0;
 constexpr int  OSC_FLIPS            = 10;    // command sign reversals within OSC_WINDOW_MS...
 constexpr unsigned long OSC_WINDOW_MS = 1000;// ...at large amplitude = ringing
 constexpr float OSC_AMP_FRAC        = 0.60f; // "large" = this fraction of MAX_TILT
-int      slowLoopRun=0, imuStuckRun=0, attStaleRun=0;
+int      slowLoopRun=0, imuStuckRun=0;   // (attStaleRun retired 2026-08-15 -- the staleness detector
+                                         //  is time-windowed now, not a consecutive-sample counter)
 // --- redundant inertial sources (Impulse 2.2 carries two, on independent buses) ---
 // Declared here rather than beside readIMU() because dumpControlLog() reports them and is defined
 // earlier in the file. See the block above readIMU() for the architecture and why the SPI primary
@@ -656,6 +753,134 @@ enum { SRC_PRIMARY=0, SRC_BACKUP=1, SRC_COUNT=2 };
 const char* const SRC_NAME[SRC_COUNT] = {"PRIMARY(SPI ICM42688)", "BACKUP(I2C MPU6050)"};
 uint8_t  imuActive = SRC_BACKUP;                  // resolved in setup()
 bool     imuOk[SRC_COUNT] = {true, true};
+
+// ================= GPS + PASSIVE HORIZONTAL NAVIGATION =======================================
+// Declared HERE with the other health globals for exactly the reason imuActive is: dumpControlLog()
+// reports them and is defined ~250 lines EARLIER in this file than the driver that maintains them.
+//
+// *** EVERY QUANTITY IN THIS SUBSYSTEM IS PASSIVE. *** Nothing derived from GPS reaches a servo, a
+// pyro, an abort, the apogee decision or the plant estimator. It is computed, logged, and otherwise
+// ignored. That is the whole design: the landing firmware's guidance needs a fused GPS/IMU/baro
+// horizontal state, that fusion has never run anywhere but the simulator, and an ascent test is the
+// cheapest place to learn how it behaves on real hardware -- boost vibration, ~3 g axial, fix
+// dropout and reacquisition -- with a control loop that is structurally unable to be affected by
+// the answer. Identical pattern and identical justification to the passive vertical Kalman (kfZ).
+//
+// HARDWARE: ATGM336H on Serial4 (RX4 = pin 16), PPS on pin 20, from the Impulse 2.2 netlist and
+// confirmed working by Impulse22_SensorCheck (fix at 10 sats, HDOP 1.2). NOT Serial1: Serial1 is
+// pins 0/1, which on this board are CS_IMU and MISO1 -- it would fight the sensor board for the SPI
+// chip select. (Sysiphus_Landing.ino still has `#define GPS_SERIAL Serial1` and has this collision.)
+#define GPS_ENABLE 1
+#define GPS_SERIAL Serial4
+constexpr uint32_t GPS_BAUD    = 9600;
+constexpr int      PIN_GPS_PPS = 20;
+// Hard cap on bytes consumed per pumpGPS() call. At 9600 baud a byte arrives every ~1.04 ms and the
+// control loop runs every ~3.5 ms, so ~4 bytes accumulate per iteration -- 96 drains any realistic
+// backlog many times over while making the work per call ABSOLUTELY bounded. An unbounded
+// `while(available())` on a babbling or shorted RX line is an unbounded stall in the control loop,
+// which is the ASC038 failure mode with a different cause. Bound it by construction, not by trust.
+constexpr int GPS_MAX_BYTES_PER_CALL = 96;
+// Datum quality gate, carried over verbatim from Impulse22_SensorCheck. Do NOT take the first fix:
+// the first fix is the worst fix (typically 4 satellites at HDOP ~10, tens of metres out) and every
+// relative reading afterwards inherits that error as a fixed offset. The bench session measured GPS
+// vertical drifting 28 m from exactly this mistake.
+constexpr int   DATUM_MIN_SATS = 6;
+constexpr float DATUM_MAX_HDOP = 2.5f;
+
+// ---- GPS state ----
+double   gpsLat=0, gpsLon=0;             // deg, latest fix
+double   gpsLat0=0, gpsLon0=0;           // deg, datum (captured once, gated on quality)
+float    gpsMsl=0, gpsMsl0=0;            // m, GGA orthometric height / datum
+float    gpsN=0, gpsE=0, gpsU=0;         // m from the datum, local tangent plane
+int      gpsFixQual=0, gpsSats=0;        // GGA field 6 / field 7
+float    gpsHdop=0;
+bool     gpsHasFix=false, gpsOriginSet=false;
+// gpsFixLost counts LOSSES (falling edges) and gpsReacquires counts recoveries (rising edges). They
+// were briefly one counter, which double-counted every dropout: a single 2 s outage read as "2 fixes
+// lost". A diagnostic that reports twice the truth is worse than no diagnostic.
+uint32_t gpsSentences=0, gpsCsumErr=0, gpsFixUpdates=0, gpsFixLost=0, gpsReacquires=0;
+uint32_t gpsLastFixMs=0;                 // millis() of the last GGA carrying a position
+int      gpsSatsMin=99, gpsSatsMax=0;
+float    gpsHdopMin=99.9f, gpsHdopMax=0.0f;
+bool     gpsFixAtLiftoff=false;
+volatile uint32_t gpsPpsCount=0;         // PPS edges -- proves the receiver is alive even if NMEA framing breaks
+
+// ---- Passive horizontal state ----
+// estN/estE/estVn/estVe : the FUSED GPS+IMU estimate, in the GPS north/east frame. This is the
+//                         landing firmware's kfX/kfY, running here with nothing depending on it.
+// insX/insY/insVx/insVy : pure IMU dead reckoning in the FIRMWARE's world frame, no GPS at all. Kept
+//                         separately because it is the only way to measure inertial drift against an
+//                         independent reference, and because the heading solver below needs an
+//                         unfused inertial track to compare with.
+float estN=0, estE=0, estVn=0, estVe=0;
+float insX=0, insY=0, insVx=0, insVy=0;
+// GPS position at the moment the INS track was zeroed. The two tracks must share an origin before
+// they can be compared: insX/insY start at zero at liftoff, while gpsN/gpsE are measured from a
+// datum captured minutes earlier on the pad, and the several metres of receiver scatter between
+// those two moments is a fixed offset that would otherwise be read as a real displacement. On a
+// near-vertical ascent the total horizontal travel is only ~5-10 m, so a 2 m offset is not a
+// rounding error -- it is a third of the signal the heading solve has to work with.
+float gpsN0=0, gpsE0=0;
+float navMaxHorizM=0;                    // largest |horizontal| excursion the fused estimate reported
+uint32_t navGpsUpdates=0;                // GPS position updates actually fused
+// ================= PAD HEADING, AND THE HANDEDNESS THAT GOES WITH IT =========================
+// The firmware's world frame is levelled to gravity by quatFromAccel() but its AZIMUTH is arbitrary:
+// there is no magnetometer, so world +X is wherever the rocket's body +X happened to point on the
+// pad. GPS measures north/east. Converting between them needs TWO facts, and only the first is
+// obvious.
+//
+// FACT 1 -- the angle. psi = bearing of world +X, clockwise from true north.
+//
+// FACT 2 -- THE HANDEDNESS, and this is a trap. (N, E, U) is a LEFT-handed triad: N x E = -U. Check
+// it on a globe -- at lat 0 lon 0 in ECEF, N=(0,0,1), E=(0,1,0), U=(1,0,0), and (0,0,1)x(0,1,0) =
+// (-1,0,0) = -U. (This is why the standard aerospace frame is NED, not NEU.) The firmware's world
+// frame, by contrast, is the image of the body frame under a proper rotation with +Z up, so it is
+// RIGHT-handed. A right-handed frame does not map onto a left-handed one by a rotation, and treating
+// it as though it does mirrors every horizontal result:
+//
+//     world +X in (N,E) = ( cos psi,  sin psi)
+//     world +Y in (N,E) = ( sin psi, -cos psi)     <-- NOT (-sin psi, cos psi)
+//
+// So at psi = 0, world +X is NORTH and world +Y is WEST (check: North x West = Up, right-handed).
+// The first version of this code used the rotation-only form, and the SIL did not catch it because
+// the harness had been given the same wrong convention -- a self-consistency test proving only that
+// two copies of one mistake agree. The regression suite now asserts the sign relation directly.
+//
+// >>> THE SOLVE IS NOT TRUSTED BY DEFAULT, AND THE MEASUREMENT SAYS IT SHOULD NOT BE. <<<
+// Sweep of 25 seeds, realistic 1 Hz / 2 m receiver, near-vertical ascent (~6 m of horizontal travel):
+//        ideal accelerometer   locks 17/25, median heading error 17.2 deg
+//        10 mg lateral bias    locks 17/25, median 13.0 deg
+//        30 mg lateral bias    locks 19/25, median 22.1 deg, worst 61 deg
+//        30 mg + a 10 Hz receiver          median 27.2 deg  <-- MORE DATA IS WORSE
+// More measurements making it worse is the signature of a SYSTEMATIC error, not a noisy one: the
+// limit is inertial drift, not the receiver. A near-vertical flight simply does not travel far enough
+// sideways for a displacement-matching fit to work, and the accelerometer bias that drives the drift
+// is never calibrated (the pad routine calibrates GYRO bias only; quatFromAccel absorbs accel bias
+// into ATTITUDE, where ~3 g of thrust re-emits it as a much larger false lateral acceleration).
+//
+// THEREFORE: NAV_HDG_FROM_PAD = true means the filter uses the ENTERED heading and the in-flight
+// solve runs alongside as a passive, logged EXPERIMENT scored against it. That is a positive control
+// (see CLAUDE.md methodological rule 1) rather than a dependency: the flight's horizontal record
+// stays sound whatever the solve does, and the solve's own accuracy becomes a measured result.
+// NOT constexpr, for the same reason TVC_TORQUE_CMD is not: the SIL A/Bs both modes in one binary
+// (--selfalign), so the legacy self-aligning path stays exercised instead of rotting.
+bool  NAV_HDG_FROM_PAD = true;                // true = trust GPS_PAD_HEADING_DEG; solve is diagnostic only
+// >>> SET THIS FROM THE PAD ORIENTATION. Bearing of world +X, degrees clockwise from TRUE north. <<<
+// World +X is, to first order, the horizontal direction the body +X axis points. To find which
+// physical direction that is WITHOUT reasoning about sensor axes: power the board, tilt the nose, and
+// read the tilt channels. Tilting the nose toward world +X drives tiltY POSITIVE with tiltX ~0
+// (gyro_y = -atan2(ubx,ubz), so a nose-lean toward +X gives +tiltY). Point the nose that way, take
+// its compass bearing, correct for magnetic declination, and enter it here. It is a property of the
+// AIRFRAME, so it only has to be measured once -- then set the rocket on the pad in that orientation.
+// NOT constexpr: the SIL sets it via extern (--padheading) to simulate the orientation having been
+// entered. On hardware it is edited here and behaves as a constant.
+float GPS_PAD_HEADING_DEG = 0.0f;
+constexpr float NAV_HDG_MIN_DISP_M  = 5.0f;   // INS+GPS must both have moved this far before the fit locks
+float    navHeadingRad = GPS_PAD_HEADING_DEG*0.017453292519943295f;   // what the FILTER uses
+float    navHeadingSolvedRad = 0;             // what the in-flight fit found (diagnostic)
+bool     navHeadingLocked = false;
+double   navHdgA=0, navHdgB=0;           // Procrustes accumulators (see navUpdate)
+float    navInsGpsResidM=0;              // |INS track - GPS track| after alignment: the drift number
 
 // Body-frame Y rate. The `-imu_gy` that the control path, the quaternion and the control log all
 // applied was an MPU-6050 axis convention, NOT a universal one -- applied to the ICM-42688-P it
@@ -824,7 +1049,15 @@ int ctlN = 0;                                          // samples captured
 // Loop-period statistics over the powered-flight control loop. Compiled in REGARDLESS of CTL_CAPTURE (it costs
 // ~0.5 KB and 4 integer ops per iteration) so the CTL_CAPTURE=0 and =1 builds measure the loop the SAME way and
 // the difference between their medians is attributable to the capture and to nothing else.
-constexpr int LOOP_HIST_N = 128;               // 100 us bins -> 0..12.8 ms; anything slower lands in the last bin
+// Loop-period histogram. BIN WIDTH REDUCED 100 us -> 10 us on 2026-08-15, after CTL001 reported
+// loop_us_median=50 alongside loop_us_min=84 -- a median BELOW the minimum, which is the giveaway.
+// With 100 us bins an 85 us loop lands entirely in bin 0 and the "median" was just that bin's
+// midpoint, i.e. a constant. The bins were sized for the 3450 us I2C loop; the SPI sensor board made
+// the loop 40x faster and the diagnostic lost all resolution at exactly the moment it got interesting.
+// 256 bins x 10 us covers 0..2.56 ms, which spans a healthy loop with room to spare; anything slower
+// lands in the top bin and is caught by loop_us_max and the dt counters, which are exact.
+constexpr int LOOP_HIST_N  = 256;
+constexpr uint32_t LOOP_HIST_BIN_US = 10;
 uint32_t loopHist[LOOP_HIST_N];
 uint32_t loopUsMin = 0xFFFFFFFFu, loopUsMax = 0, loopIters = 0;
 uint64_t loopUsSum = 0;
@@ -855,7 +1088,7 @@ void captureControl(float preX, float preY){
     if(dt < loopUsMin) loopUsMin = dt;         // below skips samples, so per-sample dt alone would undercount
     if(dt > loopUsMax) loopUsMax = dt;
     loopUsSum += dt; loopIters++;
-    uint32_t b = dt/100u; if(b >= (uint32_t)LOOP_HIST_N) b = LOOP_HIST_N-1; loopHist[b]++;
+    uint32_t b = dt/LOOP_HIST_BIN_US; if(b >= (uint32_t)LOOP_HIST_N) b = LOOP_HIST_N-1; loopHist[b]++;
 
     // --- LOOP-HEALTH GOVERNOR ---------------------------------------------------------------
     // ASC038's lesson stated as a rule: the control loop is the only thing that MUST run on time.
@@ -898,6 +1131,11 @@ void captureControl(float preX, float preY){
 
 void updatePyros();   // fwd decl: the dump below ticks the pyro timer so a long SD write cannot hold a melt wire on
 #if BOARD_IMPULSE_22
+float readRail(int pin, float divider);   // fwd decl, same reason as pyroContinuous below: the CTL
+                                // header now logs raw pyro sense volts and readRail is defined with
+                                // the other 2.2 helpers, ~700 lines further down. The Arduino IDE
+                                // hoists auto-generated prototypes so it builds there regardless --
+                                // the SIL, which compiles the .ino as plain C++, is what catches it.
 bool pyroContinuous(int idx);   // fwd decl: defined with the other 2.2 helpers below; the CTL header
                                 // reports post-fire continuity, so the dump needs it before its definition
 #endif
@@ -908,7 +1146,7 @@ void dumpControlLog(){
   // median from the 100 us histogram (bin midpoint, +-50 us); min/max/mean below are exact to 1 us
   uint32_t half=loopIters/2, acc=0; int mb=0;
   for(int i=0;i<LOOP_HIST_N;i++){ acc+=loopHist[i]; if(acc>half){ mb=i; break; } }
-  uint32_t med  = loopIters ? (uint32_t)mb*100u + 50u : 0;
+  uint32_t med  = loopIters ? (uint32_t)mb*LOOP_HIST_BIN_US + LOOP_HIST_BIN_US/2u : 0;
   uint32_t mean = loopIters ? (uint32_t)(loopUsSum/loopIters) : 0;
   uint32_t mn   = loopIters ? loopUsMin : 0;
   uint32_t costUs = ctlCostCyc / (CTL_CYC_PER_US ? CTL_CYC_PER_US : 1u);
@@ -972,6 +1210,44 @@ void dumpControlLog(){
   snprintf(b,sizeof(b),"# dt_long=%lu dt_dropped=%lu  (warn>%.0fms drop>%.0fms)",
            (unsigned long)dtLongCount,(unsigned long)dtDroppedCount,
            DT_WARN_S*1000.0f, DT_SANITY_S*1000.0f);                                               f.println(b);
+#if GPS_ENABLE
+  // ---- GPS + PASSIVE HORIZONTAL NAV. Instrumentation only; none of it touched control. ----
+  // THE QUESTION THIS FLIGHT EXISTS TO ANSWER, in four numbers:
+  //   gps_fix_lost   how many times the receiver dropped a fix. Boost is the hostile part -- ~3 g
+  //                  axial and motor vibration -- and a receiver that cannot hold lock through it
+  //                  cannot time a hoverslam. 0 is the result that matters.
+  //   gps_updates_used  fixes actually FUSED (quality-gated). Fewer than sentences_with_fix means
+  //                  HDOP degraded past GPS_HDOP_MAX_USE, which is itself the interesting finding.
+  //   heading_locked whether the pad-azimuth alignment solved from flight data alone. The landing
+  //                  guidance needs this and has never had to find it without being told.
+  //   ins_gps_resid  metres between the pure inertial track and GPS after alignment = the dead
+  //                  reckoning drift budget, measured instead of assumed.
+  snprintf(b,sizeof(b),"# gps_enabled=1 sentences=%lu csum_err=%lu fix_updates=%lu fix_lost=%lu reacquires=%lu pps=%lu",
+           (unsigned long)gpsSentences,(unsigned long)gpsCsumErr,(unsigned long)gpsFixUpdates,
+           (unsigned long)gpsFixLost,(unsigned long)gpsReacquires,(unsigned long)gpsPpsCount);      f.println(b);
+  snprintf(b,sizeof(b),"# gps_fix_at_liftoff=%d fix_qual_final=%d sats_min=%d sats_max=%d hdop_min=%.1f hdop_max=%.1f",
+           (int)gpsFixAtLiftoff,gpsFixQual,(gpsSatsMin==99?0:gpsSatsMin),gpsSatsMax,
+           (gpsHdopMin>99.0f?0.0f:gpsHdopMin),gpsHdopMax);                                         f.println(b);
+  snprintf(b,sizeof(b),"# gps_datum_set=%d lat=%.7f lon=%.7f msl=%.1f",
+           (int)gpsOriginSet,gpsLat0,gpsLon0,gpsMsl0);                                             f.println(b);
+  // heading_used is what the filter flew. heading_solved is the in-flight fit, which with
+  // NAV_HDG_FROM_PAD is a scored EXPERIMENT and not an input -- their difference is its error.
+  snprintf(b,sizeof(b),"# nav_gps_updates=%lu heading_used_deg=%.1f heading_solved_deg=%.1f heading_err_deg=%.1f heading_locked=%d from_pad=%d",
+           (unsigned long)navGpsUpdates,navHeadingRad*RAD2DEG,navHeadingSolvedRad*RAD2DEG,
+           navHeadingLocked ? (navHeadingSolvedRad-navHeadingRad)*RAD2DEG : 0.0f,
+           (int)navHeadingLocked,(int)NAV_HDG_FROM_PAD);                                           f.println(b);
+  snprintf(b,sizeof(b),"# max_horiz_m=%.1f ins_gps_resid_m=%.1f",
+           navMaxHorizM,navInsGpsResidM);                                                          f.println(b);
+  snprintf(b,sizeof(b),"# nav_final: estN=%.1f estE=%.1f estVn=%.1f estVe=%.1f insX=%.1f insY=%.1f gpsN=%.1f gpsE=%.1f",
+           estN,estE,estVn,estVe,insX,insY,gpsN,gpsE);                                             f.println(b);
+#else
+  f.println("# gps_enabled=0");
+#endif
+  // The ICM's UI filter bandwidth is a DIRECT contributor to loop delay tau, and until this readback
+  // existed it was whatever the part powers up with -- set by accident. Recorded per flight so a tau
+  // measurement can be attributed to a known filter configuration. See ICM_UI_FILT_CFG.
+  snprintf(b,sizeof(b),"# icm_uifilt_cfg=0x%02X icm_uifilt_written=0x%02X (GYRO_ACCEL_CONFIG0 @0x52; 0xFF written = left at power-on default)",
+           (unsigned)icmUiFiltReadback,(unsigned)ICM_UI_FILT_CFG);                                 f.println(b);
 #if BOARD_IMPULSE_22
   // RAIL MINIMA over the whole flight, sampled at loop rate. This is the measurement ASC036 and ASC038
   // both needed and neither had: a brownout is a millisecond-scale sag and is invisible at 20 Hz.
@@ -981,8 +1257,17 @@ void dumpControlLog(){
   // Post-fire continuity: a melt wire that burned through reads OPEN. "fired=1 cont=1" means the pyro
   // was commanded but the wire is still intact -- i.e. it never got hot enough. That distinguishes
   // "the firmware did not fire" from "the firmware fired and the hardware did not respond".
-  snprintf(b,sizeof(b),"# postfire_continuity P1=%d P4=%d  (1 = still continuous = wire did NOT burn)",
-           (int)pyroContinuous(0), (int)pyroContinuous(3));                                       f.println(b);
+  snprintf(b,sizeof(b),"# postfire_continuity P1=%d P2=%d P3=%d P4=%d  (1 = still continuous = wire did NOT burn)",
+           (int)pyroContinuous(0), (int)pyroContinuous(1),
+           (int)pyroContinuous(2), (int)pyroContinuous(3));                                       f.println(b);
+  // Raw sense volts alongside, because the boolean above hides a marginal joint: a channel at 0.95 V
+  // and one at 1.85 V both read "1" against the 0.90 V threshold, and only one of them is healthy.
+  snprintf(b,sizeof(b),"# pyro_sense_v P1=%.2f P2=%.2f P3=%.2f P4=%.2f  (threshold %.2f)",
+           readRail(PIN_PYRO_SENSE[0],1.0f), readRail(PIN_PYRO_SENSE[1],1.0f),
+           readRail(PIN_PYRO_SENSE[2],1.0f), readRail(PIN_PYRO_SENSE[3],1.0f), PYRO_CONT_V);
+                                                                                                  f.println(b);
+  snprintf(b,sizeof(b),"# ground_test=%d gt_pyro_live=%d pyro_attempt_mask=0x%X (bits P1,P2,P3,P4 = requested but refused)",
+           (int)groundTestInhibit,(int)gtPyroLive,(unsigned)pyroAttemptMask);                      f.println(b);
 #endif
 #if CTL_SERVO_FEEDBACK
   f.println("t_us,dt_us,tiltX_deg,tiltY_deg,rateFx_dps,rateFy_dps,rateRx_dps,rateRy_dps,preX_tvcdeg,preY_tvcdeg,postX_tvcdeg,postY_tvcdeg,keff,thrust_N,fbX_adc,fbY_adc");
@@ -1041,7 +1326,33 @@ void sensors(); void emergency(); void TVC();
 // -- Pyro ----------------------------------------------------------------------
 struct PyroChannel { int pin; bool active; unsigned long startTime; };
 PyroChannel pyros[] = { {P1,false,0}, {P2,false,0}, {P3,false,0}, {P4,false,0} };
-void triggerPyro(int pin){ for(auto&c:pyros) if(c.pin==pin&&!c.active){ digitalWrite(pin,HIGH); c.active=true; c.startTime=millis(); } }
+void triggerPyro(int pin){
+  if(groundTestInhibit){
+  // *** EVERY CHANNEL, AT THE DRIVER. Corrected 2026-08-15 after CTL003. ***
+  // The first version of GROUND_TEST inhibited only P3 and argued that the liftoff interlock would
+  // hold P1/P4, because with no ignition liftoffConfirmed could never go true. That was WRONG, and
+  // the bench proved it: liftoffConfirmed latches on a TRANSIENT above THRUST_ONSET_G (1.5 g),
+  // sampled at ~11.7 kHz, and ordinary handling produces that. On CTL003 it latched (faults=0x000,
+  // i.e. F_NO_LIFTOFF never raised), the firmware ran the normal recovery path, and the parachute
+  // and leg melt wires were energised on a bench -- postfire continuity went P1=1/P4=1 on the
+  // previous run to P1=0/P4=0 on that one.
+  // An interlock against "the motor never lit" is not an interlock against "someone picked the
+  // rocket up". The inhibit belongs at the single choke point every pyro call passes through, where
+  // no call site -- present or future -- can fail to inherit it.
+    // GT_PYRO_LIVE releases the RECOVERY channels only. P3 is excluded unconditionally: a ground
+    // test never lights a motor, and that is a property of this line rather than a promise made
+    // elsewhere. Note the exclusion is on the PIN, so it holds no matter which call site asked.
+    const bool allowed = gtPyroLive && (pin != P3);
+    if(!allowed){
+      if(pin==P1) pyroAttemptMask |= 0x1; else if(pin==P2) pyroAttemptMask |= 0x2;
+      else if(pin==P3) pyroAttemptMask |= 0x4; else if(pin==P4) pyroAttemptMask |= 0x8;
+      Serial.print(F("GROUND TEST: pyro INHIBITED, pin ")); Serial.println(pin);
+      return;
+    }
+    Serial.print(F("GROUND TEST: pyro LIVE (recovery channel) -- FIRING pin ")); Serial.println(pin);
+  }
+  for(auto&c:pyros) if(c.pin==pin&&!c.active){ digitalWrite(pin,HIGH); c.active=true; c.startTime=millis(); }
+}
 void updatePyros(){ for(auto&c:pyros) if(c.active&&millis()-c.startTime>=1000){ digitalWrite(c.pin,LOW); c.active=false; } }
 
 // -- Terminal-state button exit ------------------------------------------------
@@ -1178,6 +1489,32 @@ void updateBatteryLeds(){
 }
 bool pyroContinuous(int idx){                    // idx 0..3 -> P1..P4
   return readRail(PIN_PYRO_SENSE[idx], 1.0f) > PYRO_CONT_V;
+}
+
+// All four channels, with the RAW SENSE VOLTAGE beside each verdict.
+// The voltage is the point. As a bare boolean a channel sitting at 1.55 V reads identically to one
+// at 1.95 V -- both "CONT" -- but the first is a hair above PYRO_CONT_V and could drop open under
+// vibration, while the second is a solid connection sitting on the LED clamp. Only P4 and P1 were
+// ever reported, and only as booleans; P2 and P3 were never shown at all.
+// (Example levels updated 2026-08-15 with the threshold; they only illustrate if they straddle it.)
+//
+// NOTHING IS ENERGISED TO MEASURE THIS. The sense circuit works with the FET OFF: ~0.6 mA flows
+// through the initiator via the 10k pull-up and is clamped by the indicator LED, far below any
+// e-match no-fire current. So this is safe to call continuously, and it cannot fire anything.
+// To deliberately FIRE a channel on the bench, use Firmware/Impulse22_PyroTest -- it is built for
+// exactly that, with a dummy-load procedure and a hold-to-fire interlock.
+void printPyroStatus(){
+  static const char* const PYRO_NAME[4] = {"P1legs", "P2 n/c", "P3motr", "P4chut"};
+  Serial.print(F("pyro cont:"));
+  for(int i=0;i<4;i++){
+    Serial.print(F("  ")); Serial.print(PYRO_NAME[i]); Serial.print(F("="));
+    Serial.print(pyroContinuous(i) ? F("CONT") : F("open"));
+    Serial.print(F(" ")); Serial.print(readRail(PIN_PYRO_SENSE[i], 1.0f), 2); Serial.print(F("V"));
+  }
+  Serial.print(F("   [thresh ")); Serial.print(PYRO_CONT_V, 2);
+  Serial.print(F("V]  rails VBAT ")); Serial.print(vbatV, 2);
+  Serial.print(F(" SERVO ")); Serial.print(servoV, 2);
+  Serial.print(F(" PYRO ")); Serial.print(pyroV, 2); Serial.println(F(" V"));
 }
 // ACTIVE LOW -- this was inverted until 2026-08-12 and it halted the board on every boot with the
 // harness correctly plugged in. The detect is not a logic output: the main board runs 5V-CLEAN
@@ -1380,7 +1717,8 @@ void createUniqueLogFile(){
   int idx=0; do{ sprintf(logFilename,"ASC%03d.CSV",idx++); } while(SD.exists(logFilename)&&idx<1000);
   logFile=SD.open(logFilename,FILE_WRITE);
   if(logFile){ Serial.print(F("Logging to: ")); Serial.println(logFilename);
-    logFile.println(F("Time(ms),Altitude(m),VertVel(m/s),GyroX,GyroY,GyroZ,AngVelX,AngVelY,AccelX,AccelY,AccelZ,TVCx(deg),TVCy(deg),Phase,estZ(m),estVz(m/s)"));
+    logFile.println(F("Time(ms),Altitude(m),VertVel(m/s),GyroX,GyroY,GyroZ,AngVelX,AngVelY,AccelX,AccelY,AccelZ,TVCx(deg),TVCy(deg),Phase,estZ(m),estVz(m/s),"
+                      "gpsFix,gpsSats,gpsN(m),gpsE(m),gpsU(m),estN(m),estE(m),estVn(m/s),estVe(m/s),insX(m),insY(m),hdgSolved(deg)"));
     logFile.close();
   } else Serial.println(F("Failed to create log file!"));
 }
@@ -1391,7 +1729,9 @@ void createUniqueLogFile(){
 // froze, and the vehicle tumbled uncontrolled. The SD card is not the problem; calling it from the
 // control loop is. Rows now go to RAM (a few hundred ns) and the whole file is written once, at
 // recovery, exactly as MTR###/CTL### already did.
-// RAM: 400 rows x 62 B = ~25 KB. 400 rows at 20 Hz = 20 s, far beyond the ~8 s flight.
+// RAM: 400 rows x ~104 B = ~42 KB (62 B of vehicle state + 42 B of GPS/nav). 400 rows at 20 Hz =
+// 20 s, far beyond the ~8 s flight. Teensy 4.1 has 512 KB of RAM1 and the CTL buffers are the large
+// consumer at ~92 KB, so this is comfortable.
 constexpr int FLOG_BUF_N = 400;
 uint32_t flogT[FLOG_BUF_N];
 float    flogAlt[FLOG_BUF_N],  flogVz[FLOG_BUF_N];
@@ -1401,6 +1741,15 @@ float    flogAx[FLOG_BUF_N],   flogAy[FLOG_BUF_N],  flogAz[FLOG_BUF_N];
 float    flogTvx[FLOG_BUF_N],  flogTvy[FLOG_BUF_N];
 float    flogEstZ[FLOG_BUF_N], flogEstVz[FLOG_BUF_N];
 uint8_t  flogPhase[FLOG_BUF_N];
+// GPS + passive horizontal nav. Raw measurement (gpsN/E/U) is stored ALONGSIDE the fused estimate
+// (estN/estE/estVn/estVe) and the unfused inertial track (insX/insY) rather than instead of them:
+// with all three plus the heading the entire fusion can be re-derived offline, so a filter tuning
+// choice made today does not permanently destroy the flight's information content.
+uint8_t  flogGpsFix[FLOG_BUF_N], flogGpsSats[FLOG_BUF_N];
+float    flogGpsN[FLOG_BUF_N], flogGpsE[FLOG_BUF_N], flogGpsU[FLOG_BUF_N];
+float    flogEstN[FLOG_BUF_N], flogEstE[FLOG_BUF_N];
+float    flogEstVn[FLOG_BUF_N], flogEstVe[FLOG_BUF_N];
+float    flogInsX[FLOG_BUF_N], flogInsY[FLOG_BUF_N], flogHdg[FLOG_BUF_N];
 int      flogN = 0;
 
 void logData(){                       // RAM only. Must stay allocation-free and SD-free.
@@ -1413,6 +1762,12 @@ void logData(){                       // RAM only. Must stay allocation-free and
   flogTvx[i]=tiltX/SERVO_X_MULT; flogTvy[i]=tiltY/SERVO_Y_MULT;   // the COMMANDED TVC angle, deg
   flogEstZ[i]=estZ; flogEstVz[i]=estVz;
   flogPhase[i]= poweredFlight ? 1 : (inFlight ? 2 : (highest_alt>2.0f ? 3 : 0));
+  flogGpsFix[i]=(uint8_t)gpsFixQual; flogGpsSats[i]=(uint8_t)gpsSats;
+  flogGpsN[i]=gpsN; flogGpsE[i]=gpsE; flogGpsU[i]=gpsU;
+  flogEstN[i]=estN; flogEstE[i]=estE; flogEstVn[i]=estVn; flogEstVe[i]=estVe;
+  flogInsX[i]=insX; flogInsY[i]=insY; flogHdg[i]=navHeadingSolvedRad*RAD2DEG;   // the SOLVE, per row:
+  // it evolves through the flight and watching it converge (or not) is the experiment. The heading
+  // the filter actually used is constant and lives in the CTL header as heading_used_deg.
   flogN++;
 }
 
@@ -1424,13 +1779,17 @@ void dumpFlightLog(){
   if(flogWritten >= flogN) return;                 // nothing new to persist
   File f=SD.open(logFilename,FILE_WRITE);
   if(!f){ sdFailCount++; Serial.println(F("ASC log failed")); return; }
-  char b[160];
+  char b[288];   // widened from 160 when the 12 GPS/nav columns were added -- a truncated row is a
+                 // silently corrupt row, and snprintf truncates without complaining
   for(int i=flogWritten;i<flogN;i++){
     if((i & 63)==0){ updatePyros(); wdtFeed(); }   // same reason as the CTL dump: a long write must not hold a melt wire on
-    snprintf(b,sizeof(b),"%lu,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d,%.2f,%.2f",
+    snprintf(b,sizeof(b),"%lu,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d,%.2f,%.2f"
+                         ",%d,%d,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.1f",
       (unsigned long)flogT[i],flogAlt[i],flogVz[i],flogGx[i],flogGy[i],flogGz[i],
       flogAvx[i],flogAvy[i],flogAx[i],flogAy[i],flogAz[i],
-      flogTvx[i],flogTvy[i],(int)flogPhase[i],flogEstZ[i],flogEstVz[i]);
+      flogTvx[i],flogTvy[i],(int)flogPhase[i],flogEstZ[i],flogEstVz[i],
+      (int)flogGpsFix[i],(int)flogGpsSats[i],flogGpsN[i],flogGpsE[i],flogGpsU[i],
+      flogEstN[i],flogEstE[i],flogEstVn[i],flogEstVe[i],flogInsX[i],flogInsY[i],flogHdg[i]);
     f.println(b);
   }
   f.close();
@@ -1489,6 +1848,11 @@ bool icm42688Begin(){
   spi1Write(PIN_CS_IMU, ICM_SPI_CFG, 0x4F, 0x06);                    // GYRO  +/-2000 dps, 1 kHz
   spi1Write(PIN_CS_IMU, ICM_SPI_CFG, 0x50, 0x06);                    // ACCEL +/-16 g,     1 kHz
   spi1Write(PIN_CS_IMU, ICM_SPI_CFG, 0x4E, 0x0F);                    // both low-noise
+  // UI filter bandwidth. Written ONLY if ICM_UI_FILT_CFG asks for it (0xFF = leave the power-on
+  // default); always read back, so the configuration that produced a given tau is on the record
+  // instead of being inferred. See the note at ICM_UI_FILT_CFG.
+  if(ICM_UI_FILT_CFG != 0xFF) spi1Write(PIN_CS_IMU, ICM_SPI_CFG, 0x52, ICM_UI_FILT_CFG);
+  icmUiFiltReadback = spi1Read(PIN_CS_IMU, ICM_SPI_CFG, 0x52);
   delay(50);                                                          // gyro start-up
   return true;
 }
@@ -1673,6 +2037,11 @@ void readIMU(){
 // failover switched to a source carrying an uncorrected bias -- which the quaternion integrates
 // straight into a drifting attitude, i.e. the failover would "work" and still lose the vehicle.
 // Failed reads are excluded from their own average rather than counted as zero.
+void cdPollButton();                        // fwd decl: defined with the countdown, ~800 lines below.
+                                            // The 1.2 s loop here runs at T-3 and used to be totally
+                                            // deaf to the abort button -- the single longest blind
+                                            // window in the whole countdown, and the last moment you
+                                            // would actually want to scrub.
 void calibrateGyroBias(){
   const int N=600;                          // 1.2 s of sampling -- must feed the watchdog inside
   double sx=0,sy=0,sz=0;  int nm=0;         // MPU-6050, rad/s
@@ -1680,6 +2049,7 @@ void calibrateGyroBias(){
   icmBiasX=icmBiasY=icmBiasZ=0;             // zero first: icm42688Read() subtracts these, and we want raw
   for(int i=0;i<N;i++){
     wdtFeed();
+    cdPollButton();      // costs one digitalRead; advances no clock, so calibration timing is unmoved
     {
       // UNCONDITIONAL. In the SIL this call IS the clock: getEvent() steps sim_advance (physics +
       // time), so gating it on imuOk[] silently deletes 1.2 s of simulated flight whenever that flag
@@ -1738,6 +2108,213 @@ void quatUpInBody(float&ux,float&uy,float&uz){      // world +Z expressed in the
   ux = 2.0f*(qx*qz - qw*qy);
   uy = 2.0f*(qy*qz + qw*qx);
   uz = 1.0f - 2.0f*(qx*qx + qy*qy);
+}
+
+// ============================================================================================
+// GPS DRIVER + PASSIVE HORIZONTAL NAVIGATOR
+// ============================================================================================
+// Placed here, after the quaternion, because navUpdate() needs the attitude to rotate body specific
+// force into the world frame; the globals it maintains are declared ~800 lines up with the other
+// health state so dumpControlLog() and logData() can both report them.
+//
+// The NMEA parser is a straight port of Impulse22_SensorCheck, which has a hardware fix on this
+// board -- it is proven code moving into the flight build, not new code. Two deliberate reductions:
+// GSV is not parsed (satellite-by-satellite detail is a bench diagnostic; GGA already carries the
+// fix quality, satellite count and HDOP that matter in flight) and nothing blocks or retries.
+#if GPS_ENABLE
+char     gpsNmea[84]; uint8_t gpsNmeaLen=0;
+// WGS84 meridional / prime-vertical radii AT THE DATUM. Computed once when the datum is captured:
+// they vary by under a part in 10^6 over any distance a rocket covers, so recomputing per fix buys
+// nothing. This beats the usual flat 111320 m/deg by correcting for flattening and latitude both.
+double   gpsRm=6367449.0, gpsRn=6378137.0, gpsCosLat0=1.0;
+void gpsComputeRadii(double latRad){
+  const double a=6378137.0, f=1.0/298.257223563, e2=f*(2.0-f);
+  double s=sin(latRad), w=1.0-e2*s*s;
+  gpsRn = a/sqrt(w);
+  gpsRm = a*(1.0-e2)/(w*sqrt(w));
+  gpsCosLat0 = cos(latRad);      // hoisted out of gpsProject(): that runs per fix, inside the
+                                 // control loop's call chain, and the datum latitude never changes
+}
+static double gpsNmeaDeg(const char*s){          // ddmm.mmmm -> decimal degrees
+  if(!*s) return 0;
+  double v=atof(s);
+  int deg=(int)(v/100.0);
+  return deg + (v - deg*100.0)/60.0;
+}
+static const char* gpsField(const char*s, int n){       // pointer to comma-field n (0-based)
+  int f=0; while(*s && f<n){ if(*s==',') f++; s++; }
+  return s;
+}
+static bool gpsCsumOk(const char*s){             // s starts at '$'
+  const char* star = strchr(s,'*');
+  if(!star || strlen(star)<3) return false;
+  uint8_t sum=0;
+  for(const char*p=s+1; p<star; p++) sum ^= (uint8_t)*p;
+  return sum == (uint8_t)strtol(star+1,nullptr,16);
+}
+void gpsSetDatum(){
+  gpsLat0=gpsLat; gpsLon0=gpsLon; gpsMsl0=gpsMsl;
+  gpsComputeRadii(gpsLat0*M_PI/180.0);
+  gpsOriginSet=true;
+  gpsN=gpsE=0; gpsU=0;
+}
+void gpsProject(){
+  if(!gpsOriginSet || !gpsHasFix) return;
+  const double dLat=(gpsLat-gpsLat0)*M_PI/180.0, dLon=(gpsLon-gpsLon0)*M_PI/180.0;
+  gpsN = (float)(gpsRm*dLat);
+  gpsE = (float)(gpsRn*gpsCosLat0*dLon);
+  gpsU = gpsMsl - gpsMsl0;
+}
+void gpsParseGGA(const char*s){
+  const char* q = gpsField(s,6);  if(*q) gpsFixQual = atoi(q);
+  const char* n = gpsField(s,7);  if(*n) gpsSats    = atoi(n);
+  const char* h = gpsField(s,8);  if(*h) gpsHdop    = atof(h);
+  const char* la= gpsField(s,2);  const char* ns = gpsField(s,3);
+  const char* lo= gpsField(s,4);  const char* ew = gpsField(s,5);
+  const char* al= gpsField(s,9);  if(*al) gpsMsl   = atof(al);
+  if(gpsFixQual>0 && *la && *lo){
+    double lat=gpsNmeaDeg(la), lon=gpsNmeaDeg(lo);
+    if(*ns=='S') lat=-lat;
+    if(*ew=='W') lon=-lon;
+    gpsLat=lat; gpsLon=lon;
+    if(!gpsHasFix && gpsFixUpdates) gpsReacquires++;   // had one, lost it, and it is back
+    gpsHasFix=true; gpsFixUpdates++; gpsLastFixMs=millis();
+    if(gpsSats<gpsSatsMin) gpsSatsMin=gpsSats;
+    if(gpsSats>gpsSatsMax) gpsSatsMax=gpsSats;
+    if(gpsHdop>0){ if(gpsHdop<gpsHdopMin) gpsHdopMin=gpsHdop; if(gpsHdop>gpsHdopMax) gpsHdopMax=gpsHdop; }
+    // Datum quality gate -- see DATUM_MIN_SATS. Only ever captured on the ground: once liftoff is
+    // confirmed the vehicle is moving, and a datum captured mid-flight would silently redefine the
+    // origin partway through the record.
+    if(!gpsOriginSet && !liftoffConfirmed && gpsSats>=DATUM_MIN_SATS && gpsHdop>0 && gpsHdop<=DATUM_MAX_HDOP){
+      gpsSetDatum();
+      Serial.print(F("GPS datum set: ")); Serial.print(gpsSats);
+      Serial.print(F(" sats, hdop ")); Serial.println(gpsHdop,1);
+    }
+    gpsProject();
+  } else {
+    if(gpsHasFix) gpsFixLost++;
+    gpsHasFix=false;
+  }
+}
+// Drains at most GPS_MAX_BYTES_PER_CALL bytes. Bounded by construction -- see the constant.
+void pumpGPS(){
+  int budget = GPS_MAX_BYTES_PER_CALL;
+  while(budget-- > 0 && GPS_SERIAL.available()){
+    char c = (char)GPS_SERIAL.read();
+    if(c=='$'){ gpsNmeaLen=0; gpsNmea[gpsNmeaLen++]=c; continue; }
+    if(gpsNmeaLen==0) continue;
+    if(c=='\r' || c=='\n'){
+      gpsNmea[gpsNmeaLen]=0; gpsSentences++;
+      if(gpsNmeaLen>9 && gpsCsumOk(gpsNmea)){
+        if(strstr(gpsNmea,"GGA")) gpsParseGGA(gpsNmea);
+      } else if(gpsNmeaLen>9) gpsCsumErr++;
+      gpsNmeaLen=0; continue;
+    }
+    if(gpsNmeaLen < sizeof(gpsNmea)-1) gpsNmea[gpsNmeaLen++]=c;
+  }
+}
+void gpsPpsISR(){ gpsPpsCount++; }
+#else
+inline void pumpGPS(){}
+#endif
+
+// ---- Passive horizontal Kalman (GPS + IMU), north/east ---------------------------------------
+// Two independent per-axis filters of the SAME 3-state form as kfZ (position, velocity,
+// accel-bias), so this reuses kfPredict/kfUpdate rather than carrying a second implementation that
+// could drift out of agreement with the one the landing firmware ports.
+KF kfN, kfE;
+// Base horizontal position noise, SCALED BY HDOP at fusion. A consumer receiver sitting still
+// scatters several metres and the scatter tracks HDOP directly, so a fixed R would over-trust a
+// degraded fix -- which is exactly the condition a boost transient produces. 2.0 m at HDOP 1.
+constexpr float GPS_POS_NOISE = 2.0f;
+constexpr float GPS_HDOP_MAX_USE = 8.0f;   // above this the fix is not fused at all, only logged
+// NMEA fix latency: a sentence reports where the vehicle WAS this long ago (receiver solve + 9600
+// baud serial). Lead-compensated at fusion exactly as kfZ does for baro transport lag, so estN/estE
+// track the present rather than trailing by v*latency. At 30 m/s that is ~6 m -- not a detail.
+constexpr float GPS_LAT_S = 0.20f;
+uint32_t navLastFixUsed = 0;               // gpsFixUpdates value at the last fusion (edge detect)
+
+void navReset(){
+  kfInit(kfN,0.0f); kfInit(kfE,0.0f);
+  estN=estE=estVn=estVe=0;
+  insX=insY=insVx=insVy=0;
+  gpsN0=gpsN; gpsE0=gpsE;              // shared origin for the INS-vs-GPS comparison; see gpsN0
+  navHdgA=navHdgB=0; navHeadingLocked=false; navHeadingSolvedRad=0;
+  navHeadingRad = GPS_PAD_HEADING_DEG*0.017453292519943295f;
+  navMaxHorizM=0; navGpsUpdates=0; navInsGpsResidM=0;
+  navLastFixUsed = gpsFixUpdates;
+}
+
+// One step of the passive horizontal navigator. dt is the SAME clamped dt the attitude integrator
+// and kfZ use, so a starved loop degrades all three identically rather than in three different ways.
+void navUpdate(float dt){
+  if(!(dt > 0.0f) || dt > DT_SANITY_S) return;
+  // World-horizontal specific force. The world frame's THIRD row is what kfZ already uses via
+  // quatUpInBody(); these are the first two rows of the same body->world rotation, so the three
+  // axes are guaranteed mutually consistent. Gravity is purely vertical in the world frame and
+  // therefore does not appear in the horizontal components at all -- no g subtraction here.
+  const float wxx = 1.0f - 2.0f*(qy*qy + qz*qz), wxy = 2.0f*(qx*qy - qw*qz), wxz = 2.0f*(qx*qz + qw*qy);
+  const float wyx = 2.0f*(qx*qy + qw*qz), wyy = 1.0f - 2.0f*(qx*qx + qz*qz), wyz = 2.0f*(qy*qz - qw*qx);
+  float aWx = wxx*imu_ax + wxy*imu_ay + wxz*imu_az;      // m/s^2, firmware world +X
+  float aWy = wyx*imu_ax + wyy*imu_ay + wyz*imu_az;      // m/s^2, firmware world +Y
+  if(!isfinite(aWx) || !isfinite(aWy)) return;           // a poisoned quaternion must not poison the track
+
+  // --- pure INS dead reckoning, firmware world frame, NO GPS ---
+  insVx += aWx*dt; insVy += aWy*dt;
+  insX  += insVx*dt; insY += insVy*dt;
+
+  // --- fused filters, GPS north/east frame ---
+  // (N,E) = ( wx*cos + wy*sin ,  wx*sin - wy*cos ). The second sign is the LEFT-handedness of NEU --
+  // see the derivation at GPS_PAD_HEADING_DEG. A rotation here would mirror every horizontal result.
+  const float ch=cosf(navHeadingRad), sh=sinf(navHeadingRad);
+  kfPredict(kfN, aWx*ch + aWy*sh, dt);
+  kfPredict(kfE, aWx*sh - aWy*ch, dt);
+
+#if GPS_ENABLE
+  // Fuse only on a genuinely NEW fix. GGA repeats at 1 Hz while this runs at ~300 Hz; updating on
+  // every call would fuse the same measurement hundreds of times and collapse the covariance onto a
+  // single noisy sample, which reads as a confident and wrong estimate.
+  if(gpsOriginSet && gpsHasFix && gpsFixUpdates != navLastFixUsed &&
+     gpsHdop > 0 && gpsHdop <= GPS_HDOP_MAX_USE){
+    navLastFixUsed = gpsFixUpdates;
+    const float r = GPS_POS_NOISE*gpsHdop; const float R = r*r;
+    kfUpdate(kfN, 0, gpsN + estVn*GPS_LAT_S, R);
+    kfUpdate(kfE, 0, gpsE + estVe*GPS_LAT_S, R);
+    navGpsUpdates++;
+
+    // --- pad-heading solve: least-squares fit of the INS track onto the GPS track ---------------
+    // Minimising SUM |M(psi)*ins - gps|^2 over the LEFT-handed map above gives
+    //     psi = atan2(B, A),  A = SUM(ix*gn - iy*ge),  B = SUM(ix*ge + iy*gn)
+    // Accumulated over the whole flight rather than fitted per sample, so noise averages out instead
+    // of making the heading jitter. Both tracks share an origin (the liftoff instant) -- see gpsN0.
+    // DIAGNOSTIC BY DEFAULT: with NAV_HDG_FROM_PAD the result is recorded and NOT fed to the filter,
+    // because measured across 25 seeds it is 13-27 deg wrong on a near-vertical ascent.
+    const float dN = gpsN - gpsN0, dE = gpsE - gpsE0;
+    navHdgA += (double)insX*(double)dN - (double)insY*(double)dE;
+    navHdgB += (double)insX*(double)dE + (double)insY*(double)dN;
+    const float insDisp = sqrtf(insX*insX + insY*insY);
+    const float gpsDisp = sqrtf(dN*dN + dE*dE);
+    if(insDisp > NAV_HDG_MIN_DISP_M && gpsDisp > NAV_HDG_MIN_DISP_M &&
+       (navHdgA != 0.0 || navHdgB != 0.0)){
+      float psi = atan2f((float)navHdgB, (float)navHdgA);
+      if(isfinite(psi)){
+        navHeadingSolvedRad = psi;
+        navHeadingLocked = true;
+        if(!NAV_HDG_FROM_PAD) navHeadingRad = psi;   // legacy self-alignment mode
+      }
+    }
+    // Residual after alignment: how far the inertial track has drifted from the GPS track. This is
+    // the number the landing firmware's dead-reckoning budget has to be sized against, and it has
+    // never been measured on this vehicle. Scored against the heading the FILTER used, so with a
+    // known pad heading it is a clean drift measurement instead of drift plus alignment error.
+    const float rx = insX*ch + insY*sh, ry = insX*sh - insY*ch;
+    navInsGpsResidM = sqrtf((rx-dN)*(rx-dN) + (ry-dE)*(ry-dE));
+  }
+#endif
+  estN=kfN.s[0]; estVn=kfN.s[1];
+  estE=kfE.s[0]; estVe=kfE.s[1];
+  float h = sqrtf(estN*estN + estE*estE);
+  if(isfinite(h) && h > navMaxHorizM) navMaxHorizM = h;
 }
 
 // -- Sensors (one attitude source at a time; identical policy to the flown code)
@@ -1806,6 +2383,8 @@ void sensors(){
 #if BOARD_IMPULSE_22
   sampleRails();      // 3 ADC reads at full loop rate -- catches the millisecond sags a 20 Hz log misses
 #endif
+  pumpGPS();          // bounded RX drain -- see GPS_MAX_BYTES_PER_CALL. Typical cost is 4 bytes of
+                      // ring-buffer read; a GGA parse (~1 Hz) is tens of microseconds. Never blocks.
   float raw_avx =  imu_gx;    // deg/s, bias-removed, Adafruit auto-scaled (no FSR fix factor)
   float raw_avy = rateYBody();
   ang_vel_x = ANGVEL_ALPHA*raw_avx + (1-ANGVEL_ALPHA)*ang_vel_x;
@@ -1851,19 +2430,51 @@ void sensors(){
   // the whole burn while the real body rate reached 248 deg/s, and NOTHING noticed. This is a
   // cross-check between two independent quantities the firmware already has, so it catches a frozen
   // estimator whatever the cause -- starved loop, wedged bus, or a bug not yet written.
+  //
+  // *** REWRITTEN 2026-08-15 AFTER A GROUND TEST FIRED IT ON A PERFECTLY HEALTHY ESTIMATE. ***
+  // The old test was PER SAMPLE: rate > 25 dps AND tilt moved < 0.05 deg since the last iteration.
+  // Movement per iteration is rate * loop period, so that 0.05 silently encoded a loop period -- and
+  // the loop period just changed by 40x. Moving to the ICM-42688-P on SPI took an iteration from
+  // ~3450 us to ~85 us, and the detector inverted:
+  //     loop 3.5 ms  -> fires only below 14 dps, which the 25 dps gate already excludes -> never
+  //     loop  85 us  -> fires below 588 dps, i.e. on essentially ANY real rotation
+  // On CTL001 (ground test, board rotated by hand at 35-45 dps) it declared a tilt estimate that was
+  // tracking perfectly to be stale, cleared attitudeTrusted, and dropped the vehicle to rate damping.
+  // Boost body rate is p90 ~53 dps, so in flight this would have fired on every launch.
+  //
+  // The fix is to compare quantities that are both RATES, so the loop period cancels instead of
+  // being baked into a constant. Movement and the rotation that should have caused it are integrated
+  // over a fixed TIME window and compared as a ratio. Nothing here changes with the loop rate, which
+  // is the property the old version lacked and the whole reason it broke.
   if(inFlight){
     float rawRate = sqrtf(imu_gx*imu_gx + imu_gy*imu_gy);
     float moved   = fabsf(gyro_x-prevGx) + fabsf(gyro_y-prevGy);
-    if(rawRate > ATT_STALE_RATE_DPS && moved < ATT_STALE_MOVE_DEG){
-      if(++attStaleRun >= ATT_STALE_N && attitudeTrusted){
+    // dt is CLAMPED, not gated. Gating on `dt <= DT_SANITY_S` would have stopped accumulating in
+    // precisely the case this detector exists for: an absurd dt makes quatPropagate skip, so the
+    // estimate freezes while the gyro keeps reporting rotation -- the ASC038 signature exactly. A
+    // detector that goes blind at the same moment its failure arrives is not a detector, which is
+    // the lesson C2b already recorded about the aborts. Clamping bounds the expectation without
+    // creating that hole.
+    if(dt > 0){
+      float dtc = (dt > DT_SANITY_S) ? DT_SANITY_S : dt;
+      attStaleExpDeg += rawRate*dtc;     // rotation the gyro says happened
+      attStaleGotDeg += moved;           // rotation the attitude estimate actually showed
+      attStaleWinS   += dtc;
+    }
+    if(attStaleWinS >= ATT_STALE_WINDOW_S){
+      // Only judge a window with enough rotation in it to be judged. Below this the vehicle is
+      // essentially still and the ratio is noise divided by noise.
+      if(attStaleExpDeg >= ATT_STALE_MIN_ROT_DEG &&
+         attStaleGotDeg < ATT_STALE_TRACK_FRAC*attStaleExpDeg && attitudeTrusted){
         // Do NOT keep steering on an attitude that is demonstrably not tracking reality. There is
         // no second attitude source on this vehicle, so fall back to rate damping and get the
         // parachute out early rather than pretending to fly.
         attitudeTrusted = false;
         raiseFault(F_ATT_STALE, HEALTH_FALLBACK);
       }
-    } else attStaleRun = 0;
-  }
+      attStaleExpDeg = attStaleGotDeg = 0; attStaleWinS = 0;
+    }
+  } else { attStaleExpDeg = attStaleGotDeg = 0; attStaleWinS = 0; }
   // --- NaN GUARD ------------------------------------------------------------------------------
   // A single non-finite value poisons the quaternion permanently and every downstream number becomes
   // NaN: comparisons silently go false, so the 45 deg abort would never fire and nothing would look
@@ -1884,8 +2495,16 @@ void sensors(){
   // Two independent pieces of evidence, either sufficient: the barometer says we are clearly off the
   // pad, or the accelerometer saw real thrust. Latched -- once true it stays true, because the
   // recovery interlock must not be defeated by a momentary sensor dropout late in the flight.
-  if(!liftoffConfirmed && (altitude > LIFTOFF_ALT_M || imu_az > THRUST_ONSET_G*G))
+  if(!liftoffConfirmed && (altitude > LIFTOFF_ALT_M || imu_az > THRUST_ONSET_G*G)){
     liftoffConfirmed = true;
+    // Zero the PASSIVE horizontal navigator at the liftoff edge. On the pad the vehicle is not
+    // moving, so every metre of GPS scatter and every milli-g of accelerometer bias is winding the
+    // filters up against a truth of exactly zero -- the accel-bias states in particular would enter
+    // flight already committed to absorbing pad noise. Starting the track at liftoff makes "distance
+    // travelled" mean what it says. Purely a logging concern; nothing here gates control.
+    gpsFixAtLiftoff = gpsHasFix;
+    navReset();
+  }
 
   // (roll is now integrated inside the attitude block above, under the same dt policy)
   accel_x=imu_ax; accel_y=imu_ay; accel_z=imu_az;   // m/s^2 (already scaled)
@@ -1913,6 +2532,10 @@ void sensors(){
     kfUpdate(kfZ, 0, altitude + estVz*BARO_LAG_S, BARO_NOISE*BARO_NOISE);
     estZ=kfZ.s[0]; estVz=kfZ.s[1];
   }
+
+  // PASSIVE horizontal navigator (GPS + IMU), on the same dt policy and for the same reason as the
+  // vertical filter above: logged, never used for control. See the block at its definition.
+  navUpdate(dt);
 
   // Re-identify the plant on the same clamped dt. Placed AFTER the Kalman because the drag term in the
   // thrust estimate reads estVz, and one step of staleness there is worth less than the clarity of
@@ -2133,39 +2756,133 @@ bool buttonCount(){
 }
 
 // -- Countdown + pad calibration + pre-launch sanity check ---------------------
-// Checked ONCE per countdown tick, between the existing delays rather than inside them. A 5 ms
-// polling loop replacing delay(800) measurably changed the countdown's duration and walked an
-// injected reset across the burnout boundary in regression 6b -- and ~1 s of latency on a 30 s
-// countdown is not worth perturbing flight timing for.
-//   deadtime  the last ARM press must not cancel the countdown it just started
-//   debounce  30 ms only -- a plain DEBOUNCE, not a hold. One press scrubs the launch. Long enough
-//             to reject contact bounce (and the SIL's single-sample auto-arm pulses, which would
-//             otherwise cancel every simulated countdown), short enough to feel instant.
+// *** ABORT SAMPLING -- REWRITTEN 2026-08-15 AFTER A BENCH REPORT. READ BEFORE CHANGING. ***
+// The button used to be read at exactly ONE INSTANT per countdown tick, between the blocking beeps.
+// A tick is `beep(...,200)` + `delay(800)`, and neither samples the button, so for ~1000 ms out of
+// every 1000 ms the press was invisible. The abort therefore only worked if the button happened to
+// be held down at the single moment it was sampled -- which on the bench feels exactly like "you
+// have to hold it, or press it at the right time". It was not a debounce problem; the press was
+// never seen at all.
+//
+// The previous comment here defended that as a deliberate trade ("a 5 ms polling loop replacing
+// delay(800) measurably changed the countdown's duration and walked an injected reset across the
+// burnout boundary in regression 6b"). The timing concern was real. The conclusion was not: the fix
+// is to poll WITHOUT changing the elapsed time, not to stop polling.
+//
+// cdWait() below sleeps in 5 ms slices that sum to EXACTLY the requested duration, so the countdown
+// takes the same time to the millisecond and every downstream flight timing is unmoved. The press is
+// LATCHED, so it cannot be missed no matter when in the tick it happens.
+//   deadtime  the last ARM press must not cancel the countdown it just started. The latch is
+//             actively CLEARED throughout the deadtime rather than merely ignored, so a press that
+//             is still being released as the countdown begins cannot scrub it a moment later.
+//   debounce  30 ms of CONTINUOUS press. A plain debounce, not a hold -- a human tap is 50-150 ms,
+//             so one deliberate press always scrubs the launch. It rejects contact bounce and the
+//             SIL's alternating single-sample button model (which returns HIGH/LOW on successive
+//             reads and so can never accumulate 30 ms), which would otherwise cancel every
+//             simulated countdown.
 constexpr unsigned long COUNTDOWN_ABORT_DEADTIME_MS = 1000;
 constexpr unsigned long COUNTDOWN_ABORT_CONFIRM_MS  = 30;
+constexpr unsigned long CD_SLICE_MS = 5;        // poll granularity inside the countdown's waits
+// The countdown ticks once a second. Landing the FIRST tick exactly 1 s after the last arm press
+// makes arming flow into the countdown as one rhythm instead of stopping and restarting.
+// Measured FROM THE PRESS, not from countdown() entry, so the SD file creation in between is
+// ABSORBED by this wait rather than added to it -- otherwise the first beep would drift by however
+// long the card took, which is variable and card-dependent.
+constexpr unsigned long ARM_TO_FIRST_BEEP_MS = 1000;
+unsigned long armReleaseMs = 0;                 // millis() of the fifth arm press's release
+
+bool          cdAbortLatched = false;
+unsigned long cdBtnDownSince = 0;               // 0 = button is up
+unsigned long cdStartMs      = 0;               // set by countdown(); gates the deadtime
+
+// Sampled from every wait in the countdown, and from calibrateGyroBias() -- which blocks for 1.2 s
+// at T-3 and was a completely deaf window before this.
+void cdPollButton(){
+  if(digitalRead(BUTTON) == HIGH){
+    if(cdBtnDownSince == 0) cdBtnDownSince = millis();
+    else if(millis() - cdBtnDownSince >= COUNTDOWN_ABORT_CONFIRM_MS) cdAbortLatched = true;
+  } else cdBtnDownSince = 0;                    // released before the debounce -- bounce, not a press
+  // Deadtime: discard anything latched, INCLUDING a still-held arm press. Once the deadtime passes,
+  // a button that is genuinely still down re-latches on the next poll, which is the right behaviour.
+  if(millis() - cdStartMs <= COUNTDOWN_ABORT_DEADTIME_MS) cdAbortLatched = false;
+}
+
+// Waits out the press that triggered an abort, so releasing it does not immediately read as arm
+// press #1. BOUNDED, for the reason exitOnButton() gives: an unbounded wait on a stuck or shorted
+// button hangs forever *while feeding the watchdog*, which is the one hang the watchdog cannot
+// rescue. This was `while(digitalRead(BUTTON)==HIGH) wdtFeed();` -- no timeout at all.
+// The delay(1) is what makes the bound REAL rather than nominal: a spin that never advances millis()
+// can never reach its own timeout. (It also makes the abort testable in the SIL, where nothing else
+// in the loop moves the clock -- the first version of this deadlocked the harness outright.)
+void cdConsumePress(){
+  unsigned long t0 = millis();
+  while(digitalRead(BUTTON)==HIGH && millis()-t0 < 5000){ wdtFeed(); delay(1); }
+}
+
+// Waits `ms`, polling throughout. Returns true if an abort latched, and returns EARLY in that case
+// only -- an aborted countdown has no downstream timing for anything to depend on. On the non-abort
+// path the slices sum to exactly `ms`, which is the property regression 6b needs.
+bool cdWait(unsigned long ms){
+  unsigned long done = 0;
+  while(done < ms){
+    unsigned long step = (ms - done < CD_SLICE_MS) ? (ms - done) : CD_SLICE_MS;
+    delay(step);
+    done += step;
+    wdtFeed();
+    cdPollButton();
+#if BOARD_IMPULSE_22
+    sampleRails();     // pack lights stay live for the whole countdown, not one instant per second
+#endif
+    pumpGPS();         // and the receiver keeps converging through it
+    if(cdAbortLatched) return true;
+  }
+  return false;
+}
 
 // The countdown's beep pitch, and the note the ARM press sequence resolves onto. Shared so the two
 // cannot drift apart: the arm tones are derived DOWNWARD from this, so the final press lands exactly
 // on it. Previously the presses ran 311.13*2^(n/12), which put the fifth at 415.30 Hz -- a semitone
 // under the countdown, so the sequence sounded like it stopped one step short of arriving.
 constexpr int ARM_TONE_TOP_HZ = 440;   // A4
+// Now just reads the latch that cdPollButton() maintains. Kept as a function (rather than reading
+// cdAbortLatched directly at the call sites) so the deadtime rule lives in exactly one place, and
+// polled once more here to catch a press made during a stretch that did not go through cdWait().
 bool countdownAborted(unsigned long cdStart){
-  if(millis()-cdStart <= COUNTDOWN_ABORT_DEADTIME_MS) return false;
-  if(digitalRead(BUTTON) != HIGH) return false;
-  unsigned long h0=millis();
-  while(millis()-h0 < COUNTDOWN_ABORT_CONFIRM_MS){
-    wdtFeed();
-    if(digitalRead(BUTTON) != HIGH) return false;      // not deliberate -- ignore
-    delay(5);
-  }
+  (void)cdStart;                 // deadtime is keyed on cdStartMs, set by countdown()
+  cdPollButton();
+  return cdAbortLatched;
+}
+
+// Shared tail for every pre-arm gate. Returns true if the caller must abort.
+// In flight builds that is always -- the alarm sounds and the countdown ends. Under GROUND_TEST the
+// gate still SAYS it failed (the diagnostics above each call site are unchanged and still print),
+// but the countdown continues, with a visually distinct cue so a bypass can never be mistaken for a
+// clean pad. Ignition is inhibited separately, at the bottom of countdown().
+bool padGateFail(){
+#if GROUND_TEST
+  Serial.println(F("   >>> GROUND TEST: gate BYPASSED, continuing. MOTOR CANNOT LIGHT. <<<"));
+  LED(true,false,true);                                     // magenta = bypassed, not the red alarm
+  for(int i=0;i<3;i++){ wdtFeed(); beep(1500,60); delay(60); }
+  LED(false,false,false);
+  return false;
+#else
+  LED(true,false,false);
+  for(int i=0;i<10;i++){ wdtFeed(); beep(880,100); delay(100); }
+  LED(false,false,false);
   return true;
+#endif
 }
 
 bool countdown(){
   constexpr int DURATION=30;
   neutralServos();
   createUniqueLogFile();
+  // Pace the FIRST tick to land 1 s after the last arm press, so the five arm chirps and the
+  // countdown are one continuous rhythm. Everything above (servo neutral, SD file creation) happens
+  // inside this second rather than before it, so a slow card cannot push the first beep late.
+  while(armReleaseMs && millis() - armReleaseMs < ARM_TO_FIRST_BEEP_MS){ wdtFeed(); delay(1); }
   const unsigned long cdStart = millis();
+  cdStartMs = cdStart; cdAbortLatched = false; cdBtnDownSince = 0;   // arm the abort latch
   for(int i=DURATION;i>0;i--){
     wdtFeed();
 #if BOARD_IMPULSE_22
@@ -2174,12 +2891,27 @@ bool countdown(){
     // you whether to abort stayed dark for the entire window in which aborting is still free.
     sampleRails();
 #endif
+    pumpGPS();      // keep acquiring through the countdown -- the datum gate may not have been
+                    // satisfied during ARM, and these are the last 30 s of stillness it will get
     Serial.println(i);
-    if(i>5){ LED(true,false,false); beep(ARM_TONE_TOP_HZ,200); LED(false,false,false); delay(800); }
-    else if(i>3){ LED(true,false,false); tone(BUZZER,ARM_TONE_TOP_HZ); delay(1000); }
-    if(countdownAborted(cdStart)){
+    // Same tones, same durations, same 1000 ms per tick -- but the waits now sample the button
+    // throughout instead of leaving it unread. noTone() is explicit because cdWait() can return
+    // early on an abort, and a buzzer left screaming into the abort beeps is a bad cue.
+    if(i>5){
+      LED(true,false,false); tone(BUZZER,ARM_TONE_TOP_HZ);
+      bool ab = cdWait(200);
+      noTone(BUZZER); LED(false,false,false);
+      if(!ab) ab = cdWait(800);
+    }
+    else if(i>3){
+      LED(true,false,false); tone(BUZZER,ARM_TONE_TOP_HZ);
+      cdWait(1000);
       noTone(BUZZER);
-      while(digitalRead(BUTTON)==HIGH) wdtFeed();          // consume the press
+    }
+    if(countdownAborted(cdStart)){
+      LED(false,false,false);
+      noTone(BUZZER);
+      cdConsumePress();                                    // consume the press (bounded -- see below)
       Serial.print(F("\n*** COUNTDOWN ABORTED by button at T-")); Serial.print(i); Serial.println(F(" ***"));
       neutralServos();
       for(auto&c:pyros){ digitalWrite(c.pin,LOW); c.active=false; }
@@ -2193,13 +2925,44 @@ bool countdown(){
       initial_alt=baroReadAltitude(SEA_LEVEL_HPA);
       Serial.print(F("  baseline alt: ")); Serial.println(initial_alt);
       noTone(BUZZER); LED(false,false,false); }
+#if GPS_ENABLE
+    // GPS state, once per second, on the console. REPORTED, NEVER GATED: the GPS is passive
+    // instrumentation and must not be able to scrub a launch. "datum NO" simply means the horizontal
+    // record will be absolute-referenced rather than relative -- the flight is unaffected.
+    if(i<=5 || (i%5)==0){
+      Serial.print(F("  GPS: fix=")); Serial.print(gpsFixQual);
+      Serial.print(F(" sats=")); Serial.print(gpsSats);
+      Serial.print(F(" hdop=")); Serial.print(gpsHdop,1);
+      Serial.print(F(" datum=")); Serial.print(gpsOriginSet?F("YES"):F("no"));
+      Serial.print(F(" nmea=")); Serial.print((int)gpsSentences);
+      Serial.print(F(" pps=")); Serial.println((int)gpsPpsCount);
+    }
+#endif
   }
   // let the loop settle, then LEVEL the attitude quaternion to the pad (accel gravity) and zero the roll log +
   // rate filters + integral accumulators for launch. gyro_x/gyro_y are now DERIVED from the quaternion each
   // sensors() call, so the quaternion -- not a hard-zeroed angle -- carries the initial attitude: launch starts
   // from the TRUE measured pad tilt, not an assumed vertical.
-  unsigned long flush=millis(); while(millis()-flush<1000){ wdtFeed(); readIMU(); }
+  unsigned long flush=millis(); while(millis()-flush<1000){ wdtFeed(); cdPollButton(); readIMU(); }
+  // LAST CHANCE TO SCRUB. This 1 s settle plus the gyro calibration above were the two longest
+  // stretches of the countdown with no way to abort, and they sit at T-3 to T-0 -- the moment you
+  // are most likely to see something wrong and least able to do anything about it. cdPollButton()
+  // adds one digitalRead per iteration and advances no clock, so the settle is unchanged.
+  if(countdownAborted(cdStart)){
+    noTone(BUZZER);
+    cdConsumePress();
+    Serial.println(F("\n*** COUNTDOWN ABORTED by button at T-0 (pre-ignition) ***"));
+    neutralServos();
+    for(auto&c:pyros){ digitalWrite(c.pin,LOW); c.active=false; }
+    LED(true,false,false);
+    beep(700,150); beep(500,150); beep(350,350);
+    LED(false,false,false);
+    return false;
+  }
   quatFromAccel(); gyro_z=ang_vel_x=ang_vel_y=0; iTermX=iTermY=0; kfInit(kfZ,0); estZ=estVz=0;
+  navReset();      // same reason the vertical filter is re-initialised here: the attitude has just been
+                   // re-levelled, so any horizontal track integrated against the PREVIOUS quaternion is
+                   // referenced to a frame that no longer exists. (navReset also runs at the liftoff edge.)
 
 #if BOARD_IMPULSE_22
   // ---- Impulse 2.2 PRE-ARM GATES. These refuse to ignite; they never merely warn. ----
@@ -2208,21 +2971,20 @@ bool countdown(){
   Serial.print(F(" V  SERVO ")); Serial.print(servoV,2);
   Serial.print(F(" V  PYRO ")); Serial.print(pyroV,2); Serial.println(F(" V"));
   bool railsBad = (vbatV < VBAT_ARM_MIN_V) || (servoV < SERVO_V_MIN_V) || (pyroV < PYRO_V_MIN_V);
-  // Continuity on the two channels that MUST work. P4 = parachute: an open igniter here means the
-  // vehicle is unrecoverable and there is no reason to leave the pad. P1 = legs. P3 (the motor) is
-  // NOT gated -- a motor igniter reads open in some wiring schemes and a false abort there is worse.
+  // ALL FOUR channels are now reported (with sense volts) by printPyroStatus(); only P4 is GATED.
+  // P4 = parachute: an open igniter there means the vehicle is unrecoverable and there is no reason
+  // to leave the pad. P1 (legs) is reported but deliberately not gated -- legs are not survival
+  // critical and a false abort is worse. P3 (motor) is not gated either: a motor igniter reads open
+  // in some wiring schemes, so gating it would scrub good launches.
   bool p4Open = !pyroContinuous(3);
-  bool p1Open = !pyroContinuous(0);
-  Serial.print(F("pyro continuity: P4(chute) ")); Serial.print(p4Open?F("OPEN"):F("ok"));
-  Serial.print(F("  P1(legs) "));                 Serial.println(p1Open?F("OPEN"):F("ok"));
+  printPyroStatus();
   if(railsBad || p4Open){
     Serial.println(F("ABORT -- pre-arm gate failed (see rails/continuity above). No ignition."));
     if(vbatV < VBAT_ARM_MIN_V) Serial.println(F("   battery below arm minimum -- CHARGE IT. A flat pack"
                                                 " stalls a servo and browns out the flight computer."));
     if(p4Open)                 Serial.println(F("   PARACHUTE igniter reads OPEN -- the vehicle would not"
                                                 " be recoverable. Check the melt wire and its connector."));
-    LED(true,false,false); for(int i=0;i<10;i++){ beep(880,100); delay(100); } LED(false,false,false);
-    return false;
+    if(padGateFail()) return false;
   }
 #endif
 
@@ -2241,9 +3003,7 @@ bool countdown(){
       Serial.print(F("ABORT -- sensor bus too slow (")); Serial.print((int)perRead);
       Serial.print(F(" us > ")); Serial.print((int)SENSOR_READ_MAX_US);
       Serial.println(F(" us). Control loop would be starved. Check I2C wiring/pull-ups."));
-      LED(true,false,false); for(int i=0;i<10;i++){ wdtFeed(); beep(880,100); delay(100); }
-      LED(false,false,false);
-      return false;
+      if(padGateFail()) return false;
     }
   }
 
@@ -2256,8 +3016,7 @@ bool countdown(){
   if(fabsf(cx)>45||fabsf(cy)>45||fabsf(cavx)>10||fabsf(cavy)>10){
     Serial.print(F("ABORT -- tilt X=")); Serial.print(cx); Serial.print(F(" Y=")); Serial.print(cy);
     Serial.print(F("  rate avX=")); Serial.print(cavx); Serial.print(F(" avY=")); Serial.println(cavy);
-    LED(true,false,false); for(int i=0;i<10;i++){ beep(880,100); delay(100); } LED(false,false,false);
-    return false;
+    if(padGateFail()) return false;
   }
   Serial.println(F("LAUNCH"));
   // Persist the two things a post-brownout reboot cannot re-derive: the pad gyro-bias calibration (needs
@@ -2266,7 +3025,19 @@ bool countdown(){
   persist.gbx=gyroBiasX; persist.gby=gyroBiasY; persist.gbz=gyroBiasZ;
   persist.groundAlt=initial_alt; persist.boots=0; setPhase(1);
   ignCmdMs=millis();               // stamp the ignition COMMAND time -> the in-flight motor ignition-lag measurement
+#if GROUND_TEST
+  // THE INHIBIT. Everything above ran exactly as it will on the pad -- gyro calibration, baro
+  // baseline, EEPROM commit, the abort window -- so the bench exercises the real sequence. Only the
+  // last line is withheld. And because the motor never lights, liftoffConfirmed stays false, so the
+  // existing liftoff interlock in loop() then refuses to fire the chute and leg charges as well:
+  // the entire pyro bank is inert in this mode without any new code deciding that.
+  Serial.println(F("*** GROUND TEST: IGNITION INHIBITED -- P3 not fired. ***"));
+  Serial.println(F("    The sequence continues so you can watch TVC, logging and recovery run."));
+  Serial.println(F("    Set GROUND_TEST 0 at the top of this file before flying."));
+  for(int i=0;i<3;i++){ LED(true,false,true); beep(1500,60); LED(false,false,false); delay(60); }
+#else
   triggerPyro(P3);
+#endif
   return true;
 }
 
@@ -2427,9 +3198,26 @@ void setup(){
   neutralServos();
   LED(false,false,false);
   Serial.begin(115200);
-  while(!Serial && millis()<3000);   // wait up to 3 s for the USB monitor so the setup prints (MPU range) are
-                                     // visible on the bench; times out -> on the pad with NO monitor it proceeds
-                                     // after 3 s (never hangs). Pure startup timing; no control/safety effect.
+  // Wait for the USB monitor, but only briefly. `Serial` is true the instant the host has the port
+  // open, so with a monitor already running this costs ZERO -- the timeout is only ever paid when
+  // there is no monitor, i.e. ON THE PAD, every single boot. It was 3000 ms, which bought nothing
+  // there but three seconds of a dead-looking board. If you want the boot prints on the bench, open
+  // the monitor and tap the Teensy reset button.
+  while(!Serial && millis()<250);
+#if GROUND_TEST
+  // Announced at EVERY boot, before anything else can scroll it away, and with a sound as well as
+  // text -- on the pad there is no laptop, and "I forgot which build is flashed" is precisely the
+  // failure this flag has to be unable to cause.
+  Serial.println(F("\n*********************************************************"));
+  Serial.println(F("*  GROUND TEST BUILD -- THIS FIRMWARE CANNOT LAUNCH.     *"));
+  Serial.println(F("*  Pre-arm gates are BYPASSED (warnings only) and the    *"));
+  Serial.println(F("*  motor igniter P3 is HARD-INHIBITED. No liftoff means  *"));
+  Serial.println(F("*  the chute and leg charges are interlocked off too.    *"));
+  Serial.println(F("*  Set GROUND_TEST 0 to fly. regression.py will refuse   *"));
+  Serial.println(F("*  to run until you do.                                  *"));
+  Serial.println(F("*********************************************************\n"));
+  for(int i=0;i<3;i++){ LED(true,false,true); beep(1500,70); LED(false,false,false); delay(70); }
+#endif
   Wire.begin();
   // FAILURE_MODES D2 said a stuck bus wedges the control loop forever and that Teensy's timeout API was
   // unused. Checked against the library source (WireIMXRT.cpp, Teensyduino 1.59): NOT SO -- the driver
@@ -2466,7 +3254,27 @@ void setup(){
   // IMU primary. Failure here is not fatal: imuReadSource() reports it and the failover picks the
   // backup, exactly as before the driver existed.
   bool icmOk = icm42688Begin();
-  Serial.print(F("ICM-42688-P: ")); Serial.println(icmOk?F("ok"):F("NOT FOUND"));
+  Serial.print(F("ICM-42688-P: ")); Serial.print(icmOk?F("ok"):F("NOT FOUND"));
+  Serial.print(F("   UI filter cfg (0x52) = 0x")); Serial.print((int)icmUiFiltReadback);
+  Serial.println(ICM_UI_FILT_CFG==0xFF ? F("  [power-on default, not written]") : F("  [written by firmware]"));
+
+#if GPS_ENABLE
+  // GPS. Serial4 = RX4 on pin 16 per the Impulse 2.2 netlist -- NOT Serial1, whose pins 0/1 are
+  // CS_IMU and MISO1 on this board. Purely passive instrumentation: a GPS that never answers costs
+  // nothing but empty columns, so there is no gate, no halt and no fault raised here.
+  pinMode(PIN_GPS_PPS, INPUT);
+  attachInterrupt(digitalPinToInterrupt(PIN_GPS_PPS), gpsPpsISR, RISING);
+  GPS_SERIAL.begin(GPS_BAUD);
+  // Enlarge the RX ring. The stock 64-byte buffer overflows after ~66 ms of not being drained at
+  // 9600 baud, and there are blocking stretches on the pad (gyro calibration, the countdown's
+  // beeps, SD dumps) far longer than that. 512 B covers ~530 ms, so a full 1 Hz NMEA burst survives
+  // any of them and the parser sees whole sentences rather than shredded ones.
+  static uint8_t gpsRxBuf[512];
+  GPS_SERIAL.addMemoryForRead(gpsRxBuf, sizeof(gpsRxBuf));
+  navReset();
+  Serial.print(F("GPS: Serial4 @ ")); Serial.print((int)GPS_BAUD);
+  Serial.println(F(" baud, PPS on pin 20 (PASSIVE -- logged, never used for control)"));
+#endif
 
   if(!mpu.begin()){
     // No longer fatal on its own -- the MPU is the BACKUP now. Only "no inertial source at all",
@@ -2600,8 +3408,10 @@ void setup(){
 
 // -- Main loop -----------------------------------------------------------------
 void loop(){
-  // ARM
-  LED(true,true,true); delay(500); LED(false,false,false);
+  // ARM. A brief white flash = "computer is up and in ARM", which is the one thing you cannot tell
+  // from a dark board on a pad with no laptop. It was 500 ms; 120 ms is just as visible and this
+  // runs every time the vehicle returns to ARM, not once per power-up.
+  LED(true,true,true); delay(120); LED(false,false,false);
   // ARM accepts two gestures: 5 rapid presses -> countdown, or a 2 s HOLD -> bench TVC.
   // This counts presses itself rather than calling buttonCount(), because buttonCount() blocks in
   // its own wait-for-release loop from the second press onward and would swallow the hold before it
@@ -2626,6 +3436,15 @@ void loop(){
 #if BOARD_IMPULSE_22
       sampleRails();               // pack lights live while waiting -- the longest-lived pad state
 #endif
+      // Live continuity while you sit at ARM, so you can plug, unplug and re-crimp a channel and
+      // watch it change. This is the whole bench workflow for the sense circuit, and it needs no
+      // pyro to be energised -- see printPyroStatus().
+      { static uint32_t lastPyroPrint = 0;
+        if(millis() - lastPyroPrint >= 2000){ lastPyroPrint = millis(); printPyroStatus(); } }
+      pumpGPS();                   // ARM is where the receiver actually acquires: it is the longest
+                                   // time the vehicle sits still, and the datum gate needs a
+                                   // converged fix (6 sats, HDOP <= 2.5) BEFORE liftoff or the whole
+                                   // horizontal record is referenced to a bad origin.
       const uint32_t now = millis();
       const bool raw = (digitalRead(BUTTON) == HIGH);
 
@@ -2661,19 +3480,44 @@ void loop(){
       if(hz) tone(BUZZER,(unsigned int)hz); else noTone(BUZZER);
       delay(5);
     }
-    noTone(BUZZER); LED(false,false,false);
     if(goBench){
+      noTone(BUZZER); LED(false,false,false);
       while(digitalRead(BUTTON)==HIGH) wdtFeed();            // consume the rest of the hold
       beep(1200,90); beep(1600,160);
       benchTVC();
       return;
     }
+    // ARMED. Let the fifth press's chirp run PRESS_CHIRP_MS and no longer, so all five presses are
+    // identical. `armed` is set inside the edge handler above, so without this the while() condition
+    // ends the loop on the next 5 ms pass and the last press is 18x SHORTER than the four before it.
+    while(millis() - lastRelease < PRESS_CHIRP_MS){ wdtFeed(); delay(1); }
+    armReleaseMs = lastRelease;   // countdown() paces its FIRST beep off this -- see ARM_TO_FIRST_BEEP_MS
   }
-  delay(500);
-  if(!countdown()){                       // pad abort -> wait for button, restart arm
+  noTone(BUZZER); LED(false,false,false);
+  // Straight into the countdown. There used to be a bare delay(500) here doing nothing: the servos
+  // are already neutral and countdown() re-neutralises them anyway, so it was pure dead air between
+  // the last press and the first tick.
+  if(!countdown()){
+    // countdown() fails for two very different reasons, and they do not deserve the same response.
+    //
+    // YOU scrubbed it (cdAbortLatched -- the button). Go straight back to ARM. The press has already
+    // been consumed by cdConsumePress(), the falling three-tone has already told you it worked, and
+    // the servos and pyros are already safe. Demanding a SECOND press to clear a scrub you just
+    // performed yourself communicates nothing you do not already know.
+    //
+    // THE FIRMWARE refused to arm (flat pack, open chute igniter, sick sensor bus, vehicle leaning
+    // on the pad). Nobody asked for that, and each of those paths has already sounded a 2 s alarm.
+    // It must NOT be possible to wander off from a flat battery or a dead parachute igniter because
+    // the board quietly went back to ARM on its own -- so hold solid red until a human acknowledges.
+    // exitOnButton() (not a bare digitalRead) so that press is CONSUMED and cannot be miscounted as
+    // arming press #1.
+    if(cdAbortLatched){
+      LED(false,false,false);
+      return;                              // straight back to ARM
+    }
     LED(true,false,false);
-    while(!exitOnButton()){ wdtFeed(); delay(50); }   // exitOnButton (not a bare digitalRead) so the press is CONSUMED --
-    LED(false,false,false);                // otherwise buttonCount() sees the same press as arming press #1
+    while(!exitOnButton()){ wdtFeed(); delay(50); }
+    LED(false,false,false);
     return;
   }
 
