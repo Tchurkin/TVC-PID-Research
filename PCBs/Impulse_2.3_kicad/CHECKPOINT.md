@@ -18,16 +18,16 @@ drain leg went 2.00 -> 3.00 mm. DRC back to baseline exactly: 63 violations, all
 0 clearance, 0 parity, 3 unconnected.
 
 **STILL UNDERSIZED (measured, not guessed):**
--  necks to **1.20 mm F.Cu over 2.5 mm** entering Q21. Blocked on three sides by Q21 pad 4
+- `7.4V_RAW` necks to **1.20 mm F.Cu over 2.5 mm** entering Q21. Blocked on three sides by Q21 pad 4
   (PYRO_G), a CS_MAG via, and the PYRO_G track; nothing wider than 1.20 fits. Fixing it means moving
   the CS_MAG via or rerouting PYRO_G. **This carries the full 18 A and is the worst remaining leg.**
--  has one **2.00 mm x 0.6 mm** B.Cu segment at (137.600,48.500)->(137.150,48.950)
+- `Net-(P4O-Pin_1)` has one **2.00 mm x 0.6 mm** B.Cu segment at (137.600,48.500)->(137.150,48.950)
   that had no room to widen.
 - The **GND return is still unsized** -- Q18 returns 18 A through 0.0262 mm2.
 - VBAT (In2 1.20 mm) and 5V-DIRTY (In2 1.20 mm, 2.8 A) unfixed.
 - All the doc/CPL/part-identity findings in AUDIT_2026-08-19.md are unfixed.
 
-⚠ **New tooling gap found the hard way:**  does not model ZONES. Adding the F.Cu rail
+⚠ **New tooling gap found the hard way:** `_geom.py` does not model ZONES. Adding the F.Cu rail
 produced six zone-clearance violations that my pre-write check passed. **Always refill zones and
 re-run kicad-cli DRC after adding copper** -- the clearance checker alone is not sufficient.
  A six-lens adversarial audit on 2026-08-19 found confirmed blockers. Full capture:
