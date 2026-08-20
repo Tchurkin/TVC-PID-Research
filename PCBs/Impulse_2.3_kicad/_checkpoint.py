@@ -58,7 +58,11 @@ def main():
     gj = os.path.join(HERE, "geom.json")
     fresh = os.path.exists(gj) and os.path.getmtime(gj) >= os.path.getmtime(PCB)
     if not fresh:
-        sh([KPY, os.path.join(HERE, "_dump_geom.py")])
+        rc, out = sh([KPY, os.path.join(HERE, "_dump_geom.py"), PCB, gj])
+        if rc != 0:
+            say("geom.json   *** DUMP FAILED -- every clearance number below is stale ***")
+            say(out.strip()[-400:])
+            ok = False
     g = json.load(open(gj))
     say("geom.json   %d pads, %d tracks, %d vias  (%s)"
         % (len(g["pads"]), len(g["tracks"]), len(g["vias"]),
