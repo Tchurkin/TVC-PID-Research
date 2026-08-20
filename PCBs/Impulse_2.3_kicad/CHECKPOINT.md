@@ -9,8 +9,38 @@ from the board itself and fails loudly if anything regressed.
 
 ## Where this stands
 
-The board is **routed, verified, and not yet ordered.** Braxton has not ordered it because he asked
-for genuine certainty first, and that bar is met only within the limits set out under *Residual risk*.
+**DO NOT ORDER.** A six-lens adversarial audit on 2026-08-19 found confirmed blockers. Full capture:
+`AUDIT_2026-08-19.md` (40 findings, 22 verified verdicts). The headline ones:
+
+1. **Inner-layer copper is 15.2 um, not 35 um.** JLC's 4-layer stackup uses 0.5 oz inner foil. The
+   sizing work below treated In1/In2 as 1 oz, so the pyro distribution rail to P2O/P3O/P4O -- which
+   includes **the chute** -- has **43%** of the cross-section the design's own criterion requires.
+   Every "effective width" figure in the table below that leans on an inner layer is overstated.
+   Same root cause hits VBAT (23 mm of 1.20 mm In2) and 5V-DIRTY (18.7 mm carrying 2.8 A).
+2. **The GND return was never sized.** Q18, the chute FET, has a return of 0.0262 mm^2 -- 4.2x worse
+   than the other three channels and 22% of its own drain feed.
+3. **The gerbers in `fab/` predate the 2026-08-19 re-sizing.** Ordering that zip fabricates a board
+   without any of the pyro current-path work. (`_checkpoint.py` now catches this.)
+4. **The "3.13 mm apart" correction is itself a tool artifact** -- the real FET-tab-to-connector-pad
+   gap is **0.631 mm**. So both the original claim AND its correction were wrong.
+5. **The CPL rotations quoted in the order docs do not match the CPL file** for Q20 and Q21 -- the
+   exact two values a human is told to verify in JLC's preview. Q20's documented position is stale
+   too (3.79 mm east, 3.14 mm north of where the docs say, rot 90 not 180).
+6. **`TI_SON5x6_Q5A`'s silk pin-1 index and F.Fab chamfer mark pad 5 (the gate), not pad 1** -- which
+   defeats the visual rotation check it exists to support.
+7. **CPL Mid X/Mid Y for 14 THT parts is the raw footprint anchor** -- `_regen_cpl.py` dropped the
+   position correction the 2.2 order carried.
+8. **Part-identity mismatches:** the TI footprint description names CSD17302Q5A / C553151 while the
+   fitted part is CSD17301Q5A / C129940; Q22's symbol says IRLML6244 while its value and BOM say
+   IRLML6344, with no LCSC code to disambiguate.
+9. **2.9 mOhm is the TYPICAL, not the guaranteed, value at V_GS = 3 V** -- the datasheet's max in
+   that row is **3.7 mOhm**. Stated as "GUARANTEED" throughout the docs below. Thermal margins were
+   also signed off using datasheet RthJA, which assumes 1 in^2 of copper; this board gives the tabs
+   25-61 mm^2.
+10. **Q21 has never been analysed for a two-channel concurrent fire**, which the flight firmware
+    actually commands.
+
+Everything below this section predates the audit and is **not** to be trusted where it conflicts.
 
 ## Why 2.3 exists
 
