@@ -9,7 +9,28 @@ from the board itself and fails loudly if anything regressed.
 
 ## Where this stands
 
-**DO NOT ORDER.** A six-lens adversarial audit on 2026-08-19 found confirmed blockers. Full capture:
+**DO NOT ORDER.** *(2026-08-20: blocker 1 FIXED, blocker 2 and the doc/CPL items still open.)*
+
+**FIXED 2026-08-20:** a 2.0 mm F.Cu run at y=41.5 now parallels the In1 2.0 + In2 1.4 pyro
+distribution rail, bonding directly to all four through-hole P#O.2 pads. Combined cross-section
+**0.1217 mm2 = 3.48 mm of 1 oz**, which clears the 3.44 mm target (was 1.48 mm = 43%). The chute
+drain leg went 2.00 -> 3.00 mm. DRC back to baseline exactly: 63 violations, all accepted classes,
+0 clearance, 0 parity, 3 unconnected.
+
+**STILL UNDERSIZED (measured, not guessed):**
+-  necks to **1.20 mm F.Cu over 2.5 mm** entering Q21. Blocked on three sides by Q21 pad 4
+  (PYRO_G), a CS_MAG via, and the PYRO_G track; nothing wider than 1.20 fits. Fixing it means moving
+  the CS_MAG via or rerouting PYRO_G. **This carries the full 18 A and is the worst remaining leg.**
+-  has one **2.00 mm x 0.6 mm** B.Cu segment at (137.600,48.500)->(137.150,48.950)
+  that had no room to widen.
+- The **GND return is still unsized** -- Q18 returns 18 A through 0.0262 mm2.
+- VBAT (In2 1.20 mm) and 5V-DIRTY (In2 1.20 mm, 2.8 A) unfixed.
+- All the doc/CPL/part-identity findings in AUDIT_2026-08-19.md are unfixed.
+
+⚠ **New tooling gap found the hard way:**  does not model ZONES. Adding the F.Cu rail
+produced six zone-clearance violations that my pre-write check passed. **Always refill zones and
+re-run kicad-cli DRC after adding copper** -- the clearance checker alone is not sufficient.
+ A six-lens adversarial audit on 2026-08-19 found confirmed blockers. Full capture:
 `AUDIT_2026-08-19.md` (40 findings, 22 verified verdicts). The headline ones:
 
 1. **Inner-layer copper is 15.2 um, not 35 um.** JLC's 4-layer stackup uses 0.5 oz inner foil. The

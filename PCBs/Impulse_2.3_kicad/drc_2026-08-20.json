@@ -1,0 +1,1445 @@
+{
+    "$schema": "https://schemas.kicad.org/drc.v1.json",
+    "coordinate_units": "mm",
+    "date": "2026-08-20T12:35:52",
+    "ignored_checks": [
+        {
+            "description": "Footprint has no courtyard defined",
+            "key": "missing_courtyard"
+        },
+        {
+            "description": "Track endpoint not centered on via",
+            "key": "track_not_centered_on_via"
+        },
+        {
+            "description": "Tuning profile track geometries",
+            "key": "tuning_profile_track_geometries"
+        },
+        {
+            "description": "Footprint doesn't match symbol's footprint filters",
+            "key": "footprint_filters_mismatch"
+        },
+        {
+            "description": "Footprint component type doesn't match footprint pads",
+            "key": "footprint_type_mismatch"
+        }
+    ],
+    "included_severities": [
+        "error",
+        "warning",
+        "exclusion"
+    ],
+    "kicad_version": "10.0.4",
+    "schematic_parity": [],
+    "source": "Impulse_2.3.kicad_pcb",
+    "unconnected_items": [
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Zone [GND] on B.Cu, priority 0",
+                    "pos": {
+                        "x": 187.4,
+                        "y": 62.9
+                    },
+                    "uuid": "f13c7a88-ae98-4fcf-8ad0-88ae293cec6f"
+                },
+                {
+                    "description": "Zone [GND] on F.Cu, priority 0",
+                    "pos": {
+                        "x": 187.4,
+                        "y": 62.9
+                    },
+                    "uuid": "bdf0aecc-dd6c-46d4-aaa2-0cb7d00c0327"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Zone [GND] on B.Cu, priority 0",
+                    "pos": {
+                        "x": 187.4,
+                        "y": 62.9
+                    },
+                    "uuid": "f13c7a88-ae98-4fcf-8ad0-88ae293cec6f"
+                },
+                {
+                    "description": "Zone [GND] on F.Cu, priority 0",
+                    "pos": {
+                        "x": 187.4,
+                        "y": 62.9
+                    },
+                    "uuid": "bdf0aecc-dd6c-46d4-aaa2-0cb7d00c0327"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
+                {
+                    "description": "Zone [GND] on In1.Cu, priority 0",
+                    "pos": {
+                        "x": 187.4,
+                        "y": 62.9
+                    },
+                    "uuid": "668173b0-2eab-4212-8ed9-df743f4b6b49"
+                },
+                {
+                    "description": "Zone [GND] on B.Cu, priority 0",
+                    "pos": {
+                        "x": 187.4,
+                        "y": 62.9
+                    },
+                    "uuid": "f13c7a88-ae98-4fcf-8ad0-88ae293cec6f"
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        }
+    ],
+    "violations": [
+        {
+            "description": "Courtyards overlap",
+            "items": [
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                },
+                {
+                    "description": "Footprint C9",
+                    "pos": {
+                        "x": 144.533,
+                        "y": 62.43
+                    },
+                    "uuid": "2457da8b-7786-46f0-91ac-d56aaf59dda9"
+                }
+            ],
+            "severity": "error",
+            "type": "courtyards_overlap"
+        },
+        {
+            "description": "Courtyards overlap",
+            "items": [
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                },
+                {
+                    "description": "Footprint C46",
+                    "pos": {
+                        "x": 154.092,
+                        "y": 59.382
+                    },
+                    "uuid": "33c7b045-6f2c-4b5b-80a5-2e321f2908ad"
+                }
+            ],
+            "severity": "error",
+            "type": "courtyards_overlap"
+        },
+        {
+            "description": "Courtyards overlap",
+            "items": [
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                },
+                {
+                    "description": "Footprint C8",
+                    "pos": {
+                        "x": 178.857,
+                        "y": 64.843
+                    },
+                    "uuid": "3a172937-34eb-4cde-a1fc-18a870779276"
+                }
+            ],
+            "severity": "error",
+            "type": "courtyards_overlap"
+        },
+        {
+            "description": "Courtyards overlap",
+            "items": [
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                },
+                {
+                    "description": "Footprint L2",
+                    "pos": {
+                        "x": 171.11,
+                        "y": 65.478
+                    },
+                    "uuid": "463e7f21-e0b9-4f55-9641-eee9074c5b52"
+                }
+            ],
+            "severity": "error",
+            "type": "courtyards_overlap"
+        },
+        {
+            "description": "Courtyards overlap",
+            "items": [
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                },
+                {
+                    "description": "Footprint C4",
+                    "pos": {
+                        "x": 166.792,
+                        "y": 65.351
+                    },
+                    "uuid": "5f048ee2-a5dd-4103-9886-d67e7b2602d7"
+                }
+            ],
+            "severity": "error",
+            "type": "courtyards_overlap"
+        },
+        {
+            "description": "Courtyards overlap",
+            "items": [
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                },
+                {
+                    "description": "Footprint C6",
+                    "pos": {
+                        "x": 159.934,
+                        "y": 64.843
+                    },
+                    "uuid": "632d75a5-8866-4691-8c57-f0c6c5115b18"
+                }
+            ],
+            "severity": "error",
+            "type": "courtyards_overlap"
+        },
+        {
+            "description": "PTH inside courtyard",
+            "items": [
+                {
+                    "description": "PTH pad 1 [3.3V] of U6",
+                    "pos": {
+                        "x": 123.485,
+                        "y": 67.256
+                    },
+                    "uuid": "13a0d887-4104-4e5c-b1be-35ec7bb224cb"
+                },
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                }
+            ],
+            "severity": "error",
+            "type": "pth_inside_courtyard"
+        },
+        {
+            "description": "PTH inside courtyard",
+            "items": [
+                {
+                    "description": "PTH pad 2 [GND] of U6",
+                    "pos": {
+                        "x": 126.025,
+                        "y": 67.256
+                    },
+                    "uuid": "ddea07f3-7523-4cf2-9d2b-51b2c8ae067e"
+                },
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                }
+            ],
+            "severity": "error",
+            "type": "pth_inside_courtyard"
+        },
+        {
+            "description": "PTH inside courtyard",
+            "items": [
+                {
+                    "description": "PTH pad 3 [SCL] of U6",
+                    "pos": {
+                        "x": 128.565,
+                        "y": 67.256
+                    },
+                    "uuid": "d2c75e6a-d222-45bb-9c3d-a8a96c50e142"
+                },
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                }
+            ],
+            "severity": "error",
+            "type": "pth_inside_courtyard"
+        },
+        {
+            "description": "PTH inside courtyard",
+            "items": [
+                {
+                    "description": "PTH pad 4 [SDA] of U6",
+                    "pos": {
+                        "x": 131.105,
+                        "y": 67.256
+                    },
+                    "uuid": "6cc16b68-3988-477a-94eb-2671a0e93427"
+                },
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                }
+            ],
+            "severity": "error",
+            "type": "pth_inside_courtyard"
+        },
+        {
+            "description": "PTH inside courtyard",
+            "items": [
+                {
+                    "description": "PTH pad 5 [unconnected-(U6-Pin_5-Pad5)] of U6",
+                    "pos": {
+                        "x": 133.645,
+                        "y": 67.256
+                    },
+                    "uuid": "8df201c9-4af4-4682-9157-2d0723bbd47d"
+                },
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                }
+            ],
+            "severity": "error",
+            "type": "pth_inside_courtyard"
+        },
+        {
+            "description": "PTH inside courtyard",
+            "items": [
+                {
+                    "description": "PTH pad 6 [unconnected-(U6-Pin_6-Pad6)] of U6",
+                    "pos": {
+                        "x": 136.185,
+                        "y": 67.256
+                    },
+                    "uuid": "456698bd-28a2-4b8f-b6e1-b5a856a0b3c0"
+                },
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                }
+            ],
+            "severity": "error",
+            "type": "pth_inside_courtyard"
+        },
+        {
+            "description": "PTH inside courtyard",
+            "items": [
+                {
+                    "description": "PTH pad 7 [unconnected-(U6-Pin_7-Pad7)] of U6",
+                    "pos": {
+                        "x": 138.725,
+                        "y": 67.256
+                    },
+                    "uuid": "c1fd3ee1-30a6-4682-a928-59b494270ab0"
+                },
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                }
+            ],
+            "severity": "error",
+            "type": "pth_inside_courtyard"
+        },
+        {
+            "description": "PTH inside courtyard",
+            "items": [
+                {
+                    "description": "PTH pad 8 [unconnected-(U6-Pin_8-Pad8)] of U6",
+                    "pos": {
+                        "x": 141.265,
+                        "y": 67.256
+                    },
+                    "uuid": "349976c8-a84e-4cbe-919c-efb5845adc4c"
+                },
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                }
+            ],
+            "severity": "error",
+            "type": "pth_inside_courtyard"
+        },
+        {
+            "description": "Courtyards overlap",
+            "items": [
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                },
+                {
+                    "description": "Footprint U8",
+                    "pos": {
+                        "x": 150.409,
+                        "y": 60.271
+                    },
+                    "uuid": "73b09257-ce28-4d37-8fdf-56c4ccc5cff0"
+                }
+            ],
+            "severity": "error",
+            "type": "courtyards_overlap"
+        },
+        {
+            "description": "Courtyards overlap",
+            "items": [
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                },
+                {
+                    "description": "Footprint C3",
+                    "pos": {
+                        "x": 147.433,
+                        "y": 65.978
+                    },
+                    "uuid": "7552cd42-193e-435a-a668-5087c98dddd6"
+                }
+            ],
+            "severity": "error",
+            "type": "courtyards_overlap"
+        },
+        {
+            "description": "Courtyards overlap",
+            "items": [
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                },
+                {
+                    "description": "Footprint C33",
+                    "pos": {
+                        "x": 177.193,
+                        "y": 68.018
+                    },
+                    "uuid": "75a7467f-f8ef-4c06-be85-2f7498cd29cd"
+                }
+            ],
+            "severity": "error",
+            "type": "courtyards_overlap"
+        },
+        {
+            "description": "Courtyards overlap",
+            "items": [
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                },
+                {
+                    "description": "Footprint U7",
+                    "pos": {
+                        "x": 127.93,
+                        "y": 58.747
+                    },
+                    "uuid": "83ee7770-8ff4-493f-bea2-988bc316f964"
+                }
+            ],
+            "severity": "error",
+            "type": "courtyards_overlap"
+        },
+        {
+            "description": "PTH inside courtyard",
+            "items": [
+                {
+                    "description": "PTH pad 1 [3.3V] of U7",
+                    "pos": {
+                        "x": 127.93,
+                        "y": 58.747
+                    },
+                    "uuid": "34945be9-6258-4cb0-8e42-353c5b62b384"
+                },
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                }
+            ],
+            "severity": "error",
+            "type": "pth_inside_courtyard"
+        },
+        {
+            "description": "PTH inside courtyard",
+            "items": [
+                {
+                    "description": "PTH pad 2 [GND] of U7",
+                    "pos": {
+                        "x": 130.47,
+                        "y": 58.747
+                    },
+                    "uuid": "827d8fde-daae-4361-87f0-794131bc59a4"
+                },
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                }
+            ],
+            "severity": "error",
+            "type": "pth_inside_courtyard"
+        },
+        {
+            "description": "PTH inside courtyard",
+            "items": [
+                {
+                    "description": "PTH pad 3 [SCL] of U7",
+                    "pos": {
+                        "x": 133.01,
+                        "y": 58.747
+                    },
+                    "uuid": "a7cb88ab-5112-4b1f-a5fc-538efbed01c1"
+                },
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                }
+            ],
+            "severity": "error",
+            "type": "pth_inside_courtyard"
+        },
+        {
+            "description": "PTH inside courtyard",
+            "items": [
+                {
+                    "description": "PTH pad 4 [SDA] of U7",
+                    "pos": {
+                        "x": 135.55,
+                        "y": 58.747
+                    },
+                    "uuid": "36a96bba-03ec-45e5-a143-82b6bafab5e6"
+                },
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                }
+            ],
+            "severity": "error",
+            "type": "pth_inside_courtyard"
+        },
+        {
+            "description": "PTH inside courtyard",
+            "items": [
+                {
+                    "description": "PTH pad 5 [3.3V] of U7",
+                    "pos": {
+                        "x": 138.09,
+                        "y": 58.747
+                    },
+                    "uuid": "6481fa2c-96d3-4a95-8b19-9da51b094559"
+                },
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                }
+            ],
+            "severity": "error",
+            "type": "pth_inside_courtyard"
+        },
+        {
+            "description": "PTH inside courtyard",
+            "items": [
+                {
+                    "description": "PTH pad 6 [GND] of U7",
+                    "pos": {
+                        "x": 140.63,
+                        "y": 58.747
+                    },
+                    "uuid": "c4da3b97-8183-40d3-8aff-27a239519dc0"
+                },
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                }
+            ],
+            "severity": "error",
+            "type": "pth_inside_courtyard"
+        },
+        {
+            "description": "Courtyards overlap",
+            "items": [
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                },
+                {
+                    "description": "Footprint U3",
+                    "pos": {
+                        "x": 163.617,
+                        "y": 65.478
+                    },
+                    "uuid": "85805a9e-b9a2-4491-b8d3-1e0503401e66"
+                }
+            ],
+            "severity": "error",
+            "type": "courtyards_overlap"
+        },
+        {
+            "description": "Courtyards overlap",
+            "items": [
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                },
+                {
+                    "description": "Footprint C45",
+                    "pos": {
+                        "x": 147.234,
+                        "y": 59.509
+                    },
+                    "uuid": "a2db9b8f-9b95-4304-91e8-42a52926a013"
+                }
+            ],
+            "severity": "error",
+            "type": "courtyards_overlap"
+        },
+        {
+            "description": "Courtyards overlap",
+            "items": [
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                },
+                {
+                    "description": "Footprint L1",
+                    "pos": {
+                        "x": 151.933,
+                        "y": 65.478
+                    },
+                    "uuid": "a5054968-5008-463c-9f43-f998c3bbdc61"
+                }
+            ],
+            "severity": "error",
+            "type": "courtyards_overlap"
+        },
+        {
+            "description": "Courtyards overlap",
+            "items": [
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                },
+                {
+                    "description": "Footprint R80",
+                    "pos": {
+                        "x": 159.553,
+                        "y": 61.033
+                    },
+                    "uuid": "b6faeb26-3a40-45bd-a8ea-fe978f90ec2f"
+                }
+            ],
+            "severity": "error",
+            "type": "courtyards_overlap"
+        },
+        {
+            "description": "Courtyards overlap",
+            "items": [
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                },
+                {
+                    "description": "Footprint R79",
+                    "pos": {
+                        "x": 155.997,
+                        "y": 61.033
+                    },
+                    "uuid": "c4db13ba-137d-4aad-9416-8bcc61c9fe4a"
+                }
+            ],
+            "severity": "error",
+            "type": "courtyards_overlap"
+        },
+        {
+            "description": "Courtyards overlap",
+            "items": [
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                },
+                {
+                    "description": "Footprint D1",
+                    "pos": {
+                        "x": 182.032,
+                        "y": 64.843
+                    },
+                    "uuid": "cb8067a7-d380-23bf-8c46-e783f10b0dde"
+                }
+            ],
+            "severity": "error",
+            "type": "courtyards_overlap"
+        },
+        {
+            "description": "Courtyards overlap",
+            "items": [
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                },
+                {
+                    "description": "Footprint C7",
+                    "pos": {
+                        "x": 176.063,
+                        "y": 64.843
+                    },
+                    "uuid": "e7778e9a-a548-4268-8126-68efe0f35ac0"
+                }
+            ],
+            "severity": "error",
+            "type": "courtyards_overlap"
+        },
+        {
+            "description": "Courtyards overlap",
+            "items": [
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                },
+                {
+                    "description": "Footprint U2",
+                    "pos": {
+                        "x": 144.533,
+                        "y": 65.478
+                    },
+                    "uuid": "e8439d0f-9539-4ea1-8285-98124e30f9fd"
+                }
+            ],
+            "severity": "error",
+            "type": "courtyards_overlap"
+        },
+        {
+            "description": "Courtyards overlap",
+            "items": [
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                },
+                {
+                    "description": "Footprint C2",
+                    "pos": {
+                        "x": 163.91,
+                        "y": 62.478
+                    },
+                    "uuid": "f1fe6ee9-c6d9-4761-9fbb-e13531890f69"
+                }
+            ],
+            "severity": "error",
+            "type": "courtyards_overlap"
+        },
+        {
+            "description": "Courtyards overlap",
+            "items": [
+                {
+                    "description": "Footprint U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 62.908
+                    },
+                    "uuid": "1d947c90-55ad-4261-bdea-7a17539920d6"
+                },
+                {
+                    "description": "Footprint C5",
+                    "pos": {
+                        "x": 157.013,
+                        "y": 64.843
+                    },
+                    "uuid": "f4b787c9-0205-4c5c-affc-8823b4433359"
+                }
+            ],
+            "severity": "error",
+            "type": "courtyards_overlap"
+        },
+        {
+            "description": "Footprint 'C_1206_3216Metric' does not match copy in library 'Capacitor_SMD'",
+            "items": [
+                {
+                    "description": "Footprint C9",
+                    "pos": {
+                        "x": 144.533,
+                        "y": 62.43
+                    },
+                    "uuid": "2457da8b-7786-46f0-91ac-d56aaf59dda9"
+                }
+            ],
+            "severity": "warning",
+            "type": "lib_footprint_mismatch"
+        },
+        {
+            "description": "Footprint 'C_1206_3216Metric' does not match copy in library 'Capacitor_SMD'",
+            "items": [
+                {
+                    "description": "Footprint C8",
+                    "pos": {
+                        "x": 178.857,
+                        "y": 64.843
+                    },
+                    "uuid": "3a172937-34eb-4cde-a1fc-18a870779276"
+                }
+            ],
+            "severity": "warning",
+            "type": "lib_footprint_mismatch"
+        },
+        {
+            "description": "Footprint 'L_Bourns_SRN6045TA' does not match copy in library 'Inductor_SMD'",
+            "items": [
+                {
+                    "description": "Footprint L2",
+                    "pos": {
+                        "x": 171.11,
+                        "y": 65.478
+                    },
+                    "uuid": "463e7f21-e0b9-4f55-9641-eee9074c5b52"
+                }
+            ],
+            "severity": "warning",
+            "type": "lib_footprint_mismatch"
+        },
+        {
+            "description": "Footprint 'C_0603_1608Metric' does not match copy in library 'Capacitor_SMD'",
+            "items": [
+                {
+                    "description": "Footprint C4",
+                    "pos": {
+                        "x": 166.792,
+                        "y": 65.351
+                    },
+                    "uuid": "5f048ee2-a5dd-4103-9886-d67e7b2602d7"
+                }
+            ],
+            "severity": "warning",
+            "type": "lib_footprint_mismatch"
+        },
+        {
+            "description": "Footprint 'C_1206_3216Metric' does not match copy in library 'Capacitor_SMD'",
+            "items": [
+                {
+                    "description": "Footprint C6",
+                    "pos": {
+                        "x": 159.934,
+                        "y": 64.843
+                    },
+                    "uuid": "632d75a5-8866-4691-8c57-f0c6c5115b18"
+                }
+            ],
+            "severity": "warning",
+            "type": "lib_footprint_mismatch"
+        },
+        {
+            "description": "Footprint 'C_0603_1608Metric' does not match copy in library 'Capacitor_SMD'",
+            "items": [
+                {
+                    "description": "Footprint C3",
+                    "pos": {
+                        "x": 147.433,
+                        "y": 65.978
+                    },
+                    "uuid": "7552cd42-193e-435a-a668-5087c98dddd6"
+                }
+            ],
+            "severity": "warning",
+            "type": "lib_footprint_mismatch"
+        },
+        {
+            "description": "Footprint 'PinHeader_1x06_P2.54mm_Vertical' does not match copy in library 'Connector_PinHeader_2.54mm'",
+            "items": [
+                {
+                    "description": "Footprint U7",
+                    "pos": {
+                        "x": 127.93,
+                        "y": 58.747
+                    },
+                    "uuid": "83ee7770-8ff4-493f-bea2-988bc316f964"
+                }
+            ],
+            "severity": "warning",
+            "type": "lib_footprint_mismatch"
+        },
+        {
+            "description": "Footprint 'L_Bourns_SRN6045TA' does not match copy in library 'Inductor_SMD'",
+            "items": [
+                {
+                    "description": "Footprint L1",
+                    "pos": {
+                        "x": 151.933,
+                        "y": 65.478
+                    },
+                    "uuid": "a5054968-5008-463c-9f43-f998c3bbdc61"
+                }
+            ],
+            "severity": "warning",
+            "type": "lib_footprint_mismatch"
+        },
+        {
+            "description": "Footprint 'C_1206_3216Metric' does not match copy in library 'Capacitor_SMD'",
+            "items": [
+                {
+                    "description": "Footprint C7",
+                    "pos": {
+                        "x": 176.063,
+                        "y": 64.843
+                    },
+                    "uuid": "e7778e9a-a548-4268-8126-68efe0f35ac0"
+                }
+            ],
+            "severity": "warning",
+            "type": "lib_footprint_mismatch"
+        },
+        {
+            "description": "Footprint 'TSOT-23-6' does not match copy in library 'Package_TO_SOT_SMD'",
+            "items": [
+                {
+                    "description": "Footprint U2",
+                    "pos": {
+                        "x": 144.533,
+                        "y": 65.478
+                    },
+                    "uuid": "e8439d0f-9539-4ea1-8285-98124e30f9fd"
+                }
+            ],
+            "severity": "warning",
+            "type": "lib_footprint_mismatch"
+        },
+        {
+            "description": "Footprint 'CP_Elec_6.3x7.7' does not match copy in library 'Capacitor_SMD'",
+            "items": [
+                {
+                    "description": "Footprint C39",
+                    "pos": {
+                        "x": 178.857,
+                        "y": 76.273
+                    },
+                    "uuid": "e844a6ca-1769-404a-baac-1805d17cd131"
+                }
+            ],
+            "severity": "warning",
+            "type": "lib_footprint_mismatch"
+        },
+        {
+            "description": "Footprint 'C_1206_3216Metric' does not match copy in library 'Capacitor_SMD'",
+            "items": [
+                {
+                    "description": "Footprint C2",
+                    "pos": {
+                        "x": 163.91,
+                        "y": 62.478
+                    },
+                    "uuid": "f1fe6ee9-c6d9-4761-9fbb-e13531890f69"
+                }
+            ],
+            "severity": "warning",
+            "type": "lib_footprint_mismatch"
+        },
+        {
+            "description": "Footprint 'C_1206_3216Metric' does not match copy in library 'Capacitor_SMD'",
+            "items": [
+                {
+                    "description": "Footprint C5",
+                    "pos": {
+                        "x": 157.013,
+                        "y": 64.843
+                    },
+                    "uuid": "f4b787c9-0205-4c5c-affc-8823b4433359"
+                }
+            ],
+            "severity": "warning",
+            "type": "lib_footprint_mismatch"
+        },
+        {
+            "description": "Footprint 'PinHeader_1x08_P2.54mm_Vertical' does not match copy in library 'Connector_PinHeader_2.54mm'",
+            "items": [
+                {
+                    "description": "Footprint U6",
+                    "pos": {
+                        "x": 123.485,
+                        "y": 67.256
+                    },
+                    "uuid": "6bd5c75b-a2ca-4db9-85d7-bb59ba99b7e2"
+                }
+            ],
+            "severity": "warning",
+            "type": "lib_footprint_mismatch"
+        },
+        {
+            "description": "Silkscreen clearance",
+            "items": [
+                {
+                    "description": "Reference field of P3",
+                    "pos": {
+                        "x": 143.043,
+                        "y": 86.814
+                    },
+                    "uuid": "285a54a0-878a-4f92-99fa-1df1a1f49a3a"
+                },
+                {
+                    "description": "Segment of P3 on F.Silkscreen",
+                    "pos": {
+                        "x": 142.083,
+                        "y": 86.213
+                    },
+                    "uuid": "3efb681d-9b44-423a-95e4-365707155f28"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_overlap"
+        },
+        {
+            "description": "Silkscreen clearance",
+            "items": [
+                {
+                    "description": "Reference field of P4",
+                    "pos": {
+                        "x": 146.091,
+                        "y": 86.814
+                    },
+                    "uuid": "74b2494d-56a0-41ce-aa36-a4dba5c91ae3"
+                },
+                {
+                    "description": "Segment of P4 on F.Silkscreen",
+                    "pos": {
+                        "x": 145.131,
+                        "y": 86.213
+                    },
+                    "uuid": "f4caae54-4db5-4763-bdca-b93d9ca50e1f"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_overlap"
+        },
+        {
+            "description": "Silkscreen clearance",
+            "items": [
+                {
+                    "description": "Reference field of P2",
+                    "pos": {
+                        "x": 139.868,
+                        "y": 86.814
+                    },
+                    "uuid": "3f45de43-2501-4ff6-8396-011079275a6e"
+                },
+                {
+                    "description": "Segment of P2 on F.Silkscreen",
+                    "pos": {
+                        "x": 138.908,
+                        "y": 86.213
+                    },
+                    "uuid": "784311e4-c486-4e79-94f0-9e1ada8ea14b"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_overlap"
+        },
+        {
+            "description": "Silkscreen clearance",
+            "items": [
+                {
+                    "description": "Reference field of P1",
+                    "pos": {
+                        "x": 136.82,
+                        "y": 86.9225
+                    },
+                    "uuid": "4579e34d-d60b-481e-af7e-0c866990804f"
+                },
+                {
+                    "description": "Segment of P1 on F.Silkscreen",
+                    "pos": {
+                        "x": 135.86,
+                        "y": 86.243
+                    },
+                    "uuid": "bab36924-8c94-4236-bc7f-9153edb36882"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_overlap"
+        },
+        {
+            "description": "Silkscreen clearance",
+            "items": [
+                {
+                    "description": "Segment of P4O on F.Silkscreen",
+                    "pos": {
+                        "x": 142.283,
+                        "y": 38.576
+                    },
+                    "uuid": "85a15db7-febd-4d1a-b538-16ff34753a34"
+                },
+                {
+                    "description": "Reference field of P4O",
+                    "pos": {
+                        "x": 138.598,
+                        "y": 37.856
+                    },
+                    "uuid": "a5ca419f-9ade-428d-810b-6d30a47e8986"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_overlap"
+        },
+        {
+            "description": "Silkscreen clearance",
+            "items": [
+                {
+                    "description": "Segment of SW2 on F.Silkscreen",
+                    "pos": {
+                        "x": 146.439,
+                        "y": 93.482
+                    },
+                    "uuid": "12459eb9-65f3-4dea-a867-f9e51b11443e"
+                },
+                {
+                    "description": "Footprint text of SW2 (PYRO ARM)",
+                    "pos": {
+                        "x": 143.043,
+                        "y": 94.053
+                    },
+                    "uuid": "f7f1fc9c-a0cf-413a-9efd-c5a0e6fbca43"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_overlap"
+        },
+        {
+            "description": "Silkscreen clearance",
+            "items": [
+                {
+                    "description": "Segment of U1 on F.Silkscreen",
+                    "pos": {
+                        "x": 183.289,
+                        "y": 53.908
+                    },
+                    "uuid": "39eaf394-4728-4628-bd77-c474b65a813f"
+                },
+                {
+                    "description": "Segment of D1 on F.Silkscreen",
+                    "pos": {
+                        "x": 180.382,
+                        "y": 68.353
+                    },
+                    "uuid": "da16a37e-07f2-4567-a6c8-ff0f60acb412"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_overlap"
+        },
+        {
+            "description": "Silkscreen clearance",
+            "items": [
+                {
+                    "description": "Segment of LED2 on F.Silkscreen",
+                    "pos": {
+                        "x": 159.101,
+                        "y": 86.213
+                    },
+                    "uuid": "22365440-0753-4923-ad19-1dbafe435287"
+                },
+                {
+                    "description": "Footprint text of LED2 (M)",
+                    "pos": {
+                        "x": 160.061,
+                        "y": 86.687
+                    },
+                    "uuid": "edd41910-b1e7-4314-8829-5e4899b00517"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_overlap"
+        },
+        {
+            "description": "Silkscreen clearance",
+            "items": [
+                {
+                    "description": "Segment of LED3 on F.Silkscreen",
+                    "pos": {
+                        "x": 162.149,
+                        "y": 86.213
+                    },
+                    "uuid": "28b17f78-6f1d-4aa8-bf6c-443beedcd416"
+                },
+                {
+                    "description": "Footprint text of LED3 (P)",
+                    "pos": {
+                        "x": 163.109,
+                        "y": 86.687
+                    },
+                    "uuid": "9a46a74d-6d3e-4ffe-b3dd-926a69c8848c"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_overlap"
+        },
+        {
+            "description": "Silkscreen clearance",
+            "items": [
+                {
+                    "description": "Footprint text of BUZZER (+)",
+                    "pos": {
+                        "x": 165.51,
+                        "y": 79.743
+                    },
+                    "uuid": "247a4346-9fde-4e63-88e2-40a411992281"
+                },
+                {
+                    "description": "Circle of BUZZER on F.Silkscreen",
+                    "pos": {
+                        "x": 169.11,
+                        "y": 77.543
+                    },
+                    "uuid": "4c632ab6-7837-4454-9b15-9e5991c71525"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_overlap"
+        },
+        {
+            "description": "Silkscreen clearance",
+            "items": [
+                {
+                    "description": "Segment of LED4 on F.Silkscreen",
+                    "pos": {
+                        "x": 165.197,
+                        "y": 86.213
+                    },
+                    "uuid": "2990217d-fbd4-4495-be19-4f2dac3fc45e"
+                },
+                {
+                    "description": "Footprint text of LED4 (S)",
+                    "pos": {
+                        "x": 166.157,
+                        "y": 86.687
+                    },
+                    "uuid": "4a912f1c-76bc-44e7-91be-168caf9b957a"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_overlap"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "Rectangle of U7 on F.Silkscreen",
+                    "pos": {
+                        "x": 141.78,
+                        "y": 57.447
+                    },
+                    "uuid": "61b31078-74c7-6bc0-30f8-bb08760b0b98"
+                },
+                {
+                    "description": "PTH pad 8 [unconnected-(U6-Pin_8-Pad8)] of U6",
+                    "pos": {
+                        "x": 141.265,
+                        "y": 67.256
+                    },
+                    "uuid": "349976c8-a84e-4cbe-919c-efb5845adc4c"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "Rectangle of U7 on F.Silkscreen",
+                    "pos": {
+                        "x": 141.78,
+                        "y": 57.447
+                    },
+                    "uuid": "61b31078-74c7-6bc0-30f8-bb08760b0b98"
+                },
+                {
+                    "description": "PTH pad 2 [GND] of U6",
+                    "pos": {
+                        "x": 126.025,
+                        "y": 67.256
+                    },
+                    "uuid": "ddea07f3-7523-4cf2-9d2b-51b2c8ae067e"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "Reference field of Q19",
+                    "pos": {
+                        "x": 151.496,
+                        "y": 48.467
+                    },
+                    "uuid": "35e76ce0-a7a8-439e-bccb-cae2c3bcddd7"
+                },
+                {
+                    "description": "PTH pad 1 [7.4V_RAW] of PI",
+                    "pos": {
+                        "x": 152.695,
+                        "y": 48.714
+                    },
+                    "uuid": "91f0b24f-0c4a-4b6c-b78a-3b66764637a8"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        },
+        {
+            "description": "Silkscreen clipped by solder mask",
+            "items": [
+                {
+                    "description": "Rectangle of U6 on B.Silkscreen",
+                    "pos": {
+                        "x": 121.775,
+                        "y": 52.156
+                    },
+                    "uuid": "1138004a-510c-d414-3867-d57b7df187e7"
+                },
+                {
+                    "description": "PTH pad 24 [SERVOZ] of U1",
+                    "pos": {
+                        "x": 143.809,
+                        "y": 55.288
+                    },
+                    "uuid": "ce84384a-3d58-4157-90c3-c368fb8c706c"
+                }
+            ],
+            "severity": "warning",
+            "type": "silk_over_copper"
+        }
+    ]
+}
