@@ -1,7 +1,7 @@
 {
     "$schema": "https://schemas.kicad.org/drc.v1.json",
     "coordinate_units": "mm",
-    "date": "2026-08-20T12:35:52",
+    "date": "2026-08-20T12:55:27",
     "ignored_checks": [
         {
             "description": "Footprint has no courtyard defined",
@@ -37,13 +37,28 @@
             "description": "Missing connection between items",
             "items": [
                 {
+                    "description": "Zone [GND] on F.Cu, priority 0",
+                    "pos": {
+                        "x": 187.4,
+                        "y": 62.9
+                    },
+                    "uuid": "bdf0aecc-dd6c-46d4-aaa2-0cb7d00c0327"
+                },
+                {
                     "description": "Zone [GND] on B.Cu, priority 0",
                     "pos": {
                         "x": 187.4,
                         "y": 62.9
                     },
                     "uuid": "f13c7a88-ae98-4fcf-8ad0-88ae293cec6f"
-                },
+                }
+            ],
+            "severity": "error",
+            "type": "unconnected_items"
+        },
+        {
+            "description": "Missing connection between items",
+            "items": [
                 {
                     "description": "Zone [GND] on F.Cu, priority 0",
                     "pos": {
@@ -51,6 +66,14 @@
                         "y": 62.9
                     },
                     "uuid": "bdf0aecc-dd6c-46d4-aaa2-0cb7d00c0327"
+                },
+                {
+                    "description": "Zone [GND] on B.Cu, priority 0",
+                    "pos": {
+                        "x": 187.4,
+                        "y": 62.9
+                    },
+                    "uuid": "f13c7a88-ae98-4fcf-8ad0-88ae293cec6f"
                 }
             ],
             "severity": "error",
@@ -67,21 +90,6 @@
                     },
                     "uuid": "f13c7a88-ae98-4fcf-8ad0-88ae293cec6f"
                 },
-                {
-                    "description": "Zone [GND] on F.Cu, priority 0",
-                    "pos": {
-                        "x": 187.4,
-                        "y": 62.9
-                    },
-                    "uuid": "bdf0aecc-dd6c-46d4-aaa2-0cb7d00c0327"
-                }
-            ],
-            "severity": "error",
-            "type": "unconnected_items"
-        },
-        {
-            "description": "Missing connection between items",
-            "items": [
                 {
                     "description": "Zone [GND] on In1.Cu, priority 0",
                     "pos": {
@@ -89,14 +97,6 @@
                         "y": 62.9
                     },
                     "uuid": "668173b0-2eab-4212-8ed9-df743f4b6b49"
-                },
-                {
-                    "description": "Zone [GND] on B.Cu, priority 0",
-                    "pos": {
-                        "x": 187.4,
-                        "y": 62.9
-                    },
-                    "uuid": "f13c7a88-ae98-4fcf-8ad0-88ae293cec6f"
                 }
             ],
             "severity": "error",
@@ -104,6 +104,52 @@
         }
     ],
     "violations": [
+        {
+            "description": "Clearance violation (netclass 'PYRO_RAIL' clearance 0.3000 mm; actual 0.1660 mm)",
+            "items": [
+                {
+                    "description": "Pad 5 [7.4V] of Q21 on F.Cu",
+                    "pos": {
+                        "x": 166.961,
+                        "y": 49.984
+                    },
+                    "uuid": "7b2e6e8a-18b6-4646-ba29-84341f488489"
+                },
+                {
+                    "description": "Via [GND] on F.Cu - B.Cu",
+                    "pos": {
+                        "x": 171.027,
+                        "y": 51.192
+                    },
+                    "uuid": "ffc63c0f-0f5e-07d8-8559-7c88d07e72db"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
+        {
+            "description": "Clearance violation (netclass 'PYRO_RAIL' clearance 0.3000 mm; actual 0.0964 mm)",
+            "items": [
+                {
+                    "description": "Track [7.4V_RAW] on F.Cu, length 0.9101 mm",
+                    "pos": {
+                        "x": 164.0,
+                        "y": 47.2
+                    },
+                    "uuid": "a7fb5282-dfd2-62bb-d909-cc14a517b064"
+                },
+                {
+                    "description": "Via [GND] on F.Cu - B.Cu",
+                    "pos": {
+                        "x": 162.907,
+                        "y": 49.212
+                    },
+                    "uuid": "c08a36e9-2151-4edc-99c9-47c39f795c1a"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
         {
             "description": "Courtyards overlap",
             "items": [
@@ -885,6 +931,75 @@
             ],
             "severity": "error",
             "type": "courtyards_overlap"
+        },
+        {
+            "description": "Drilled hole too close to other hole (board setup constraints min 0.2495 mm; actual 0.0000 mm)",
+            "items": [
+                {
+                    "description": "Via [GND] on F.Cu - B.Cu",
+                    "pos": {
+                        "x": 150.894,
+                        "y": 48.929
+                    },
+                    "uuid": "1f15898f-2967-370e-87c5-02f6f40807ab"
+                },
+                {
+                    "description": "Via [GND] on F.Cu - B.Cu",
+                    "pos": {
+                        "x": 150.825,
+                        "y": 49.192
+                    },
+                    "uuid": "5cb52546-f26f-c1b8-4e31-596d6b183830"
+                }
+            ],
+            "severity": "warning",
+            "type": "hole_to_hole"
+        },
+        {
+            "description": "Drilled hole too close to other hole (board setup constraints min 0.2495 mm; actual 0.0000 mm)",
+            "items": [
+                {
+                    "description": "Via [GND] on F.Cu - B.Cu",
+                    "pos": {
+                        "x": 144.96,
+                        "y": 50.061
+                    },
+                    "uuid": "33ade2e5-7b2f-eaec-de5c-98746c3ecaa4"
+                },
+                {
+                    "description": "Via [GND] on F.Cu - B.Cu",
+                    "pos": {
+                        "x": 145.14,
+                        "y": 50.15
+                    },
+                    "uuid": "49e0831d-3339-f9a9-1afc-9b6f4cf67115"
+                }
+            ],
+            "severity": "warning",
+            "type": "hole_to_hole"
+        },
+        {
+            "description": "Drilled hole too close to other hole (board setup constraints min 0.2495 mm; actual 0.0000 mm)",
+            "items": [
+                {
+                    "description": "Via [GND] on F.Cu - B.Cu",
+                    "pos": {
+                        "x": 171.357,
+                        "y": 51.192
+                    },
+                    "uuid": "df02b645-47ce-fbfa-3c1f-762f4de103ab"
+                },
+                {
+                    "description": "Via [GND] on F.Cu - B.Cu",
+                    "pos": {
+                        "x": 171.027,
+                        "y": 51.192
+                    },
+                    "uuid": "ffc63c0f-0f5e-07d8-8559-7c88d07e72db"
+                }
+            ],
+            "severity": "warning",
+            "type": "hole_to_hole"
         },
         {
             "description": "Footprint 'C_1206_3216Metric' does not match copy in library 'Capacitor_SMD'",

@@ -73,43 +73,48 @@ def dist_to_edge(pt, poly):
     return best
 
 
-text = open(PCB, encoding="utf-8", newline="").read().replace("\r\n", "\n")
-polys = islands(text)
-print("filled islands found: %d" % len(polys))
-by_layer = {}
-for lay, pts in polys:
-    by_layer.setdefault(lay, []).append(pts)
-for lay, ps in sorted(by_layer.items()):
-    print("   %-8s %d island(s)" % (lay, len(ps)))
+def _run():
+    text = open(PCB, encoding="utf-8", newline="").read().replace("\r\n", "\n")
+    polys = islands(text)
+    print("filled islands found: %d" % len(polys))
+    by_layer = {}
+    for lay, pts in polys:
+        by_layer.setdefault(lay, []).append(pts)
+    for lay, ps in sorted(by_layer.items()):
+        print("   %-8s %d island(s)" % (lay, len(ps)))
+    
+    b = _geom.Board(os.path.join(HERE, "geom.json"), os.path.join(HERE, "Impulse_2.3.kicad_pro"))
+    need = SIZE / 2.0 + 0.15          # via copper must sit inside the pour with a little margin
+    
+    placed = []
+    y = CY - RAD
+    while y <= CY + RAD:
+        x = CX - RAD
+        while x <= CX + RAD:
+            if math.hypot(x - CX, y - CY) <= RAD - EDGE_MARGIN:
+                hits = [lay for lay, pts in polys if inside((x, y), pts) and dist_to_edge((x, y), pts) > need]
+                if len(set(hits)) >= 2 and b.via_ok("GND", x, y, SIZE):
+                    placed.append((round(x, 3), round(y, 3)))
+                    b.vias.append({"net": "GND", "x": x, "y": y, "size": SIZE, "d": DRILL})
+            x += PITCH
+        y += PITCH
+    
+    
+    def u(tag):
+        h = hashlib.md5(("stitch23/" + tag).encode()).hexdigest()
+        return "%s-%s-%s-%s-%s" % (h[:8], h[8:12], h[12:16], h[16:20], h[20:32])
+    
+    
+    crlf = "\r\n" in open(PCB, encoding="utf-8", newline="").read()
+    a = text.rindex("\n\t(via") if "\n\t(via" in text else text.rindex("\n\t(segment")
+    end = text.index("\n\t)", a) + 3
+    blocks = ['\n\t(via\n\t\t(at %s %s)\n\t\t(size %s)\n\t\t(drill %s)\n\t\t(layers "F.Cu" "B.Cu")\n'
+              '\t\t(net "GND")\n\t\t(uuid "%s")\n\t)' % (x, y, SIZE, DRILL, u("%s,%s" % (x, y)))
+              for x, y in placed]
+    text = text[:end] + "".join(blocks) + text[end:]
+    open(PCB, "w", encoding="utf-8", newline="").write(text.replace("\n", "\r\n") if crlf else text)
+    print("placed %d pour-aware GND stitching vias (%.1f mm grid)" % (len(placed), PITCH))
 
-b = _geom.Board(os.path.join(HERE, "geom.json"), os.path.join(HERE, "Impulse_2.3.kicad_pro"))
-need = SIZE / 2.0 + 0.15          # via copper must sit inside the pour with a little margin
 
-placed = []
-y = CY - RAD
-while y <= CY + RAD:
-    x = CX - RAD
-    while x <= CX + RAD:
-        if math.hypot(x - CX, y - CY) <= RAD - EDGE_MARGIN:
-            hits = [lay for lay, pts in polys if inside((x, y), pts) and dist_to_edge((x, y), pts) > need]
-            if len(set(hits)) >= 2 and b.via_ok("GND", x, y, SIZE):
-                placed.append((round(x, 3), round(y, 3)))
-                b.vias.append({"net": "GND", "x": x, "y": y, "size": SIZE, "d": DRILL})
-        x += PITCH
-    y += PITCH
-
-
-def u(tag):
-    h = hashlib.md5(("stitch23/" + tag).encode()).hexdigest()
-    return "%s-%s-%s-%s-%s" % (h[:8], h[8:12], h[12:16], h[16:20], h[20:32])
-
-
-crlf = "\r\n" in open(PCB, encoding="utf-8", newline="").read()
-a = text.rindex("\n\t(via") if "\n\t(via" in text else text.rindex("\n\t(segment")
-end = text.index("\n\t)", a) + 3
-blocks = ['\n\t(via\n\t\t(at %s %s)\n\t\t(size %s)\n\t\t(drill %s)\n\t\t(layers "F.Cu" "B.Cu")\n'
-          '\t\t(net "GND")\n\t\t(uuid "%s")\n\t)' % (x, y, SIZE, DRILL, u("%s,%s" % (x, y)))
-          for x, y in placed]
-text = text[:end] + "".join(blocks) + text[end:]
-open(PCB, "w", encoding="utf-8", newline="").write(text.replace("\n", "\r\n") if crlf else text)
-print("placed %d pour-aware GND stitching vias (%.1f mm grid)" % (len(placed), PITCH))
+if __name__ == "__main__":
+    _run()
