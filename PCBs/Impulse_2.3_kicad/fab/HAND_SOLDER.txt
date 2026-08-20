@@ -1,0 +1,21 @@
+Impulse_2.2 — parts excluded from JLC assembly (hand-solder / source yourself):
+
+  BUZZER       GT-0905A passive       Buzzer_D9.0mm_P4.00mm
+  JA1          Conn_01x03             PinHeader_1x03_P2.54mm_Vertical
+  JB1          Conn_01x03             PinHeader_1x03_P2.54mm_Vertical
+  JC1          Conn_01x03             PinHeader_1x03_P2.54mm_Vertical
+  JD1          Conn_01x03             PinHeader_1x03_P2.54mm_Vertical
+  JX1          Conn_01x03             PinHeader_1x03_P2.54mm_Vertical
+  JY1          Conn_01x03             PinHeader_1x03_P2.54mm_Vertical
+  JZ1          Conn_01x03             PinHeader_1x03_P2.54mm_Vertical
+  MI           Conn_01x02             PinHeader_1x02_P2.54mm_Vertical
+  P1O          Conn_01x02             Molex_Micro-Fit_3.0_43045-0212_2x01_P3.00mm_Vertical
+  P2O          Conn_01x02             Molex_Micro-Fit_3.0_43045-0212_2x01_P3.00mm_Vertical
+  P3O          Conn_01x02             Molex_Micro-Fit_3.0_43045-0212_2x01_P3.00mm_Vertical
+  P4O          Conn_01x02             Molex_Micro-Fit_3.0_43045-0212_2x01_P3.00mm_Vertical
+  PI           Conn_01x02             PinHeader_1x02_P2.54mm_Vertical
+  U1           Teensy 4.1             TEENSY41
+  U6           MPU-6050 Module        PinHeader_1x08_P2.54mm_Vertical
+  U7           BMP280 Module          PinHeader_1x06_P2.54mm_Vertical
+  U1 sockets   2x Female Header 1x24 2.54mm (e.g. Sullins PPC241LFBN-RC / PJRC socket kit)
+               -> self-jig trick: press sockets onto the pre-pinned Teensy, insert, solder

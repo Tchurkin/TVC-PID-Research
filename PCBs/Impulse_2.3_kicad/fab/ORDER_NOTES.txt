@@ -1,0 +1,282 @@
+Impulse 2.3 -- notes before ordering
+====================================
+
+WHY 2.3 EXISTS
+  Q21, the pyro rail ARM switch, was an AO3401A in SOT-23 carrying the firing current of EVERY pyro
+  channel. It died on the bench 2026-08-12. Once the initiator was measured at ~0.3 ohm the loop
+  current turned out to be 12-17 A, not the 2-4 A the board was designed around, so 2.3 upsizes the
+  whole pyro switching path -- not just the part that failed.
+
+WHAT CHANGED vs 2.2 (nothing else on the board moved: a netlist diff shows 77 nets in both, zero
+membership changes outside these six parts)
+  Q21       AO3401A   SOT-23   ->  AON6403      DFN 5x6   LCSC C2760089   (P-channel arm switch)
+  Q16-Q19   CSD17313Q2 SON 2x2 ->  CSD17301Q5A  SON 5x6   LCSC C129940    (N-channel firing FETs)
+  Q20       AO3401A   SOT-23   ->  AON6403      DFN 5x6   LCSC C2760089   (MAIN battery switch)
+
+  Q20 uses the SAME part as Q21, so it shares the feeder and adds no BOM line -- and AO3401A now
+  disappears from the board entirely. It moved EAST of the buzzer to (175.700, 79.500): its old
+  pocket has only 4.52 mm between the BUZZER's through-hole pads and R66, and a DFN5x6 needs 4.96
+  plus clearance. East costs nothing, because VBAT already leaves Q20 eastward to C39 and then via
+  In2 round to the bucks -- the drain tab now sits directly on that path. Q20 matters because it is
+  a SINGLE POINT OF FAILURE for the whole avionics stack: the Teensy that fires the chute is powered
+  through it. As an AO3401A a sustained multi-servo stall sat it at ~0.43 W in SOT-23 (Tj ~135 C,
+  CONTINUOUS, not a 900 ms pulse); at 4.3 mOhm it is ~0.03 W.
+  Pyro rail copper widened.
+
+  *** CORRECTED 2026-08-18 -- AN EARLIER VERSION OF THIS FILE WAS WRONG AND IT MATTERED. ***
+  It claimed each firing FET's drain tab OVERLAPS its connector's pin-1 pad, giving the firing
+  current a "zero-length connection", and used that to justify narrowing every Net-(PnO-Pin_1)
+  track to 0.3 mm as "continuity-sense only, ~0.6 mA". MEASURED: the tab and the connector pad are
+  3.13 mm APART on every channel. They never overlapped. So those 0.3 mm tracks were carrying the
+  FULL firing current -- ~18 A through copper an IPC-2221 1 oz table rates at 1.0 A.
+  When the board is re-routed, every Net-(PnO-Pin_1) run between the FET tab and the connector pin
+  MUST be sized for the firing current (>=1.5 mm, wider where it fits), NOT treated as a sense
+  branch. Only the long runs to R37/R41/R42/R43 are sense-only.
+
+  Margins at 20 A held for 900 ms:
+    AON6403      4.3 mOhm max @ VGS=-4.5 V (driven at -6.7 V)  -> 2.2 W, survives INDEFINITELY
+    CSD17301Q5A  2.9 mOhm GUARANTEED AT VGS=3 V                -> 2.1 W, Tj ~48 C
+  The 3 V spec row on the CSD17301Q5A is the hard requirement: the Teensy drives these gates
+  directly with no gate driver. Do not substitute a part specified only at 4.5 V.
+  Chosen over the CSD17302Q5A (9.5 mOhm, 5.3 W, Tj ~84 C) so the firing FETs MATCH the arm
+  FETs (2.4 W) instead of being the weak half -- and for 414 mJ EAS vs 61 mJ, the margin that
+  absorbs the inductive kick when the nichrome opens ~20 A. Same footprint, same pin map.
+
+  PACK SAG MATTERS FOR THE ARM FET'S SPEC ROW TOO. The pyro pack is 2S LiPo: 7.4 V nominal, 8.4 V
+  charged, and it sags to roughly 5.3-6.5 V at the terminals under a 15 A firing load. R67 feeds
+  Q21's gate from that same rail, so VGS sags with it -- from -6.7 V at rest to about -5.3 V while
+  firing. AON6403 is specified at VGS = -4.5 V, so it stays inside its guaranteed row throughout.
+  Any replacement arm FET must be specified at -4.5 V or lower for the same reason; a part whose
+  lowest row is -6 V (e.g. AO4407A) would be running on extrapolation exactly when it is loaded.
+
+*** VERIFY BEFORE YOU ORDER ***
+
+  1. ROTATIONS FOR ALL SIX FETs ARE UNVERIFIED. These are new custom footprints
+     (Impulse22:AON6403_DFN5x6 and Impulse22:TI_SON5x6_Q5A), so none of 2.2's hand-converged JLC
+     rotation calibration carries over for them. The CPL emits Q21=90 (top), Q16-Q19=90 (bottom)
+     and Q20=180 (bottom) -- i.e. the kicad-cli value plus this board's established +180
+     bottom-side convention, which was re-derived from the rows already in this CPL.
+     CHECK ALL SIX IN JLC'S PREVIEW against the board's silk pin-1 ticks before paying. This
+     project's own notes call the JLC preview the only ground truth for rotation, and a 180 deg
+     error on a pyro FET is a dead channel or a fired-on-power-up channel.
+     Every other CPL row is byte-identical to the 2.2 order placed 2026-08-01.
+
+  2. Both new parts are JLCPCB "Extended" (feeder fee), same tier as the CSD17313Q2 they replace.
+     Verified present in the JLCPCB assembly library via the partdetail page for each LCSC code.
+
+  3. Footprint pin maps, since they differ between the two packages and a swap would be fatal:
+       AON6403      pads 1,2,3 = SOURCE   pad 4 = GATE   pad 5 = DRAIN tab
+       CSD17301Q5A  pad 1 = DRAIN tab     pad 5 = GATE   pads 6,7,8 = SOURCE
+     Both were taken from KiCad's PQFN-8-EP_6x5mm_P1.27mm_Generic land pattern, whose own
+     description names exactly these two packages.
+
+  4. Same 4-layer stackup as 2.2: JLC04161H-7628, 1 oz outer.
+
+  5. Delivery inspection, unchanged from 2.2: ICM/DPS310 pin-1 dots vs silk before first power-up,
+     R67 present (pyro-arm pull-up -- safety), electrolytic stripes opposite the silk "+".
+
+KNOWN, ACCEPTED DRC DEVIATIONS (vs 2.2's baseline of 67)
+  0 clearance, 0 shorts, 0 unconnected, 0 schematic-parity, ERC 0 errors.
+  After the 2026-08-18 re-placement AND re-route: 0 clearance, 0 shorts, 0 copper-edge, 0 hole,
+  0 mask-bridge, 0 dangling, 0 schematic-parity, ERC 0 errors. courtyards_overlap 20 and
+  pth_inside_courtyard 14 -- both back to the 2.2 baseline. (An earlier note claimed 4 extra PTH
+  items were a deliberate tab-over-connector-pad overlap; that was the false premise corrected
+  above.) 3 unconnected items remain, ALL Zone<->Zone GND pour fragments with ZERO stranded pads --
+  pad-less floating copper, cosmetic.
+
+  THE FIRING PATH IS NOW 2.50 mm on all four channels (was 0.30 mm), i.e. 4.6 A IPC steady and
+  ~42 C adiabatic rise at 18 A over 200 ms.
+
+  CPL NOTE: 27 footprints moved in the re-placement, so the CPL was regenerated by preserving each
+  part's ROTATION OFFSET (old_CPL_rot - old_kicad_rot) and re-applying it to the new kicad rotation.
+  That keeps the hand-converged per-part calibration instead of discarding it. 47 rows reproduced
+  identically; 43 picked up new positions/rotations.
+
+INITIATOR RESISTANCE -- CORROBORATED, not just measured
+  The 0.30 ohm reading is confirmed independently by geometry: 2 inches of Nichrome 80/20 at
+  0.30 ohm implies 0.483 mm diameter, i.e. ~AWG 24-25, an ordinary gauge for a band cutter
+  (AWG 25 over 2 in = 0.337 ohm). Meter and dimensions agree, so this number is trusted.
+
+  Useful consequence: nichrome has a POSITIVE temperature coefficient (~+4e-4 /C), so the current
+  DECAYS as the wire heats -- 18.3 A cold, 16.2 A glowing, 13.4 A approaching melt. The 20 A used
+  to size the FETs is therefore the cold-start peak, seen only momentarily, not a sustained load.
+  Together with the wire self-clearing, the real duty is milder than the sizing case on both axes.
+
+FIRMWARE RAIL CHECK -- CHECKED, NO CHANGE NEEDED (2026-08-19)
+  An earlier note in this file warned that RAIL_MIN_V = 6.0 V would abort a fire mid-pulse, because
+  the rail sags ~2 V at 18 A. That warning was WRONG and is withdrawn. Reading the control flow:
+    * Impulse22_PyroTest.ino samples railV() only AFTER the channel is driven low plus a 15 ms
+      settle -- an UNLOADED measurement, which 220 uF of C10 recovers long before. 6.0 V is the
+      right threshold there.
+    * Ascent_TVC.ino uses PYRO_V_MIN_V = 6.80 V as an ARM-TIME gate, an LED warning state and a
+      logged value. It does not abort a fire in progress.
+  No firmware change is warranted, and none was made.
+
+  DO NOT SHORTEN THE 900 ms PYRO DURATION EITHER. The copper survives it (worst leg ~139 C
+  adiabatic, ~70-100 C real), and a melt wire that fails to cut is a far worse outcome than a warm
+  trace. The 900 ms stands.
+
+  LOG-READING TRAP, worth adding to FAILURE_MODES: pyroMinV records the in-flight MINIMUM of the
+  pyro rail, so after any firing the post-flight header will show pyro_min_v around 5.3-6.3 V --
+  BELOW the 6.80 V arm gate printed next to it. That is normal IR sag under an 18 A load, NOT a flat
+  pack. Do not diagnose it as a battery problem.
+
+FIRMWARE -- READ THIS TOO
+  The nichrome MELTS THROUGH and breaks its own continuity, so the FET conduction time is the melt
+  time, not the commanded 900 ms. (This corrects DESIGN_LOG 2026-07-23, which called the hot wire "a
+  non-clearing resistive load held ON for seconds".) 2.3 is nevertheless sized for the pessimistic
+  case -- wire never clears, full 900 ms at 20 A -- so self-clearing is pure extra margin.
+  At 0.3 ohm the wire dissipates ~59 W and cuts far faster than 900 ms. The silicon now survives
+  that abuse, but holding the channel on after the cut still sags the pack (to ~6.2-6.8 V under
+  load). Measure the actual cut time and shorten the pulse; the burst-fire logic in
+  Impulse22_PyroTest.ino should stay as defence in depth, and post-fire continuity already tells
+  the firmware the wire has gone.
+
+PAD ENTRIES -- A WIDE TRACE THAT CLIPS A PAD IS STILL A NECK (2026-08-19)
+  Trace width alone does not describe the connection. What carries the current into a pad is the
+  overlap PERPENDICULAR to the direction of flow, and a 2.5 mm trace crossing the edge of a pad can
+  join it through a fraction of that. Measured before the fix:
+     PI.1    1.70x1.70 pad, 2.50 mm trunk -> only 0.59 mm of copper actually joined them
+     P1-P4O.2 1.50x1.50 pads, 2.00 mm rail -> only 0.84 mm each
+  Thermally these would probably have survived -- the junction is ~0.6 mm long and equilibrates
+  with the surrounding copper in ~3 ms against a 900 ms pulse -- but it is needless current
+  crowding and it costs nothing to remove.
+
+  FIXED by adding a pad-entry stub at each one, as wide as the pad itself:
+     PI.1     0.59 -> 1.70 mm      P1O.2..P4O.2   0.84 -> 1.50 mm
+  AND THEN FIXED AGAIN: the first stubs ran from the pad CENTRE, so the cross-section was right but
+  half of each pad was still bare copper -- which is not a proper pad entry and reads as pinched.
+  The stubs now span the WHOLE pad (their round end caps carried past the far edge):
+     PI.1 99% covered, P1O.2..P4O.2 100% covered. Q21.5 is 76% by area but that is a 4x2 mm
+     exposed TAB, where the tab itself is the conductor and 1.86 of its 2.00 mm height carries -- fine.
+  Watch the end cap when extending a stub: a 1.7 mm vertical track ending at y=49.3 reaches y=50.15,
+  which collides with PI.2 (GND) at 50.404. y=49.2 is the limit and still covers the pad.
+
+  THE PAD IS THE CEILING. You cannot extract more than ~1.70 mm of cross-section from a 1.70 mm
+  pad however wide the approaching trace is, so a 2.5 mm trunk entering PI is right-sized for the
+  run and the pad is the limit -- not a defect, just the connector's geometry. If more is ever
+  needed there, the connector footprint has to change, not the routing.
+
+WIDTH UNIFORMITY -- 3 CHANGES LEFT, EACH ONE FORCED (2026-08-19)
+  Mid-run power width changes: 21 -> 3.
+
+  THE PYRO INPUT RAIL WAS NEVER BLOCKED BY R68. That claim appears in earlier revisions of this
+  file and it was WRONG, twice. The actual obstruction was a GND STITCHING VIA at (161.700,47.900)
+  that an earlier grid-stitch pass had dropped into the middle of the only wide corridor. With that
+  one via removed, the lane north of R68 is clear for a 2.5 mm trace from x=150 all the way to
+  x=164.8, and PI -> Q21 is now a SINGLE STRAIGHT 2.5 mm trunk instead of a 9-segment run that
+  wandered between 1.0 and 2.5 mm.
+  Lesson: check what is actually in the way before blaming a component. Auto-placed stitching vias
+  are copper too, and they had already caused one regression on this board.
+
+  THE 3 REMAINING CHANGES:
+    7.4V_RAW (164.000,47.200)  2.50 -> 1.20   necking into Q21's leads. UNAVOIDABLE: the leads are
+                                              0.70 mm wide on 1.27 mm pitch, so no 2.5 mm trace can
+                                              terminate on them. Every fine-pitch part needs this.
+    VBAT     (165.068,64.085)  1.20 -> 0.60   0.44 mm segment inside U3's SOT-23-6 pin field
+    VBAT     (145.671,64.528)  1.20 -> 0.60   0.95 mm segment inside U2's pin field
+  The two VBAT necks are sub-millimetre, carry 2.4 A (~20 C), and are heat-sunk by pads at both
+  ends. All three are at pin fields -- i.e. where a width change is physically required.
+
+  A FLOOR IS PART OF THE UNIFORMITY RULE. A first attempt without one took the minimum across each
+  run and dropped a 47 mm VBAT run from 1.2 mm to 0.40 mm -- below its 1.0 mm requirement -- purely
+  to tidy the picture. Caught and reverted. A run that cannot reach its floor uniformly is LEFT
+  RAGGED and reported, never narrowed to fit.
+
+  WHERE PARALLEL CONDUCTORS EXIST THE FILE UNDERSTATES THE COPPER:
+     PI -> Q21          2.5 mm straight trunk (uniform)
+     Q21 -> P1O.2       2.5 mm (uniform run)
+     Q21 -> P2/P3/P4    reads 1.4 mm on In2, PARALLELED by 2.0 mm on In1 -> 3.4 mm effective
+     P#O.1 -> FET tab   3.4 mm (uniform)
+
+  THERMAL MODEL CAVEAT: adiabatic figures quoted elsewhere are a CONSERVATIVE upper bound. They
+  ignore the GND plane 0.2 mm below the trace, and FR4's diffusion length over 900 ms is ~0.34 mm,
+  so the plane is engaged well within the pulse. Treat them as "cannot be worse than".
+
+TRACE SIZING -- DONE BY CURRENT BUDGET, 2026-08-19
+  Earlier passes widened each segment as far as its neighbours allowed. That is not a design: it
+  left single nets running 1.0/1.2/1.4/1.6/2.0/2.5 mm along their length (so the narrowest link
+  silently set the rating and bottlenecks hid), and it inflated the ~0.6 mA continuity-SENSE
+  branches to 2.5 mm, wasting board space and blocking routing.
+  Every power net is now split into its CURRENT-CARRYING CORE and its STUBS (sense / gate /
+  decoupling) by graph pruning, and each sized for what it actually carries.
+
+  SIZING BASIS. For an 18 A PULSE, IPC-2221 continuous is the wrong rule -- it demands 16 mm.
+  The right criterion is adiabatic rise over the pulse: w for <=100 C at 900 ms is 3.44 mm;
+  at 200 ms, 1.62 mm. Continuous rails use IPC-2221 external, 1 oz, 10 C rise.
+     18 A pulse (pyro)      -> 2.5-3.4 mm, parallel conductors where a single run will not fit
+     2.4-2.8 A continuous   -> 1.2 mm  (VBAT/VBAT_RAW, 5V-DIRTY)
+     uA-mA stubs            -> 0.3 mm
+
+  RESULT -- firing loop at 18 A, adiabatic rise over 200 ms:
+     PI -> Q21 source            2.8 mm eff (1.2 || 1.6 parallel)     ~34 C
+     Q21/C10 -> P1O.2            2.5 mm     (re-routed, via-free)     ~42 C
+     distribution rail to P2-P4  3.4 mm eff (In2 1.4 || In1 2.0)      ~23 C
+     P#O.1 -> FET drain tab      3.4 mm     uniform on all 4 channels ~23 C
+  For comparison the same legs were 0.30-1.00 mm before this work (2900 C and 264 C respectively).
+
+  WHERE PARALLEL CONDUCTORS ARE USED IT IS DELIBERATE, not leftover: the connector field
+  (Micro-Fit signal + mechanical peg pads) caps a single In2 run at 1.4 mm and the R68/C15 area caps
+  the input rail, so a second conductor on another layer carries the balance. Both were verified to
+  land directly on the connectors' through-hole pads, which span all layers.
+
+  A SINGLE VIA IS NOT AN ACCEPTABLE FIRING-PATH ELEMENT: a 0.6 mm via's barrel is ~0.024 mm^2
+  against 0.07 mm^2 for a 2 mm trace, so it is a worse bottleneck than the neck it would relieve.
+  A 2.0 mm route requiring one via was REJECTED in favour of a via-free 1.6 mm one. If a via ever
+  has to carry firing current, use several in parallel.
+
+  STILL NOT UNIFORM, and knowingly so: 7.4V core runs 1.4/2.0/2.5 and 7.4V_RAW 1.0-2.5, because in
+  both cases the narrow runs are paralleled rather than replaced. VBAT keeps two short 0.6 mm
+  segments at the buck pins (2.4 A -> ~22 C, acceptable, and they are under 1 mm long).
+
+BATTERY INPUT CONNECTORS -- PI CARRIES THE FIRING CURRENT (2026-08-18)
+  PI and MI use the PinHeader_1x02_P2.54mm footprint, but the build fits KEYED, LATCHING JST leads
+  into those pads -- so FAILURE_MODES A6 (battery connector intermittent under vibration) is already
+  handled in hardware. Do not read the footprint name as "bare header".
+
+  The open question is CURRENT, not keying: PI passes the whole ~18 A firing pulse. A JST-XH contact
+  is rated 3 A (~6x over) and dissipates ~4.9 W per contact during a fire; the failure mode is
+  cumulative, since each firing anneals/oxidises the contact and the next one is worse. It is in the
+  chute path, so degradation there matters.
+    JST-PH 2A -> 9.0x   JST-XH 3A -> 6.0x   JST-VH 10A -> 1.8x   XT30 30A -> 0.6x
+
+  RECOMMENDED, and it needs NO BOARD CHANGE: solder a short pigtail to PI's pads and terminate it in
+  an XT30 a few cm off-board. Soldering removes the contact resistance entirely (~0.1 mOhm vs
+  ~15 mOhm) and the XT30 keeps the pack keyed, latching AND physically disconnectable.
+  Keeping it disconnectable is worth something specific here: the continuity gate CANNOT detect a
+  shorted firing FET before arming (arming is what fires it), so being able to isolate the pyro pack
+  is a real safety layer rather than a convenience. If PI is hard-soldered with no inline connector,
+  SW2 becomes the ONLY barrier between a charged pyro pack and a live initiator.
+
+  MI is a non-issue at ~2.4 A -- solder or JST, either is fine.
+
+FUSES -- CONSIDERED AND DECIDED (2026-08-18)
+  PYRO battery: NO fuse. A shorted firing FET drives 18.3 A through the wire -- the SAME current as
+  a deliberate fire through the same load -- so no fuse rating discriminates the fault. The only
+  case it would catch is a dead short (52 A), just 2.9x normal firing current, where a fuse takes
+  hundreds of ms to seconds and the nichrome melts first. Against that near-zero benefit it would
+  add a series element in the CHUTE DEPLOYMENT PATH that must work exactly once after being
+  stressed by repeated 18 A pulses; fuses fatigue from thermal cycling near their rating. SW2
+  physically breaking the rail is the real protection.
+
+  MAIN battery: a fuse IS discriminating here -- 2.4 A worst-case load vs ~54 A into a downstream
+  short, ~23x separation, so ~5 A is a textbook rating. But fit it INLINE IN THE BATTERY PIGTAIL,
+  not on the PCB: no respin, inspectable, re-ratable once real servo stall current is measured, and
+  it avoids adding a board-level series element between the pack and everything that keeps the
+  vehicle alive (including the Teensy that fires the chute).
+
+*** BEFORE FITTING A LIVE INITIATOR TO THE EXISTING 2.2 BOARD ***
+  On 2.2, P1 reads always-low and P2 always-high. Always-low is the signature of a firing FET
+  SHORTED drain-to-source, which means that channel is permanently connected to ground and will
+  fire the instant the rail comes up -- no gate command needed. With the pyro battery disconnected
+  and nothing plugged in, measure P#O pin 1 to GND on every channel: healthy is >=10k (the sense
+  path), near 0 ohm is a shorted FET. Then measure pin 1 to pin 2; it should be open, and a low
+  reading is the leakage path that would explain P2 reading high. This is consistent with the
+  analysis above -- at 14 A the old CSD17313Q2 took 11.5 W in a 3 W package.
+
+  *** THIS BENCH CHECK IS THE ONLY THING THAT CATCHES A SHORTED FIRING FET. *** The firmware's
+  continuity gate CANNOT: reading continuity requires the pyro rail to be UP, and bringing the rail
+  up with a shorted FET is precisely what fires that channel. Firmware only ever sees it after the
+  fact. Probe P#O pin 1 -- that is the Micro-Fit 3.00 mm THROUGH-HOLE connector pin, not the FET's
+  pad, so no fine-pitch probing is needed -- against any ground (mounting hole or battery negative).
+  Do this on every channel before a live initiator goes anywhere near the board.

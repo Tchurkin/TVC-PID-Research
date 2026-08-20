@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "Impulse22")(type "KiCad")(uri "${KIPRJMOD}/Impulse22.pretty")(options "")(descr "Impulse project footprints"))
+)
