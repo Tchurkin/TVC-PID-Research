@@ -664,6 +664,308 @@ is acceptable, (c) whether 71/71 green is sufficient to fly on the 16th.]*
 
 **Files touched / code to cite:** `Firmware/sim_ascent/regression.py` (section 6d rewrite).
 
+### 2026-08-15 — Firmware readiness audit, and a passive GPS/IMU/baro navigator for the ascent flight
+**Tool:** Claude Opus 5 (Claude Code)
+**Categories:** CODE
+
+**What AI was asked to do:** audit whether the flight firmware was ready to exercise the sensing the
+propulsive landing will need — GPS, IMU and baro fusion — on an upcoming ascent flight, and then
+"perfect the code."
+
+**What AI actually did:**
+- **Audit.** Established that `Ascent_TVC.ino` contained **no GPS code at all** (a single mention in
+  2791 lines, inside a pin-map comment) and no horizontal state estimate of any kind. The passive
+  vertical Kalman (baro+IMU) was already present and correct. Re-ran the existing gate from a fresh
+  build to establish a clean baseline first: **75 passed, 0 failed**.
+- Found that `Sysiphus_Landing.ino` is aimed at hardware that is not on the vehicle: it uses
+  `MPU6050_tockn` + `BMP280` over I²C rather than the ICM-42688-P / DPS310 SPI sensor board, and
+  `#define GPS_SERIAL Serial1` collides with CS_IMU and MISO1 (Teensy pins 0/1) on Impulse 2.2. Its
+  `IYY`/`KEFF_NOM` are still SIL defaults. Reported, not fixed — it is not flyable either way.
+- **Implemented** (all of it passive instrumentation, by explicit design): the `Impulse22_SensorCheck`
+  NMEA parser ported onto Serial4 with a hard per-call byte budget, a north/east Kalman of the same
+  3-state form as the existing `kfZ`, a separate pure-INS dead-reckoned track, an in-flight
+  pad-azimuth solve (2-D Procrustes fit of the INS track against the GPS track), 12 new `ASC###.CSV`
+  columns and a GPS block in the `CTL###.CSV` header.
+- **Extended the harness** with opt-in 3-D translation and a synthetic NMEA receiver (`--lateral`),
+  deliberately gated so the default build stays bit-identical and no existing lock could move for an
+  unrelated reason. Added 8 regression checks, the sharpest being: same seed, receiver healthy vs.
+  permanently dead → control outcome must be **byte-identical**, which is the passive claim stated as
+  a test. Gate now **83 passed, 0 failed**. Teensy 4.1 compile clean with no warnings; measured cost
+  +20.8 KB variables, +21 KB code, 141 KB RAM1 still free.
+- Added a readback (not a write) of the ICM's `GYRO_ACCEL_CONFIG0`, which had been left at its
+  power-on default, so τ measurements are attributable to a recorded filter configuration.
+- Fixed two defects in its own new code before shipping them: a fix-loss counter that double-counted
+  every dropout, and a heading solve that compared two tracks with different origins.
+- **After Braxton questioned the self-aligning heading solve** (and offered to launch in a defined
+  orientation), measured it instead of defending it, and two things followed:
+  - It does not work on this profile. 25 seeds, ~6 m horizontal travel: median heading error 17°
+    with an ideal accelerometer, 22° at 30 mg of bias, **27° with a 10 Hz receiver** — more data
+    making it worse, i.e. a systematic limit rather than a noisy one. This only became visible after
+    adding a lateral accelerometer-bias model the harness did not have, so the first figure reported
+    (0.26°, from a clean low-noise case) was an algebra check being read as a performance claim.
+    Demoted to a logged diagnostic; the filter now uses an entered orientation, and the solve is
+    scored against it as a positive control.
+  - **Found a genuine bug in its own frame convention.** (N,E,U) is left-handed (N × E = −U) while
+    the firmware's world frame is right-handed with +Z up, so the conversion is a rotation composed
+    with a reflection; a plain rotation had been used. **The SIL passed it because the same wrong
+    convention had been written into the harness** — a self-consistency test proving only that two
+    copies of one mistake agree. Fixed in both and replaced with a physical assertion (at ψ=0 world
+    +Y must map to West).
+  - Also caught and removed a confound in its own sensitivity study: with a FIXED accelerometer-bias
+    vector, a wrong heading could score better than the correct one (the bias drift happening to line
+    up), making the curve non-monotonic. Re-run with the bias dispersed per seed. Result: entry error
+    0/5/15/30/45/90/180° → pos_err ×1.00/1.10/1.05/1.06/1.18/1.81/3.28, so the heading is a soft
+    parameter on this profile and a rough compass bearing is sufficient.
+  - Gate 83 -> **87 passed, 0 failed**, including two locks that would have caught the handedness bug
+    and a lock that the heading is genuinely connected to the filter at all.
+
+**What AI did NOT do:** no paper or essay prose. It did not touch the control law, the gains, the
+abort logic, the pyro sequence or the apogee decision. It did **not** measure Iyy or τ. It did not
+fix `Sysiphus_Landing.ino`. Every number above is simulation or a compiler report — nothing here has
+run on hardware, and the SIL models no lateral accelerometer bias or noise, so it validates the
+*algorithm* and says nothing about real inertial drift magnitude.
+
+**Interpretation and decisions (student's):** *[Braxton to complete — the calls that are yours:
+(a) whether adding a new subsystem to a gate-green build is acceptable this close to the launch,
+(b) whether the bench pitch-the-nose sign check has been re-run on this build before it flies,
+(c) whether a near-vertical ascent gives enough lateral displacement for this experiment to answer
+anything, or whether a deliberate kick is worth the risk.]*
+
+**Files touched / code to cite:** `Firmware/Ascent_TVC/Ascent_TVC.ino`,
+`Firmware/sim_ascent/ascent_sim.cpp`, `Firmware/sim_ascent/regression.py`,
+`Firmware/sim/shims/Arduino.h`, `FAILURE_MODES.md`.
+
+### 2026-08-15 (later) — Two pad-interface bugs Braxton found on the bench
+**Tool:** Claude Opus 5 (Claude Code)
+**Categories:** CODE
+
+**What AI was asked to do:** fix two things observed on the bench — the fifth ARM press flashing
+only briefly before the countdown started, and the countdown abort seeming to require holding the
+button or pressing at a particular moment.
+
+**What AI actually did:**
+- **Fifth ARM press.** `armed` is set inside the button-edge handler, so the `while(!armed)`
+  condition ended the loop on the next pass: presses 1–4 each held their chirp for
+  `PRESS_CHIRP_MS` = 90 ms, press 5 got a single 5 ms iteration. Eighteen times shorter, which is
+  why arming felt like it skipped a step. Press 5 now holds the same 90 ms as the other four.
+  **First attempt was wrong and Braxton rejected it:** AI replaced the 5 ms flicker with a 380 ms
+  held confirmation tone, reasoning that the arm tones are designed to *resolve* onto the countdown's
+  A4 and should be audible. That made press 5 longer than the other four and kept the dead time —
+  solving a problem nobody had while not fixing the one reported. The correct fix was the small one.
+- **Dead time on the pad path**, at Braxton's instruction to strip anything that is not doing work:
+  the bare `delay(500)` between arming and the countdown (`countdown()` re-neutralises the servos
+  itself), the 500 ms ARM LED flash (→120 ms), and a 3 s wait for a USB monitor that is never
+  attached on a pad (→250 ms; costs zero when a monitor *is* open, since `Serial` is true at once).
+  `cd_start_ms` 1200 → **405**, and boot is ~2.75 s quicker.
+- **Countdown abort.** Not a debounce problem: the button was read at ONE INSTANT per tick, between
+  a blocking `beep(...,200)` and `delay(800)`, neither of which sampled it. For essentially the whole
+  second the press was invisible. The existing comment defended this, because an earlier polling
+  attempt had changed the countdown's duration and moved an injected reset across the burnout
+  boundary in regression 6b. That timing concern was legitimate; the conclusion was not. `cdWait()`
+  now sleeps in 5 ms slices summing to *exactly* the duration it replaced and **latches** the press.
+- Extended polling into the two windows that sampled nothing at all — the 1.2 s gyro calibration at
+  T-3 and the 1 s pre-ignition settle — so the last ~2.2 s of the countdown can now be scrubbed,
+  and added a final abort check immediately before ignition.
+- **Found a second defect while fixing the first:** the abort's press-consume loop was
+  `while(digitalRead(BUTTON)==HIGH) wdtFeed();` — unbounded *and feeding the watchdog*, so a stuck
+  or shorted button hangs it permanently in the one state the watchdog cannot recover. Bounded at
+  5 s, matching the rule `exitOnButton()` already documented but which this path never got.
+- **Scrubbing no longer needs a second press to clear.** `countdown()` fails for two unrelated
+  reasons and both landed in the same solid-red hold. A deliberate abort now returns to ARM by
+  itself; a pre-arm refusal (flat pack, open chute igniter, sick bus, leaning vehicle) still holds
+  red until acknowledged, because nobody asked for those and walking away from a dead parachute
+  igniter must not be possible. Testing it required fixing the harness: `pinMode` was a no-op and the
+  firmware turns an LED off by going high-Z, so the pin value stayed stale at "lit" and **LED state
+  had never been observable in simulation at all**.
+- Added `--btnpress` to the harness and **10 regression checks for a safety feature that previously
+  had none**: a tap scrubs; a 10 ms bounce does not; a press inside the deadtime cannot cancel the
+  countdown it started; aborts work in both formerly deaf windows; the full outcome line is
+  unchanged by polling (the timing lock); and the countdown still starts at 1200 ms.
+- Broke two pre-existing checks in the process, by adding a pad-clock field (`cd_start_ms`) to an
+  outcome line that `flight_fields()` compares for equality. Fixed by stripping it there, for the
+  same documented reason `p4t` is already stripped.
+
+**What AI did NOT do:** did not touch the control law, gains, abort thresholds, pyro sequencing or
+the deadtime/debounce constants. Did not change the countdown's duration, tone pitches or tick
+structure. It also did **not** address the pre-existing oddity that ticks T-2 and T-1 have no delay
+at all, so the countdown is ~28 s rather than 30 — flagged only, since changing it would move flight
+timing. Nothing verified on hardware; the bench behaviour that prompted this was Braxton's
+observation, not a measurement AI made.
+
+**Interpretation and decisions (student's):** *[Braxton to complete — (a) whether the 380 ms armed
+tone reads clearly on the pad, (b) whether the 30 ms abort debounce feels right with gloves on,
+(c) whether the ~28 s countdown should be made a true 30 s.]*
+
+**Files touched / code to cite:** `Firmware/Ascent_TVC/Ascent_TVC.ino`,
+`Firmware/sim_ascent/ascent_sim.cpp`, `Firmware/sim_ascent/regression.py`, `FAILURE_MODES.md`.
+
+### 2026-08-15 (later still) — GROUND_TEST build flag, at Braxton's request
+**Tool:** Claude Opus 5 (Claude Code)
+**Categories:** CODE
+
+**What AI was asked to do:** Braxton was ground-testing and the pre-arm gates kept aborting the
+countdown; he asked for them to be turned off for now.
+
+**What AI actually did:** added `#define GROUND_TEST` at the top of `Ascent_TVC.ino`. At 1 it turns
+all four pre-arm gates (rails, parachute continuity, sensor rate, pad tilt) into loud warnings that
+continue instead of aborting. AI did **not** simply disable the checks — it made the bypass unable to
+reach a launch:
+- `GROUND_TEST=1` never fires P3, so the motor cannot light. Because it never lights,
+  `liftoffConfirmed` stays false and the **pre-existing** liftoff interlock then inhibits the chute
+  and leg charges as well, so the whole pyro bank is inert. The safety property comes from a
+  mechanism already in the firmware and already covered by the suite, not from new code.
+- Boot banner + triple chirp every power-on; magenta cue (not the red abort alarm) on each bypassed
+  gate; and `regression.py` hard-exits 2 refusing to run until the flag is cleared.
+
+**What AI did NOT do:** did not weaken any gate threshold, did not touch the control law or the
+abort logic, and did not change firmware behaviour at all when `GROUND_TEST=0` (verified by running
+the full gate with the flag cleared). Did not verify anything on hardware.
+
+**Interpretation and decisions (student's):** *[Braxton to complete — the request to bypass the
+gates for bench work was his; the choice to couple the bypass to an ignition inhibit was AI's
+suggestion and he should record whether he agrees with it.]*
+
+**Files touched / code to cite:** `Firmware/Ascent_TVC/Ascent_TVC.ino`,
+`Firmware/sim_ascent/regression.py`, `FAILURE_MODES.md`.
+
+### 2026-08-15 (evening) — Analysed the ground-test SD card; found a flight-critical bug
+**Tool:** Claude Opus 5 (Claude Code)
+**Categories:** ANALYSIS, CODE
+
+**What AI was asked to do:** Braxton ran the ground-test build, brought the SD card back, and asked
+AI to look at it.
+
+**What AI actually did:**
+- Read `CTL001.CSV` / `ASC040.CSV` and found the control loop running at **85 µs mean** (min 84,
+  max 107, 42904 iterations) against ASC038's 3450 µs — the SPI sensor board is ~40× faster than the
+  I2C path every previous flight used. Verified against three independent numbers in the log.
+- Diagnosed `faults=0x1020 / attitude_trusted=0`: the **attitude-staleness detector fired on a
+  healthy estimate**. Its test compared a per-iteration tilt movement against a fixed 0.05°, which
+  encodes a loop period; at 3.5 ms it could never fire, at 85 µs it fires below 588 °/s. Confirmed
+  from the log that the estimate was tracking correctly (tilt following the gyro at ~40 °/s) — so
+  the estimator was fine and the *threshold* was wrong. Boost rate is p90 ~53 °/s, so this would
+  have fired on essentially every flight, disabling the P term and forcing an early deploy.
+- Rewrote it as a rate-vs-rate ratio over a fixed time window, so the loop period cancels.
+- Found the detector had **never been tested in either form**, and added a positive control — which
+  caught a hole in AI's own first rewrite (it stopped accumulating when `dt` left its sanity range,
+  going blind at exactly the moment its failure arrives).
+- Found the harness **could not express a fast loop at all** (every knob only slows it;
+  `sim_advance()` takes whole ms) and added `--fastloop N`.
+- Found `loop_us_median` was a constant — 100 µs bins sized for the old loop, printing median=50
+  beside min=84. Reduced to 10 µs bins; gate now asserts median ≥ min.
+- Flagged but did NOT change: `IMU_STUCK_N=25` now has ~2× margin instead of ~70×.
+
+**What AI did NOT do:** did not change the control law, gains, abort thresholds or pyro logic. Did
+not change `dt` to microseconds (the 1 kHz IMU ODR already sets the effective update rate, so the
+millisecond quantisation is not currently losing information) — flagged for Braxton instead. Did not
+verify any of this on hardware; the fix is SIL-verified only, and the bench behaviour that revealed
+the bug was Braxton's observation.
+
+**Interpretation and decisions (student's):** *[Braxton to complete — (a) whether the 0.25 tracking
+ratio and 0.15 s window are the right thresholds, (b) whether `IMU_STUCK_N` should be raised now or
+left, (c) that τ's dominant term has moved from loop period to sensor ODR.]*
+
+**Files touched / code to cite:** `Firmware/Ascent_TVC/Ascent_TVC.ino`,
+`Firmware/sim_ascent/ascent_sim.cpp`, `Firmware/sim_ascent/shims/Adafruit_MPU6050.h`,
+`Firmware/sim_ascent/regression.py`, `FAILURE_MODES.md`.
+
+### 2026-08-16 — Launch-morning gate check; found the 08-15 audit fixes had shipped a flight-critical bug
+**Tool:** Claude Opus 5 (Claude Code)
+**Categories:** CODE
+**What AI was asked to do:** re-run the ascent regression gate and confirm it was green before flashing,
+then triage a list of unverified findings from an earlier automated audit.
+
+**What AI actually did:** found the gate was not running but **wedged** — the prior session's run had been
+dead ~28 minutes with no output. Diagnosed three defects. (1) `resetFlightState()`, added the previous day,
+set `imuOk[BOTH] = true` unconditionally, discarding setup()'s sensor-board probe; since it runs at the top
+of every `countdown()` the firmware entered every flight believing an absent ICM was available, so the first
+MPU fault failed over to nothing, latched `F_IMU_BOTH_DEAD`, and armed a chute deploy under thrust. Changed
+to re-probe. (2) `regression.py`'s `run()` had no subprocess timeout, so a firmware loop that never advances
+the simulated clock wedged the suite forever; bounded at 60 s wall clock. (3) the SPI shim costs no simulated
+time, which is what turned (1) into a hang — documented, not fixed. Also, with Braxton's go-ahead, keyed the
+blind abort on live blindness instead of the latched fault bit, and added a descending-only guard to the
+health-fallback deploy. Wrote 3 new regression locks. Verified: gate 115/0, Teensy compile clean, and a
+negative control (bug reintroduced in a scratch build) reproduces the hang exactly.
+
+**Corrections AI made to its own work, both from measurement rather than review:** the first health-fallback
+guard used +8.0 m/s and deployed at a true **+10.0 m/s**, because the guard reads the firmware's own
+`vert_vel` — the estimate that is degraded in exactly that branch. Changed to require descending. Separately,
+the scenarios used to test that guard turned out not to reach it at all: they fire `ABORT cause: TILT` through
+`emergency()`, so the flagged branch is real but is not the one that usually deploys.
+
+**What AI did NOT do:** did not change `emergency()`, which deploys with no velocity guard and no thrust
+inhibit and is the path that actually fires in most fault scenarios — that is a deliberate documented trade
+sized for a 60 m airframe, and changing it on launch morning is Braxton's call, not a bug fix. Did not change
+gains, `MAX_TILT`, `XTUNE`/`YTUNE`, the pyro role map, or `IMU_STUCK_N`. Did not model the ICM in the SIL.
+Did not verify anything on hardware. Could not exercise the health-fallback branch in simulation at all.
+
+**Interpretation and decisions (student's):** *[Braxton to complete — (a) whether `emergency()` should carry
+a velocity guard now that apogee is ~194 m rather than ~60 m, (b) whether to fly at all given the gate covers
+the MPU backup path while the vehicle flies the ICM, (c) the pitch-the-nose sign check, still outstanding.]*
+
+**Files touched / code to cite:** `Firmware/Ascent_TVC/Ascent_TVC.ino`,
+`Firmware/sim_ascent/regression.py`, `FAILURE_MODES.md`, `~/.claude/shared/STATUS.md`.
+
+### 2026-08-16 (later) — Braxton's 600 ms melt-wire measurement; an over-fire path on the chute FET
+**Tool:** Claude Opus 5 (Claude Code)
+**Categories:** CODE
+**What AI was asked to do:** Braxton reported the parachute "seems to fire in 600 ms" and suggested adding
+margin. He separately ruled that `emergency()` must never be velocity-gated and that the main chute should
+fire as soon as the vehicle starts descending.
+
+**What AI actually did:** established the measurement was melt-wire → canopy-clear (`n=1`), which is the
+B4 quantity that had been the #1 open hardware item. Checked the pulse path and found `PYRO_MS_CUTTER` is
+already 1000 ms, so the requested margin exists (400 ms spare) and **the correct action was to change
+nothing** — raising it spends the FET thermal budget that most likely destroyed Q16. While checking, found
+that `dumpMotorLog()` never ticked `updatePyros()` although the other two dumps do, so a slow SD write can
+hold the **chute** FET on for seconds past its stamped 1000 ms; fixed by ticking per row. Traced the cause:
+the shared forward declaration sits below that function, so it could not have called it. Confirmed no
+velocity gate exists in `emergency()` (none was ever added) and that the health-fallback guard requiring
+descending matches Braxton's second ruling. Re-ran the gate (115/0) and the Teensy compile (clean).
+
+**What AI did NOT do:** did not raise `PYRO_MS_CUTTER` — the measurement argues against it. Did not add a
+velocity guard to `emergency()`, per Braxton's ruling. Did not change the coast-tumble behaviour, but
+flagged it: `emergency()` returns unless `poweredFlight`, so a post-burnout tumble raises no abort, which
+differs from "always fire if the rocket is tumbling". Did not repeat the 600 ms measurement — `n=1` bounds
+the typical, not the spread, and AI cannot run a bench test.
+
+**Interpretation and decisions (student's):** *[Braxton to complete — (a) whether "always fire if tumbling"
+is meant to extend into coast, which is a real firmware change; (b) whether to repeat the melt-wire timing
+for a spread before flying.]*
+
+**Files touched / code to cite:** `Firmware/Ascent_TVC/Ascent_TVC.ino`, `FAILURE_MODES.md`,
+`~/.claude/shared/STATUS.md`.
+
+### 2026-08-16 (later still) — Extended the tumble abort into coast, on Braxton's instruction
+**Tool:** Claude Opus 5 (Claude Code)
+**Categories:** CODE
+**What AI was asked to do:** "make tumbling after burnout do emergency too", followed by "im fine with
+parachute firing on ascent if its past 45 degrees".
+
+**What AI actually did:** changed `emergency()`'s gate from `poweredFlight` to `inFlight` so it runs through
+coast, but **did not extend all three aborts**, because the firmware already contained the measurement that
+forbids it: coast tilt p90 is ~77° against a 45° threshold, so extending the TILT abort would abort the
+majority of healthy flights. TILT therefore stays powered-only (which is also what Braxton's second message
+confirms he wants), RATE extends (it is the actual tumble discriminator), BLIND stays powered-only. Gated on
+`inFlight` rather than `liftoffConfirmed` because bench TVC mode relies on `emergency()` returning early and
+hand motion exceeds 150 °/s easily, while `liftoffConfirmed` latches on a handling transient (CTL003).
+Verified false positives (0 aborts / 80 dispersed healthy flights) and wrote a positive control (unstable
+airframe departs in coast → `F_RATE_ABORT`) without which the false-positive locks would pass on dead code.
+Gate 121/0, Teensy compile clean.
+
+**What AI did NOT do:** did not add a velocity guard to `emergency()` (Braxton's ruling), and did not treat
+the resulting climbing deploy as a defect — but did measure and record it: +33.7 m/s climbing at 141.9 m of
+a 193.6 m apogee on the positive-control case, annotated in the gate so a later reader knows that changing
+it reverses a decision rather than fixing a bug. Did not change the 45° threshold or the 150 °/s / 300 ms
+rate constants. Did not verify any of this on hardware.
+
+**Interpretation and decisions (student's):** *[Braxton to complete — (a) whether a shredded canopy from a
+coast-tumble deploy at ~34 m/s is preferable to waiting for descent, which is the trade this encodes;
+(b) whether the 150 °/s / 300 ms rate threshold is right for coast, where it was only ever tuned for boost.]*
+
+**Files touched / code to cite:** `Firmware/Ascent_TVC/Ascent_TVC.ino`,
+`Firmware/sim_ascent/regression.py`, `FAILURE_MODES.md`, `~/.claude/shared/STATUS.md`.
+
 ### Template for future entries
 
 ```
