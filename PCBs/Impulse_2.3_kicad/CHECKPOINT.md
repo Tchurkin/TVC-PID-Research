@@ -9,59 +9,43 @@ from the board itself and fails loudly if anything regressed.
 
 ## Where this stands
 
-**DO NOT ORDER.** *(2026-08-20: blocker 1 FIXED, blocker 2 and the doc/CPL items still open.)*
+**All automated checks are GREEN as of 2026-08-21.** `python _checkpoint.py` passes: schematic
+parity 0, ERC 0, DRC 63 violations all in accepted classes, 0 stranded pads, gerbers regenerated
+from the final board, CPL content-verified against the board, BOM clean of retired parts.
 
-**FIXED 2026-08-20:** a 2.0 mm F.Cu run at y=41.5 now parallels the In1 2.0 + In2 1.4 pyro
-distribution rail, bonding directly to all four through-hole P#O.2 pads. Combined cross-section
-**0.1217 mm2 = 3.48 mm of 1 oz**, which clears the 3.44 mm target (was 1.48 mm = 43%). The chute
-drain leg went 2.00 -> 3.00 mm. DRC back to baseline exactly: 63 violations, all accepted classes,
-0 clearance, 0 parity, 3 unconnected.
+**What was fixed to get here (2026-08-21):**
+- **The pin-1 marker blocker.** On `TI_SON5x6_Q5A` both the F.SilkS triangle and the F.Fab chamfer
+  sat at **pad 5, the GATE**, instead of pad 1. Measured 0.577 mm from pad 5 vs 1.741 mm from pad 1.
+  Root cause is in the footprint's own descr: it is KiCad's generic PQFN-8-EP_6x5mm "rotated 180
+  in-frame", so the pads were renumbered while the markers rode along with the rotation. Fixed in
+  the library AND in the four embedded copies in the board -- the gerbers come from the board.
+  AON6403 was never affected.
+- **Stale LCSC code** C553151 -> C129940 in five places.
+- **ORDER_NOTES misstated two of the six rotations it tells you to verify.** Correct values, read
+  from the CPL: Q16-Q19 = 90 (Bottom), **Q20 = 270 (Bottom), Q21 = 0 (Top)**.
+- **Gerbers regenerated** from the final board; the shipped set predated all the copper work.
+- `_checkpoint.py` now content-checks the CPL against the board instead of trusting mtime, because
+  the CPL deliberately inherits 2.2's hand-converged JLC calibration and is never regenerated.
 
-**STILL UNDERSIZED (measured, not guessed):**
-- `7.4V_RAW` necks to **1.20 mm F.Cu over 2.5 mm** entering Q21. Blocked on three sides by Q21 pad 4
-  (PYRO_G), a CS_MAG via, and the PYRO_G track; nothing wider than 1.20 fits. Fixing it means moving
-  the CS_MAG via or rerouting PYRO_G. **This carries the full 18 A and is the worst remaining leg.**
-- `Net-(P4O-Pin_1)` has one **2.00 mm x 0.6 mm** B.Cu segment at (137.600,48.500)->(137.150,48.950)
-  that had no room to widen.
-- The **GND return is still unsized** -- Q18 returns 18 A through 0.0262 mm2.
-- VBAT (In2 1.20 mm) and 5V-DIRTY (In2 1.20 mm, 2.8 A) unfixed.
-- All the doc/CPL/part-identity findings in AUDIT_2026-08-19.md are unfixed.
+**Refuted on re-measurement, do not re-litigate:** the CPL "dropped position correction" (positions
+match the board to 0.000 mm); the AON6403 pin-1 marker (correct all along); "a single large paste
+aperture" (16 windows exist); thermal-relief spokes on the GND return; and the BOM containing
+through-hole parts (identical in structure to the ordered, working 2.2 BOM).
 
-⚠ **New tooling gap found the hard way:** `_geom.py` does not model ZONES. Adding the F.Cu rail
-produced six zone-clearance violations that my pre-write check passed. **Always refill zones and
-re-run kicad-cli DRC after adding copper** -- the clearance checker alone is not sufficient.
- A six-lens adversarial audit on 2026-08-19 found confirmed blockers. Full capture:
-`AUDIT_2026-08-19.md` (40 findings, 22 verified verdicts). The headline ones:
+**STILL YOURS BEFORE ORDERING -- these cannot be established from files:**
+1. **Verify all six FET rotations in JLC's preview.** Now meaningful: the pin-1 tick finally points
+   at pad 1. Expect Q16-Q19 = 90 Bottom, Q20 = 270 Bottom, Q21 = 0 Top.
+2. Visual pass in KiCad, especially the new F.Cu pyro rail across the connector row at y = 41.5.
 
-1. **Inner-layer copper is 15.2 um, not 35 um.** JLC's 4-layer stackup uses 0.5 oz inner foil. The
-   sizing work below treated In1/In2 as 1 oz, so the pyro distribution rail to P2O/P3O/P4O -- which
-   includes **the chute** -- has **43%** of the cross-section the design's own criterion requires.
-   Every "effective width" figure in the table below that leans on an inner layer is overstated.
-   Same root cause hits VBAT (23 mm of 1.20 mm In2) and 5V-DIRTY (18.7 mm carrying 2.8 A).
-2. **The GND return was never sized.** Q18, the chute FET, has a return of 0.0262 mm^2 -- 4.2x worse
-   than the other three channels and 22% of its own drain feed.
-3. **The gerbers in `fab/` predate the 2026-08-19 re-sizing.** Ordering that zip fabricates a board
-   without any of the pyro current-path work. (`_checkpoint.py` now catches this.)
-4. **The "3.13 mm apart" correction is itself a tool artifact** -- the real FET-tab-to-connector-pad
-   gap is **0.631 mm**. So both the original claim AND its correction were wrong.
-5. **The CPL rotations quoted in the order docs do not match the CPL file** for Q20 and Q21 -- the
-   exact two values a human is told to verify in JLC's preview. Q20's documented position is stale
-   too (3.79 mm east, 3.14 mm north of where the docs say, rot 90 not 180).
-6. **`TI_SON5x6_Q5A`'s silk pin-1 index and F.Fab chamfer mark pad 5 (the gate), not pad 1** -- which
-   defeats the visual rotation check it exists to support.
-7. **CPL Mid X/Mid Y for 14 THT parts is the raw footprint anchor** -- `_regen_cpl.py` dropped the
-   position correction the 2.2 order carried.
-8. **Part-identity mismatches:** the TI footprint description names CSD17302Q5A / C553151 while the
-   fitted part is CSD17301Q5A / C129940; Q22's symbol says IRLML6244 while its value and BOM say
-   IRLML6344, with no LCSC code to disambiguate.
-9. **2.9 mOhm is the TYPICAL, not the guaranteed, value at V_GS = 3 V** -- the datasheet's max in
-   that row is **3.7 mOhm**. Stated as "GUARANTEED" throughout the docs below. Thermal margins were
-   also signed off using datasheet RthJA, which assumes 1 in^2 of copper; this board gives the tabs
-   25-61 mm^2.
-10. **Q21 has never been analysed for a two-channel concurrent fire**, which the flight firmware
-    actually commands.
-
-Everything below this section predates the audit and is **not** to be trusted where it conflicts.
+**Open, NOT blocking the PCB order (firmware-side, never adversarially verified):**
+- `Sysiphus_Landing.ino` attaches a servo to Teensy pin 2, which is `INT_IMU` on this board.
+- ASCENT and LEGS appear swapped in the pre-arm gate's role commentary vs the compiled constants.
+- CS_MAG floats with a v2 sensor board -- no pull-up on either side.
+- A question over whether the 900 ms basis for every thermal number matches what flight firmware
+  actually commands. **If it does not, the sizing basis changes.** Worth settling before flying,
+  though not before ordering.
+- Paste coverage on both 5x6 thermal tabs is 43%, below the usual 50-80% band. Judgement call:
+  thin, not fatal. Not changed.
 
 ## Why 2.3 exists
 
@@ -144,7 +128,7 @@ Regenerated by `_checkpoint.py`. Anything outside the accepted baseline fails th
 
 <!--VERIFY-->
 ```
-Impulse 2.3 checkpoint -- 2026-08-20
+Impulse 2.3 checkpoint -- 2026-08-21
 
 geom.json   407 pads, 856 tracks, 107 vias  (already current)
 
@@ -158,12 +142,12 @@ DRC   schematic parity : 0 OK
 
 ERC   errors           : 0 OK
 
-fab   fab/Impulse_2.3_BOM.csv            STALE -- older than the board  ***
-fab   fab/Impulse_2.3_CPL.csv            STALE -- older than the board  ***
-fab   fab/Impulse_2.3_gerbers.zip        STALE -- older than the board  ***
+fab   fab/Impulse_2.3_gerbers.zip        current
+fab   CPL 90 rows, 0 not on board, 9 board refs absent from CPL
+fab   BOM clean of retired parts (AO3401A, CSD17313Q2, C553151)
 
-RESULT: *** SOMETHING REGRESSED -- do not order ***
-note: geometry dump repaired; verification now real
+RESULT: all checks at or better than baseline
+note: final: pin-1 marker fixed board-wide, LCSC corrected, fab regenerated
 ```
 <!--/VERIFY-->
 

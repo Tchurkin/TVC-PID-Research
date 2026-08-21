@@ -3,7 +3,7 @@
 	(generator "pcbnew")
 	(generator_version "10.0")
 	(layer "F.Cu")
-	(descr "TI SON 5x6 (Q5A) power MOSFET land pattern (from KiCad PQFN-8-EP_6x5mm_P1.27mm_Generic, rotated 180 in-frame). Pad 1=DRAIN tab, 5=GATE, 6,7,8=SOURCE. For CSD17302Q5A, LCSC C553151.")
+	(descr "TI SON 5x6 (Q5A) power MOSFET land pattern (from KiCad PQFN-8-EP_6x5mm_P1.27mm_Generic, rotated 180 in-frame). Pad 1=DRAIN tab, 5=GATE, 6,7,8=SOURCE. For CSD17301Q5A, LCSC C129940.")
 	(tags "SON5x6 Q5A power mosfet TI")
 	(property "Reference" "REF**"
 		(at 0 3.5 0)

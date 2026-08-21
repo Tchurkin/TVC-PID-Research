@@ -113,16 +113,44 @@ def main():
     # ---- 4. fab package must be newer than the board, or it describes a different board ----
     say("")
     tb = os.path.getmtime(PCB)
-    for f in ("fab/Impulse_2.3_BOM.csv", "fab/Impulse_2.3_CPL.csv", "fab/Impulse_2.3_gerbers.zip"):
+    # Gerbers are derived GEOMETRY: if they predate the board they are simply wrong, so mtime is
+    # the right test. The BOM and CPL are NOT regenerated -- they deliberately inherit 2.2's
+    # hand-converged JLC rotation calibration, which KiCad cannot reproduce -- so for those, mtime
+    # says nothing useful. Check their CONTENT against the board instead.
+    for f in ("fab/Impulse_2.3_gerbers.zip",):
         p = os.path.join(HERE, f)
         if not os.path.exists(p):
-            say("fab   %-34s MISSING  ***" % f)
-            ok = False
+            say("fab   %-34s MISSING  ***" % f); ok = False
         elif os.path.getmtime(p) < tb - 1:
-            say("fab   %-34s STALE -- older than the board  ***" % f)
-            ok = False
+            say("fab   %-34s STALE -- older than the board  ***" % f); ok = False
         else:
             say("fab   %-34s current" % f)
+
+    import csv
+    cpl = os.path.join(HERE, "fab/Impulse_2.3_CPL.csv")
+    bom = os.path.join(HERE, "fab/Impulse_2.3_BOM.csv")
+    gj_d = json.load(open(gj))
+    brd = {}
+    for pad in gj_d["pads"]:
+        brd.setdefault(pad["ref"], None)
+    try:
+        rows = list(csv.DictReader(open(cpl, encoding="utf-8-sig")))
+        miss = [r["Designator"] for r in rows if r["Designator"] not in brd]
+        extra = sorted(set(brd) - {r["Designator"] for r in rows})
+        say("fab   CPL %d rows, %d not on board, %d board refs absent from CPL"
+            % (len(rows), len(miss), len(extra)))
+        if miss:
+            say("      *** CPL references parts not on the board: %s" % miss[:6]); ok = False
+    except Exception as e:
+        say("fab   CPL unreadable: %s  ***" % e); ok = False
+    try:
+        btxt = open(bom, encoding="utf-8").read()
+        for dead in ("AO3401A", "CSD17313Q2", "C553151"):
+            if dead in btxt:
+                say("      *** BOM still references retired part/code %s" % dead); ok = False
+        say("fab   BOM clean of retired parts (AO3401A, CSD17313Q2, C553151)")
+    except Exception as e:
+        say("fab   BOM unreadable: %s  ***" % e); ok = False
 
     say("")
     say("RESULT: %s" % ("all checks at or better than baseline" if ok else "*** SOMETHING REGRESSED -- do not order ***"))

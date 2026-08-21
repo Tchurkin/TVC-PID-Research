@@ -15883,7 +15883,7 @@
 		(layer "B.Cu")
 		(uuid "1192d290-70b8-4824-aa8b-3cc11e087f15")
 		(at 147.996 48.467 -90)
-		(descr "TI SON 5x6 (Q5A) power MOSFET land pattern (from KiCad PQFN-8-EP_6x5mm_P1.27mm_Generic, rotated 180 in-frame). Pad 1=DRAIN tab, 5=GATE, 6,7,8=SOURCE. For CSD17301Q5A, LCSC C129940.")
+		(descr "TI SON 5x6 (Q5A) power MOSFET land pattern (from KiCad PQFN-8-EP_6x5mm_P1.27mm_Generic, rotated 180 in-frame). Pad 1=DRAIN tab, 5=GATE, 6,7,8=SOURCE. For CSD17301Q5A, LCSC C553151.")
 		(tags "SON5x6 Q5A power mosfet TI")
 		(property "Reference" "Q19"
 			(at 0 -3.5 90)
@@ -15952,7 +15952,7 @@
 		)
 		(fp_line
 			(start 3.1 2.75)
-			(end -2.23 2.75)
+			(end -3.7 2.75)
 			(stroke
 				(width 0.12)
 				(type solid)
@@ -15972,7 +15972,7 @@
 		)
 		(fp_poly
 			(pts
-				(xy -2.74 2.52) (xy -2.98 2.85) (xy -2.5 2.85) (xy -2.74 2.52)
+				(xy 2.74 -2.52) (xy 2.98 -2.85) (xy 2.5 -2.85) (xy 2.74 -2.52)
 			)
 			(stroke
 				(width 0.12)
@@ -15994,8 +15994,8 @@
 			(uuid "54ad690f-1b86-4fdb-adaf-bcc22c801cba")
 		)
 		(fp_line
-			(start 3.3 -2.4)
-			(end 3.3 2.4)
+			(start -3.3 2.4)
+			(end -3.3 -2.4)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -16004,8 +16004,8 @@
 			(uuid "944392f5-5643-4ea5-9b0d-82f23fde6617")
 		)
 		(fp_line
-			(start -3.3 -2.4)
-			(end 3.3 -2.4)
+			(start 3.3 2.4)
+			(end -3.3 2.4)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -16014,8 +16014,8 @@
 			(uuid "55f324fb-08a5-40c3-8c37-c153de4d4f6e")
 		)
 		(fp_line
-			(start -3.3 1.1)
-			(end -3.3 -2.4)
+			(start 3.3 -1.1)
+			(end 3.3 2.4)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -16024,8 +16024,8 @@
 			(uuid "a259aabb-37ef-4981-a54a-0429b779abd2")
 		)
 		(fp_line
-			(start -3.3 1.1)
-			(end -2 2.4)
+			(start 3.3 -1.1)
+			(end 2 -2.4)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -16034,8 +16034,8 @@
 			(uuid "0426f031-74c8-409c-b456-25a1c521a52e")
 		)
 		(fp_line
-			(start 3.3 2.4)
-			(end -2 2.4)
+			(start -3.3 -2.4)
+			(end 2 -2.4)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -16988,7 +16988,7 @@
 		(layer "B.Cu")
 		(uuid "425d086f-8719-4f6e-a191-b8db48498509")
 		(at 138.598 48.467 -90)
-		(descr "TI SON 5x6 (Q5A) power MOSFET land pattern (from KiCad PQFN-8-EP_6x5mm_P1.27mm_Generic, rotated 180 in-frame). Pad 1=DRAIN tab, 5=GATE, 6,7,8=SOURCE. For CSD17301Q5A, LCSC C129940.")
+		(descr "TI SON 5x6 (Q5A) power MOSFET land pattern (from KiCad PQFN-8-EP_6x5mm_P1.27mm_Generic, rotated 180 in-frame). Pad 1=DRAIN tab, 5=GATE, 6,7,8=SOURCE. For CSD17301Q5A, LCSC C553151.")
 		(tags "SON5x6 Q5A power mosfet TI")
 		(property "Reference" "Q18"
 			(at 0 -3.5 90)
@@ -17057,7 +17057,7 @@
 		)
 		(fp_line
 			(start 3.1 2.75)
-			(end -2.23 2.75)
+			(end -3.7 2.75)
 			(stroke
 				(width 0.12)
 				(type solid)
@@ -17077,7 +17077,7 @@
 		)
 		(fp_poly
 			(pts
-				(xy -2.74 2.52) (xy -2.98 2.85) (xy -2.5 2.85) (xy -2.74 2.52)
+				(xy 2.74 -2.52) (xy 2.98 -2.85) (xy 2.5 -2.85) (xy 2.74 -2.52)
 			)
 			(stroke
 				(width 0.12)
@@ -17099,8 +17099,8 @@
 			(uuid "9cbad07d-a8b3-4416-ae79-c5e6edf05c60")
 		)
 		(fp_line
-			(start 3.3 -2.4)
-			(end 3.3 2.4)
+			(start -3.3 2.4)
+			(end -3.3 -2.4)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -17109,8 +17109,8 @@
 			(uuid "9ad9345c-d1b9-4896-bb1b-29358f8fe4a8")
 		)
 		(fp_line
-			(start -3.3 -2.4)
-			(end 3.3 -2.4)
+			(start 3.3 2.4)
+			(end -3.3 2.4)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -17119,8 +17119,8 @@
 			(uuid "bcedea9f-126c-4751-a498-66e96464e0c6")
 		)
 		(fp_line
-			(start -3.3 1.1)
-			(end -3.3 -2.4)
+			(start 3.3 -1.1)
+			(end 3.3 2.4)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -17129,8 +17129,8 @@
 			(uuid "53b519c1-1b36-472d-b909-f5f325ec7f14")
 		)
 		(fp_line
-			(start -3.3 1.1)
-			(end -2 2.4)
+			(start 3.3 -1.1)
+			(end 2 -2.4)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -17139,8 +17139,8 @@
 			(uuid "8b875b7d-4140-47b0-8cc5-c0503a506ca0")
 		)
 		(fp_line
-			(start 3.3 2.4)
-			(end -2 2.4)
+			(start -3.3 -2.4)
+			(end 2 -2.4)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -19272,7 +19272,7 @@
 		(layer "B.Cu")
 		(uuid "91637fbe-b8a2-4914-811e-02b756eafb7d")
 		(at 157.394 48.467 -90)
-		(descr "TI SON 5x6 (Q5A) power MOSFET land pattern (from KiCad PQFN-8-EP_6x5mm_P1.27mm_Generic, rotated 180 in-frame). Pad 1=DRAIN tab, 5=GATE, 6,7,8=SOURCE. For CSD17301Q5A, LCSC C129940.")
+		(descr "TI SON 5x6 (Q5A) power MOSFET land pattern (from KiCad PQFN-8-EP_6x5mm_P1.27mm_Generic, rotated 180 in-frame). Pad 1=DRAIN tab, 5=GATE, 6,7,8=SOURCE. For CSD17301Q5A, LCSC C553151.")
 		(tags "SON5x6 Q5A power mosfet TI")
 		(property "Reference" "Q17"
 			(at 0 -3.5 90)
@@ -19341,7 +19341,7 @@
 		)
 		(fp_line
 			(start 3.1 2.75)
-			(end -2.23 2.75)
+			(end -3.7 2.75)
 			(stroke
 				(width 0.12)
 				(type solid)
@@ -19361,7 +19361,7 @@
 		)
 		(fp_poly
 			(pts
-				(xy -2.74 2.52) (xy -2.98 2.85) (xy -2.5 2.85) (xy -2.74 2.52)
+				(xy 2.74 -2.52) (xy 2.98 -2.85) (xy 2.5 -2.85) (xy 2.74 -2.52)
 			)
 			(stroke
 				(width 0.12)
@@ -19383,8 +19383,8 @@
 			(uuid "3884d5c8-de92-4753-8848-fcb86ee19825")
 		)
 		(fp_line
-			(start 3.3 -2.4)
-			(end 3.3 2.4)
+			(start -3.3 2.4)
+			(end -3.3 -2.4)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -19393,8 +19393,8 @@
 			(uuid "7e6be996-3aea-44c5-bbfe-865fc43e89a0")
 		)
 		(fp_line
-			(start -3.3 -2.4)
-			(end 3.3 -2.4)
+			(start 3.3 2.4)
+			(end -3.3 2.4)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -19403,8 +19403,8 @@
 			(uuid "5075307b-5c99-49e7-b4cc-620ffd93a80e")
 		)
 		(fp_line
-			(start -3.3 1.1)
-			(end -3.3 -2.4)
+			(start 3.3 -1.1)
+			(end 3.3 2.4)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -19413,8 +19413,8 @@
 			(uuid "c88ea7e1-9cab-47d7-8a81-e9c53f4b57fd")
 		)
 		(fp_line
-			(start -3.3 1.1)
-			(end -2 2.4)
+			(start 3.3 -1.1)
+			(end 2 -2.4)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -19423,8 +19423,8 @@
 			(uuid "1b6b0b46-9818-4b6e-a924-c9a0c1302bfe")
 		)
 		(fp_line
-			(start 3.3 2.4)
-			(end -2 2.4)
+			(start -3.3 -2.4)
+			(end 2 -2.4)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -21623,7 +21623,7 @@
 		(layer "B.Cu")
 		(uuid "d4009f13-8570-4f9d-b549-909e3c154c50")
 		(at 166.792 48.467 -90)
-		(descr "TI SON 5x6 (Q5A) power MOSFET land pattern (from KiCad PQFN-8-EP_6x5mm_P1.27mm_Generic, rotated 180 in-frame). Pad 1=DRAIN tab, 5=GATE, 6,7,8=SOURCE. For CSD17301Q5A, LCSC C129940.")
+		(descr "TI SON 5x6 (Q5A) power MOSFET land pattern (from KiCad PQFN-8-EP_6x5mm_P1.27mm_Generic, rotated 180 in-frame). Pad 1=DRAIN tab, 5=GATE, 6,7,8=SOURCE. For CSD17301Q5A, LCSC C553151.")
 		(tags "SON5x6 Q5A power mosfet TI")
 		(property "Reference" "Q16"
 			(at 0 -3.5 90)
@@ -21692,7 +21692,7 @@
 		)
 		(fp_line
 			(start 3.1 2.75)
-			(end -2.23 2.75)
+			(end -3.7 2.75)
 			(stroke
 				(width 0.12)
 				(type solid)
@@ -21712,7 +21712,7 @@
 		)
 		(fp_poly
 			(pts
-				(xy -2.74 2.52) (xy -2.98 2.85) (xy -2.5 2.85) (xy -2.74 2.52)
+				(xy 2.74 -2.52) (xy 2.98 -2.85) (xy 2.5 -2.85) (xy 2.74 -2.52)
 			)
 			(stroke
 				(width 0.12)
@@ -21734,8 +21734,8 @@
 			(uuid "cb6800ea-254d-4077-ae68-608fa2946910")
 		)
 		(fp_line
-			(start 3.3 -2.4)
-			(end 3.3 2.4)
+			(start -3.3 2.4)
+			(end -3.3 -2.4)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -21744,8 +21744,8 @@
 			(uuid "2e4cbf2c-d047-414b-9063-45be47537180")
 		)
 		(fp_line
-			(start -3.3 -2.4)
-			(end 3.3 -2.4)
+			(start 3.3 2.4)
+			(end -3.3 2.4)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -21754,8 +21754,8 @@
 			(uuid "a584bf4c-7417-4b64-8922-ac2fa57dc5e0")
 		)
 		(fp_line
-			(start -3.3 1.1)
-			(end -3.3 -2.4)
+			(start 3.3 -1.1)
+			(end 3.3 2.4)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -21764,8 +21764,8 @@
 			(uuid "9c1a4f99-ee66-4d86-8ec7-d00d4b17f0d6")
 		)
 		(fp_line
-			(start -3.3 1.1)
-			(end -2 2.4)
+			(start 3.3 -1.1)
+			(end 2 -2.4)
 			(stroke
 				(width 0.1)
 				(type solid)
@@ -21774,8 +21774,8 @@
 			(uuid "bc774d5b-9b38-41ac-9a4a-30425015b384")
 		)
 		(fp_line
-			(start 3.3 2.4)
-			(end -2 2.4)
+			(start -3.3 -2.4)
+			(end 2 -2.4)
 			(stroke
 				(width 0.1)
 				(type solid)

@@ -53,13 +53,27 @@ membership changes outside these six parts)
 
   1. ROTATIONS FOR ALL SIX FETs ARE UNVERIFIED. These are new custom footprints
      (Impulse22:AON6403_DFN5x6 and Impulse22:TI_SON5x6_Q5A), so none of 2.2's hand-converged JLC
-     rotation calibration carries over for them. The CPL emits Q21=90 (top), Q16-Q19=90 (bottom)
-     and Q20=180 (bottom) -- i.e. the kicad-cli value plus this board's established +180
-     bottom-side convention, which was re-derived from the rows already in this CPL.
+     rotation calibration carries over for them. Read these values FROM THE CPL FILE, which is
+     authoritative -- an earlier version of this paragraph misstated two of the six:
+
+         Q16, Q17, Q18, Q19   Bottom    90
+         Q20                  Bottom   270      (this note previously said 180 -- WRONG)
+         Q21                  Top        0      (this note previously said  90 -- WRONG)
+
      CHECK ALL SIX IN JLC'S PREVIEW against the board's silk pin-1 ticks before paying. This
      project's own notes call the JLC preview the only ground truth for rotation, and a 180 deg
      error on a pyro FET is a dead channel or a fired-on-power-up channel.
-     Every other CPL row is byte-identical to the 2.2 order placed 2026-08-01.
+
+     ** The pin-1 ticks themselves were WRONG until 2026-08-21. ** On TI_SON5x6_Q5A both the silk
+     triangle and the F.Fab chamfer sat at pad 5 -- the GATE -- instead of pad 1, the drain tab,
+     because the footprint is KiCad's generic PQFN-8-EP_6x5mm rotated 180 in-frame and the pads
+     were renumbered while the markers rode along with the rotation. Fixed in the library AND in
+     the four embedded copies in the board (the gerbers come from the board, not the library).
+     AON6403_DFN5x6 was never affected. If you are looking at a preview rendered from gerbers
+     generated before 2026-08-21, the tick is pointing at the wrong pin.
+
+     Do NOT assume "every other CPL row is byte-identical to the 2.2 order" -- that claim was
+     checked and is false; many non-FET rows carry new positions and rotations.
 
   2. Both new parts are JLCPCB "Extended" (feeder fee), same tier as the CSD17313Q2 they replace.
      Verified present in the JLCPCB assembly library via the partdetail page for each LCSC code.

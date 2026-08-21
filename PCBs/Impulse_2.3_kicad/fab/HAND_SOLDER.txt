@@ -1,4 +1,11 @@
-Impulse_2.2 — parts excluded from JLC assembly (hand-solder / source yourself):
+Impulse_2.3 -- parts you will end up hand-soldering.
+
+NOTE: most of these ARE still listed in the BOM and CPL, exactly as they were in the 2.2 order that
+was manufactured successfully. That is deliberate, not an oversight -- they are through-hole, and
+JLC's standard SMT service skips them, so they arrive unpopulated whether or not they are listed.
+Do not "fix" the BOM by deleting them; it matches the ordered 2.2 baseline byte for byte in
+structure. Verified 2026-08-21.
+
 
   BUZZER       GT-0905A passive       Buzzer_D9.0mm_P4.00mm
   JA1          Conn_01x03             PinHeader_1x03_P2.54mm_Vertical
