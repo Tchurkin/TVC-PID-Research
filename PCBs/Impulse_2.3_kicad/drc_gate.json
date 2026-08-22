@@ -1,7 +1,7 @@
 {
     "$schema": "https://schemas.kicad.org/drc.v1.json",
     "coordinate_units": "mm",
-    "date": "2026-08-21T17:11:28",
+    "date": "2026-08-21T17:09:29",
     "ignored_checks": [
         {
             "description": "Footprint has no courtyard defined",
@@ -104,6 +104,512 @@
         }
     ],
     "violations": [
+        {
+            "description": "Clearance violation (netclass 'PYRO_GATE' clearance 0.3000 mm; actual 0.2279 mm)",
+            "items": [
+                {
+                    "description": "Track [MISO] on In2.Cu, length 1.9010 mm",
+                    "pos": {
+                        "x": 155.0957,
+                        "y": 55.0434
+                    },
+                    "uuid": "12a7c6b6-4cac-4317-9004-488645b3c4b5"
+                },
+                {
+                    "description": "PTH pad 10 [PYRO2] of U1",
+                    "pos": {
+                        "x": 153.969,
+                        "y": 55.288
+                    },
+                    "uuid": "6dc2f663-8b06-4f9a-b8f0-bff7dcdf9ed7"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
+        {
+            "description": "Clearance violation (netclass 'PYRO_GATE' clearance 0.3000 mm; actual 0.2656 mm)",
+            "items": [
+                {
+                    "description": "Track [PYRO_SW] on F.Cu, length 0.1648 mm",
+                    "pos": {
+                        "x": 157.5778,
+                        "y": 54.7633
+                    },
+                    "uuid": "22a71b99-ad51-45ac-838f-5e8ccd75e74c"
+                },
+                {
+                    "description": "PTH pad 9 [PYRO1] of U1",
+                    "pos": {
+                        "x": 156.509,
+                        "y": 55.288
+                    },
+                    "uuid": "a36d8aa7-34a6-4ce2-891b-4e2be72c025f"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
+        {
+            "description": "Clearance violation (netclass 'PYRO_GATE' clearance 0.3000 mm; actual 0.2603 mm)",
+            "items": [
+                {
+                    "description": "Track [PYRO_SW] on F.Cu, length 1.5119 mm",
+                    "pos": {
+                        "x": 157.6943,
+                        "y": 54.8798
+                    },
+                    "uuid": "17b61e20-46d4-4702-92d0-167ab9d5d46f"
+                },
+                {
+                    "description": "PTH pad 9 [PYRO1] of U1",
+                    "pos": {
+                        "x": 156.509,
+                        "y": 55.288
+                    },
+                    "uuid": "a36d8aa7-34a6-4ce2-891b-4e2be72c025f"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
+        {
+            "description": "Clearance violation (netclass 'PYRO_GATE' clearance 0.3000 mm; actual 0.2656 mm)",
+            "items": [
+                {
+                    "description": "PTH pad 9 [PYRO1] of U1",
+                    "pos": {
+                        "x": 156.509,
+                        "y": 55.288
+                    },
+                    "uuid": "a36d8aa7-34a6-4ce2-891b-4e2be72c025f"
+                },
+                {
+                    "description": "Track [PYRO_SW] on F.Cu, length 4.3911 mm",
+                    "pos": {
+                        "x": 157.5778,
+                        "y": 50.3722
+                    },
+                    "uuid": "fd93b3bb-da60-4b1e-9dad-b60167c9d2df"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
+        {
+            "description": "Clearance violation (netclass 'PYRO_GATE' clearance 0.3000 mm; actual 0.2700 mm)",
+            "items": [
+                {
+                    "description": "Track [3.3V] on F.Cu, length 4.9250 mm",
+                    "pos": {
+                        "x": 150.159,
+                        "y": 52.592
+                    },
+                    "uuid": "10618822-ba29-42fa-86a9-9ee4c21e04a4"
+                },
+                {
+                    "description": "PTH pad 11 [PYRO3] of U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 55.288
+                    },
+                    "uuid": "782a9e36-e47f-42c4-bf63-2d6a7189e022"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
+        {
+            "description": "Clearance violation (netclass 'PYRO_GATE' clearance 0.3000 mm; actual 0.2017 mm)",
+            "items": [
+                {
+                    "description": "PTH pad 3V3_1 [3V3_TEENSY] of U1",
+                    "pos": {
+                        "x": 146.349,
+                        "y": 55.288
+                    },
+                    "uuid": "d9238744-134c-4e9a-b7c6-970ef0f74d17"
+                },
+                {
+                    "description": "Track [PYRO4] on B.Cu, length 1.6607 mm",
+                    "pos": {
+                        "x": 145.2223,
+                        "y": 54.094
+                    },
+                    "uuid": "e7b2f86e-53e9-40d5-b061-1c18bc5a11a8"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
+        {
+            "description": "Clearance violation (netclass 'PYRO_GATE' clearance 0.3000 mm; actual 0.2017 mm)",
+            "items": [
+                {
+                    "description": "Track [PYRO4] on B.Cu, length 2.7057 mm",
+                    "pos": {
+                        "x": 145.2223,
+                        "y": 55.7547
+                    },
+                    "uuid": "93795a5e-9805-4316-a86c-4af238eb41d8"
+                },
+                {
+                    "description": "PTH pad 3V3_1 [3V3_TEENSY] of U1",
+                    "pos": {
+                        "x": 146.349,
+                        "y": 55.288
+                    },
+                    "uuid": "d9238744-134c-4e9a-b7c6-970ef0f74d17"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
+        {
+            "description": "Clearance violation (netclass 'PYRO_GATE' clearance 0.3000 mm; actual 0.2690 mm)",
+            "items": [
+                {
+                    "description": "Track [PYRO4] on B.Cu, length 2.4727 mm",
+                    "pos": {
+                        "x": 145.2223,
+                        "y": 54.094
+                    },
+                    "uuid": "8f3c6d0c-57a5-4cee-90be-9225327829a3"
+                },
+                {
+                    "description": "PTH pad 3V3_1 [3V3_TEENSY] of U1",
+                    "pos": {
+                        "x": 146.349,
+                        "y": 55.288
+                    },
+                    "uuid": "d9238744-134c-4e9a-b7c6-970ef0f74d17"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
+        {
+            "description": "Clearance violation (netclass 'PYRO_GATE' clearance 0.3000 mm; actual 0.2713 mm)",
+            "items": [
+                {
+                    "description": "Pad 6 [GND] of Q17 on B.Cu",
+                    "pos": {
+                        "x": 158.029,
+                        "y": 51.192
+                    },
+                    "uuid": "aa44cfbb-9c95-4058-9f57-204f6589821d"
+                },
+                {
+                    "description": "Track [PYRO2] on B.Cu, length 3.6613 mm",
+                    "pos": {
+                        "x": 159.299,
+                        "y": 51.305
+                    },
+                    "uuid": "d441e71a-3809-48d9-9b8e-263738491dbe"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
+        {
+            "description": "Clearance violation (netclass 'PYRO_GATE' clearance 0.3000 mm; actual 0.2257 mm)",
+            "items": [
+                {
+                    "description": "PTH pad 9 [PYRO1] of U1",
+                    "pos": {
+                        "x": 156.509,
+                        "y": 55.288
+                    },
+                    "uuid": "a36d8aa7-34a6-4ce2-891b-4e2be72c025f"
+                },
+                {
+                    "description": "Track [SERVOY] on In2.Cu, length 1.2712 mm",
+                    "pos": {
+                        "x": 157.6357,
+                        "y": 55.0544
+                    },
+                    "uuid": "ee52ab7c-9187-4867-af80-021f04e67097"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
+        {
+            "description": "Clearance violation (netclass 'PYRO_GATE' clearance 0.3000 mm; actual 0.2018 mm)",
+            "items": [
+                {
+                    "description": "PTH pad 9 [PYRO1] of U1",
+                    "pos": {
+                        "x": 156.509,
+                        "y": 55.288
+                    },
+                    "uuid": "a36d8aa7-34a6-4ce2-891b-4e2be72c025f"
+                },
+                {
+                    "description": "Track [SERVOY] on In2.Cu, length 0.9332 mm",
+                    "pos": {
+                        "x": 156.9758,
+                        "y": 56.4147
+                    },
+                    "uuid": "f8d5bf13-d47f-47e4-b505-66a218e04418"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
+        {
+            "description": "Clearance violation (netclass 'PYRO_GATE' clearance 0.3000 mm; actual 0.2017 mm)",
+            "items": [
+                {
+                    "description": "Track [SERVOY] on In2.Cu, length 1.5722 mm",
+                    "pos": {
+                        "x": 147.7623,
+                        "y": 55.7547
+                    },
+                    "uuid": "870dfa3d-0c63-4b63-8224-d3f01405d3b7"
+                },
+                {
+                    "description": "PTH pad 12 [PYRO4] of U1",
+                    "pos": {
+                        "x": 148.889,
+                        "y": 55.288
+                    },
+                    "uuid": "fc6b51d9-2f1f-4906-a274-8ef0cf6b06b7"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
+        {
+            "description": "Clearance violation (netclass 'PYRO_GATE' clearance 0.3000 mm; actual 0.2017 mm)",
+            "items": [
+                {
+                    "description": "PTH pad 9 [PYRO1] of U1",
+                    "pos": {
+                        "x": 156.509,
+                        "y": 55.288
+                    },
+                    "uuid": "a36d8aa7-34a6-4ce2-891b-4e2be72c025f"
+                },
+                {
+                    "description": "Track [SERVOY] on In2.Cu, length 0.7004 mm",
+                    "pos": {
+                        "x": 157.6357,
+                        "y": 55.7548
+                    },
+                    "uuid": "c890072c-2c25-4a23-82f3-c66d8584e8b4"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
+        {
+            "description": "Clearance violation (netclass 'PYRO_GATE' clearance 0.3000 mm; actual 0.2017 mm)",
+            "items": [
+                {
+                    "description": "Track [SERVOY] on In2.Cu, length 0.7089 mm",
+                    "pos": {
+                        "x": 147.7623,
+                        "y": 55.0458
+                    },
+                    "uuid": "791d8539-a687-47d3-832d-b090cbbcd5ce"
+                },
+                {
+                    "description": "PTH pad 12 [PYRO4] of U1",
+                    "pos": {
+                        "x": 148.889,
+                        "y": 55.288
+                    },
+                    "uuid": "fc6b51d9-2f1f-4906-a274-8ef0cf6b06b7"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
+        {
+            "description": "Clearance violation (netclass 'PYRO_GATE' clearance 0.3000 mm; actual 0.2017 mm)",
+            "items": [
+                {
+                    "description": "Track [SERVOY] on In2.Cu, length 1.8791 mm",
+                    "pos": {
+                        "x": 155.0967,
+                        "y": 56.4147
+                    },
+                    "uuid": "5f4f82af-49b4-4ef0-8190-2de3ff326b4a"
+                },
+                {
+                    "description": "PTH pad 9 [PYRO1] of U1",
+                    "pos": {
+                        "x": 156.509,
+                        "y": 55.288
+                    },
+                    "uuid": "a36d8aa7-34a6-4ce2-891b-4e2be72c025f"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
+        {
+            "description": "Clearance violation (netclass 'PYRO_GATE' clearance 0.3000 mm; actual 0.2017 mm)",
+            "items": [
+                {
+                    "description": "PTH pad 10 [PYRO2] of U1",
+                    "pos": {
+                        "x": 153.969,
+                        "y": 55.288
+                    },
+                    "uuid": "6dc2f663-8b06-4f9a-b8f0-bff7dcdf9ed7"
+                },
+                {
+                    "description": "Track [MISO] on In2.Cu, length 0.7114 mm",
+                    "pos": {
+                        "x": 155.0957,
+                        "y": 55.7548
+                    },
+                    "uuid": "cb8e3824-9464-4ac1-a3e9-43b8f932a194"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
+        {
+            "description": "Clearance violation (netclass 'PYRO_GATE' clearance 0.3000 mm; actual 0.2017 mm)",
+            "items": [
+                {
+                    "description": "PTH pad 10 [PYRO2] of U1",
+                    "pos": {
+                        "x": 153.969,
+                        "y": 55.288
+                    },
+                    "uuid": "6dc2f663-8b06-4f9a-b8f0-bff7dcdf9ed7"
+                },
+                {
+                    "description": "Track [MISO] on In2.Cu, length 3.4735 mm",
+                    "pos": {
+                        "x": 150.9623,
+                        "y": 56.4147
+                    },
+                    "uuid": "c05944a7-05d6-4c01-9931-670bfb0bd843"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
+        {
+            "description": "Clearance violation (netclass 'PYRO_GATE' clearance 0.3000 mm; actual 0.2017 mm)",
+            "items": [
+                {
+                    "description": "PTH pad 11 [PYRO3] of U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 55.288
+                    },
+                    "uuid": "782a9e36-e47f-42c4-bf63-2d6a7189e022"
+                },
+                {
+                    "description": "Track [MISO] on In2.Cu, length 0.9334 mm",
+                    "pos": {
+                        "x": 150.3023,
+                        "y": 55.7547
+                    },
+                    "uuid": "99c7c034-40f1-4f0d-a96f-0154bb17aa8e"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
+        {
+            "description": "Clearance violation (netclass 'PYRO_GATE' clearance 0.3000 mm; actual 0.2287 mm)",
+            "items": [
+                {
+                    "description": "Track [MISO] on In2.Cu, length 1.8983 mm",
+                    "pos": {
+                        "x": 148.96,
+                        "y": 53.6977
+                    },
+                    "uuid": "6a22a4a5-e3e4-437f-9537-d6d733a9c1f7"
+                },
+                {
+                    "description": "PTH pad 11 [PYRO3] of U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 55.288
+                    },
+                    "uuid": "782a9e36-e47f-42c4-bf63-2d6a7189e022"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
+        {
+            "description": "Clearance violation (netclass 'PYRO_GATE' clearance 0.3000 mm; actual 0.2017 mm)",
+            "items": [
+                {
+                    "description": "PTH pad 11 [PYRO3] of U1",
+                    "pos": {
+                        "x": 151.429,
+                        "y": 55.288
+                    },
+                    "uuid": "782a9e36-e47f-42c4-bf63-2d6a7189e022"
+                },
+                {
+                    "description": "Track [MISO] on In2.Cu, length 0.7147 mm",
+                    "pos": {
+                        "x": 150.3023,
+                        "y": 55.04
+                    },
+                    "uuid": "96bf7ddd-b45a-4fb4-a431-863220271486"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
+        {
+            "description": "Clearance violation (netclass 'PYRO_GATE' clearance 0.3000 mm; actual 0.2018 mm)",
+            "items": [
+                {
+                    "description": "PTH pad 10 [PYRO2] of U1",
+                    "pos": {
+                        "x": 153.969,
+                        "y": 55.288
+                    },
+                    "uuid": "6dc2f663-8b06-4f9a-b8f0-bff7dcdf9ed7"
+                },
+                {
+                    "description": "Track [MISO] on In2.Cu, length 0.9332 mm",
+                    "pos": {
+                        "x": 154.4358,
+                        "y": 56.4147
+                    },
+                    "uuid": "be0d7d4c-ea9c-436a-9c1f-57c2e0172cda"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
+        {
+            "description": "Clearance violation (netclass 'PYRO_GATE' clearance 0.3000 mm; actual 0.2274 mm)",
+            "items": [
+                {
+                    "description": "Track [SERVOY] on In2.Cu, length 1.2591 mm",
+                    "pos": {
+                        "x": 146.872,
+                        "y": 54.1555
+                    },
+                    "uuid": "b78567a7-2c05-4e52-abaa-aaf65b3657b1"
+                },
+                {
+                    "description": "PTH pad 12 [PYRO4] of U1",
+                    "pos": {
+                        "x": 148.889,
+                        "y": 55.288
+                    },
+                    "uuid": "fc6b51d9-2f1f-4906-a274-8ef0cf6b06b7"
+                }
+            ],
+            "severity": "error",
+            "type": "clearance"
+        },
         {
             "description": "Courtyards overlap",
             "items": [

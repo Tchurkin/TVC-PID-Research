@@ -47,6 +47,80 @@ through-hole parts (identical in structure to the ordered, working 2.2 BOM).
 - Paste coverage on both 5x6 thermal tabs is 43%, below the usual 50-80% band. Judgement call:
   thin, not fatal. Not changed.
 
+
+## The four open questions - CLOSED 2026-08-21
+
+Measured on repaired geometry. Full report: AUDIT_2026-08-21_gaps.md. **The adversarial verifier died
+on an SSL error, so none of this was independently re-checked by the process intended to do it.** The
+report agent re-derived the structural claims from files; modelled numbers are named as models.
+
+**1. GND return, including Q18 (the chute) - CLEAN, no action.** The pour was solved as a four-layer
+resistive sheet (212k nodes, 0.491 mOhm/sq outer, 1.132 inner, 18 A in at each FET source, out at
+PI.2). Q18 is the worst channel and still fine: pour drop **55.2 mV**, R_pour **3.07 mOhm**. Worst
+V_GS induced on a NON-firing gate is **6.40 mV** against a ~1.0 V threshold - a **156x** margin.
+Zones are connect_pads yes (solid, no thermal relief), which is why. The earlier "0.0262 mm^2 /
+4.2x worse" figure came from the stale dump and is REFUTED.
+
+**2. VBAT / 5V-DIRTY - a real rule error, but a loss issue, not a hazard. Not order-blocking.**
+The 1.2 mm continuous-rail rule was derived for 1 oz and applied unchanged to 0.5 oz inner copper, so
+~94 mm runs at **2.30x** the intended current density. Measured rise, from a model calibrated to
+reproduce IPC-2221 external within 1 C: **6.0 C** (21.3 C even with every plane deleted). Both the
+202 C and 42 C figures from 2026-08-19 are REFUTED. Real consequence: servos see ~4.90 V at 2.8 A
+stall and SERVO_V_SENSE reads ~150 mV optimistic. VBAT_RAW is clean. A verified no-new-drill VBAT
+improvement exists (F.Cu 0.90 mm, 29.90 mm, on existing vias). 5V-DIRTY has NO parallel path - its
+problem is length (77.9 mm against a 26 mm straight-line need), not width. Do not widen it.
+
+**3. Pyro safety - hold-off is well built.** R50-R53 = 10k all present and correctly netted; leakage
+V_GS <= 10 mV; Miller 5-15 uV because C15 deliberately slows the rail; SW2 is a correct series
+high-side arm carrying no pyro current, fail-open = disarm. Continuity sense draws **0.563 mA**
+through a 0.30 ohm igniter - a **444x** margin on a 250 mA no-fire. The two packs are genuinely
+disjoint, so a fire cannot brown out the flight computer.
+
+**4. Thermal - solo fire is fine; TWO-CHANNEL CONCURRENT FIRE IS NOT.**
+Measured transient impedance on real copper (3-D FD, converged, energy conservation exact, three
+analytic controls passed): **Zth(1.0 s) = 26.08 K/W** for Q21. The README sign-off back-solves to
+7.9 K/W - the datasheet RthJA, which assumes 1 in^2 of copper the 20.07 mm^2 tab does not have.
+**Zero thermal vias in any of the six FET tabs.**
+
+| case | current | P | Tj |
+|---|---|---|---|
+| solo, 7.4 V / 25 C | 17.96 A | 1.71 W | 72.3 C OK |
+| solo, 8.4 V / 40 C pad | 20.34 A | 2.53 W | 109.9 C OK |
+| concurrent chute+legs, 7.4 V | 28.60 A | 6.83 W | **213.3 C OVER** |
+| concurrent, 8.4 V / 40 C pad | 32.03 A | 12.12 W | **374.2 C OVER** |
+
+Q21 is the single high-side FET for all four channels, and firmware fires chute and legs back-to-back
+at three sites in Ascent_TVC.ino plus Sysiphus_Landing.ino:848. **Also: the ascent firmware commands
+1000 ms, not the 900 ms every number on this board was sized for.**
+**The fix is firmware and free: stagger the two triggerPyro() calls by more than 1.0 s.** That turns
+the worst case into two solo pulses. 9 thermal vias in Q21's tab would take Zth to 15.86 K/W but are
+NOT sufficient alone (180.6 C at 8.4 V), and they need care - the tab is on net 7.4V while the
+surrounding pours are GND, so a careless via shorts the pyro rail to ground. Not attempted.
+
+## Judgement call made AGAINST the report
+
+The report called the chute gate's **0.202 mm** clearance to the permanently-live 3V3 pad an
+order-blocker, because PYRO1-PYRO4 and PYRO_G match no netclass pattern and fall through to Default =
+0.200 mm. The adjacency is real and was reproduced independently. **It was NOT treated as a blocker**,
+for three reasons: those gaps PREDATE any change (never reported because 0.2017 is just above the
+0.200 threshold); the same header fan-out geometry is on the fabricated, working 2.2; and 0.2 mm is
+far inside JLC's 0.127 mm capability, so the actual failure mode is a hand-solder BRIDGE between
+header pins, which more track spacing does not prevent. A PYRO_GATE class was trialled at 0.30 mm
+(22 violations) and 0.25 mm (17) and reverted - meeting it needs a re-route of the densest area on
+the board to address a risk it does not mitigate.
+**The right mitigation is firmware:** before pinMode(P1..P4, OUTPUT), set all four to INPUT and read
+them. The 10k pulldowns mean they must read LOW; any HIGH is a hard refuse-to-arm. That catches a
+bridge, a stuck-high pad, and gate-to-gate shorts, for microseconds of boot time.
+
+## Firmware items - do not fly without settling these
+
+- **FAILURE_MODES B8 promises a motor interlock that no longer exists.** The pin != P3 carve-out was
+  deleted from triggerPyro(); regression.py:1068 now asserts the OPPOSITE. Five surfaces disagree.
+- **Stagger the concurrent chute+legs fire** - closes the Q21 thermal blocker, costs nothing.
+- **Add the pin-read-before-drive check** at Ascent_TVC.ino:3616.
+- Sysiphus_Landing.ino attaches a servo to Teensy pin 2, which is INT_IMU.
+- 1000 ms vs 900 ms: either re-size for 1000 ms or command 900.
+
 ## Why 2.3 exists
 
 Q21, the pyro rail arm switch on the fabricated 2.2, **burned out on the bench**. Root cause: the
