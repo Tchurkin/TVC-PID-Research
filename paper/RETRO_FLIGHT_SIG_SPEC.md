@@ -341,6 +341,63 @@ p-value, and the card has never been triaged. Every additional *labelled* flight
 2/3 → p_min 0.100 (today), 3/3 → 0.050, 4/4 → 0.014. One more flight of each class would take this
 result below 0.05 with no new hardware, no new launch, and no change to the frozen rule.
 
+## AMENDMENT 2026-08-21 — two new flights, and they are PROSPECTIVE
+
+Two flights on 2026-08-16, `ASC045` and `ASC046`. Both **aborted** — tilt abort at 50.4° and a rate
+abort respectively — and both came home under canopy. The recovery chain worked; the control did not.
+Gimbal saturated 34.3% and 56.3% of the burn; roll reached 109° and 466°.
+
+**These are stronger evidence than the five retrospective flights.** The rule was frozen and committed
+at `5f49641` on **2026-08-09**; these flights happened **seven days later**. That makes them a
+genuinely **prospective, out-of-sample** prediction rather than a retrospective application — the
+strongest form this test can take. §7 should say so.
+
+### Ruling on blinding
+The engineer had computed boost-window RMS while root-causing the aborts, so the labels are **not
+blind to the diagnostic**, and he flagged it rather than hiding it.
+
+**The labels stand**, because blind labelling was never this pre-registration's protection — threat T5
+above says so explicitly. The protection is that **no parameter is fit on flight data** and the
+threshold predates the flights by a week. Seeing an RMS afterwards cannot move a committed constant.
+
+The labelling evidence is also independent of the statistic: **an abort fired on each**, which is a
+hardware event the firmware records. "The vehicle aborted" is the definition of not-controlled and
+owes nothing to the diagnostic.
+
+**Required disclosure in §7:** the labeller had seen the RMS before labelling. State it as a
+limitation. Do not describe any part of this test as blind.
+
+### ⚠ ASC046 is NOT SCORED, and may be a MISS
+Axial acceleration goes negative at t = 3.00 s with `thrust_scale = 0.400` — thrust ended ~0.6 s early
+— and the divergence starts exactly there. So the pre-registered `Phase==1` window is marking the
+firmware's *belief* about powered flight rather than powered flight, and the 10.43° figure averages
+the powered phase together with a post-thrust tumble. TVC has no authority without thrust; the
+diagnostic is not entitled to score that.
+
+**Recomputing on a powered-only window may push ASC046 below 5.62° and make it a miss.** That is
+precisely why it is computed *before* scoring. When it exists, report **both**: `Phase==1` as the
+pre-registered primary, powered-only as a **declared sensitivity analysis** motivated by the
+documented thrust anomaly — not by the result.
+
+### ⚠ The reported RMS values cannot be scored as-is
+12.38° and 10.43° were computed by hand while root-causing. They are **not comparable to the 5.62°
+threshold** unless produced by `tools/retro_flight_signature.py`, which does something specific:
+roll-aware quaternion replay from `AngVelX/Y` plus differenced `GyroZ`, **per-axis**, then the **worse
+axis**. Not total tilt magnitude, not the as-logged estimate. The CSVs must land in `Rocket data/` and
+go through the frozen tool.
+
+Useful side-effect: both flew the quaternion estimator, so the as-logged and replayed passes should
+**agree** — a free check on the replay that ASC007/ASC031 could not provide, since those flew the
+naive estimator.
+
+### ⚠ Do not chase the p-value
+If both score FAILING the archive becomes 2 healthy / 5 failed — perfect separation, p = 1/C(7,2) =
+**0.048**. Recorded here **before the answer is known**: crossing 0.05 is not a discovery, the
+evidential difference between p = 0.100 and p = 0.048 is negligible, and neither is a reason to keep a
+contaminated number. If ASC046's powered-only window makes it a miss, that is the result.
+
+---
+
 ## Verdict on C-FLIGHT
 
 **Not falsified.** The signature separated 5 of 5 archived flights on the pre-registered rule, with a
